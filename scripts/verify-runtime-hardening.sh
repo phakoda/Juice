@@ -5,6 +5,7 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 
 required=(
   app/JuiceArchitectureRouting.m
+  app/JuiceGeometryHardening.m
   app/JuiceLaunchHardening.m
   app/JuiceRuntimeHardening.m
   app/JuiceWin32Bootstrap.m
@@ -19,8 +20,8 @@ done
 # The hardening modules are intentionally separate from the large controller.
 # Guard against a build-script cleanup accidentally dropping one of them.
 for source in \
-  JuiceArchitectureRouting.m JuiceLaunchHardening.m JuiceRuntimeHardening.m \
-  JuiceWin32Bootstrap.m JuiceWindowActivation.m; do
+  JuiceArchitectureRouting.m JuiceGeometryHardening.m JuiceLaunchHardening.m \
+  JuiceRuntimeHardening.m JuiceWin32Bootstrap.m JuiceWindowActivation.m; do
   grep -Fq "app/$source" "$ROOT/scripts/build-app.sh" || {
     echo "build-app.sh does not compile $source" >&2
     exit 3
@@ -40,6 +41,12 @@ grep -Fq 'frame.generation != generation' "$ROOT/app/JuiceRuntimeHardening.m"
 grep -Fq 'existing.width == message.width' "$ROOT/app/JuiceRuntimeHardening.m"
 grep -Fq 'memcpy(existing.bytes.mutableBytes, data.bytes, data.length)' "$ROOT/app/JuiceRuntimeHardening.m"
 
+# HELLO/window metadata must not be able to bypass the frame-size cap by asking
+# UIKit to allocate an absurdly large compositor surface.
+grep -Fq 'JUICE_MAX_DESKTOP_PIXELS' "$ROOT/app/JuiceGeometryHardening.m"
+grep -Fq 'DISPLAY_GEOMETRY_REJECTED kind=desktop' "$ROOT/app/JuiceGeometryHardening.m"
+grep -Fq 'DISPLAY_GEOMETRY_REJECTED kind=window' "$ROOT/app/JuiceGeometryHardening.m"
+
 # ZIP extraction must stream deflate output using bounded heap storage. A large
 # automatic array here is unsafe on GCD worker stacks and was a prior regression.
 grep -Fq 'malloc(JZIOChunkSize)' "$ROOT/app/JuiceZip.m"
@@ -56,6 +63,8 @@ grep -Fq 'posix_spawn_file_actions_addchdir_np' "$ROOT/app/JuiceLaunchHardening.
 grep -Fq 'POSIX_SPAWN_SETPGROUP' "$ROOT/app/JuiceLaunchHardening.m"
 grep -Fq 'POSIX_SPAWN_CLOEXEC_DEFAULT' "$ROOT/app/JuiceLaunchHardening.m"
 grep -Fq 'waitpid(childPID' "$ROOT/app/JuiceLaunchHardening.m"
+grep -Fq 'WINE_SERVER_RUNTIME_SWITCH' "$ROOT/app/JuiceArchitectureRouting.m"
+grep -Fq 'kill(server, SIGKILL)' "$ROOT/app/JuiceArchitectureRouting.m"
 if grep -Eq '(^|[^A-Za-z_])chdir\(' "$ROOT/app/JuiceLaunchHardening.m"; then
   echo "Launch hardening must not change the host process working directory." >&2
   exit 5
@@ -65,6 +74,7 @@ fi
 # Keep i386 routing conditional on the packaged runtime and expose HODLL for
 # nested 32-bit helpers launched by otherwise 64-bit Windows applications.
 grep -Fq 'runtime/lib/wine/i386-windows/ntdll.dll' "$ROOT/app/JuiceArchitectureRouting.m"
+grep -Fq 'runtime/lib/wine/i386-windows/kernel32.dll' "$ROOT/app/JuiceArchitectureRouting.m"
 grep -Fq 'HODLL=libwow64fex.dll' "$ROOT/app/JuiceArchitectureRouting.m"
 grep -Fq 'drive_c/windows/syswow64' "$ROOT/app/JuiceWin32Bootstrap.m"
 grep -Fq 'libwow64fex.dll' "$ROOT/app/JuiceWin32Bootstrap.m"
