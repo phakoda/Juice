@@ -43,6 +43,7 @@ mkdir -p "$OUT"
   "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
   "$ROOT/app/JuiceFramebufferFix.m" "$ROOT/app/JuiceBootProgress.m" \
   "$ROOT/app/JuiceBootOverlayVisibility.m" "$ROOT/app/JuiceRuntimeHardening.m" \
+  "$ROOT/app/JuiceLaunchHardening.m" \
   -framework UIKit -framework Foundation -framework QuartzCore \
   -framework CoreGraphics -framework CoreFoundation -lz -o "$OUT/Juice"
 cp "$ROOT/config/Info.plist" "$OUT/Info.plist"
