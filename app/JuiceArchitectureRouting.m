@@ -153,8 +153,10 @@ static void JuiceArchitectureLaunchRequested(id self, SEL _cmd)
 static NSArray *JuiceArchitectureEnvironment(id self, SEL _cmd)
 {
     NSArray *base = JuiceOriginalEnvironment ? JuiceOriginalEnvironment(self, _cmd) : @[];
-    uint16_t machine = [objc_getAssociatedObject(self, &JuiceSelectedMachineKey) unsignedShortValue];
-    if (machine != JUICE_PE_I386) return base;
+    if (![JuiceArchValue(self, @"usingX64") boolValue]) return base;
+
+    NSString *grape = JuiceArchValue(self, @"grape");
+    if (!JuiceWin32RuntimeReady(grape, NULL)) return base;
 
     NSMutableArray *environment = [base mutableCopy] ?: [NSMutableArray array];
     BOOL found = NO;
@@ -169,7 +171,12 @@ static NSArray *JuiceArchitectureEnvironment(id self, SEL _cmd)
         }
     }
     if (!found) [environment addObject:@"HODLL=libwow64fex.dll"];
-    [environment addObject:@"JUICE_EXPERIMENTAL_WIN32=1"];
+    if (![environment containsObject:@"JUICE_EXPERIMENTAL_WIN32=1"])
+        [environment addObject:@"JUICE_EXPERIMENTAL_WIN32=1"];
+
+    uint16_t machine = [objc_getAssociatedObject(self, &JuiceSelectedMachineKey) unsignedShortValue];
+    JuiceArchAppend(self, [NSString stringWithFormat:
+        @"WIN32_TRANSLATOR_ENV enabled=1 top_machine=0x%04x nested_processes=1\n", machine]);
     return environment;
 }
 
