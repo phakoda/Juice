@@ -14,3 +14,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify source tree and Wine patch
         run: make verify
+
+  app-build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Juice for iPhoneOS
+        run: make app
+      - name: Run ZIP extractor regressions
+        run: bash scripts/test-zip-extractor-host.sh
