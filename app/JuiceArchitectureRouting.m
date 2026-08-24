@@ -142,8 +142,8 @@ static void JuiceArchitectureLaunchRequested(id self, SEL _cmd)
     if (translated && !experimentalEnabled)
     {
         JuiceRejectArchitecture(self, win32
-            ? @"This is a 32-bit x86 app. Open Experimental and enable x86-64 / FEX translation; the packaged Grape-X64 runtime also carries the Win32 WoW64 translator."
-            : @"This is an x86_64/ARM64EC app. Open Experimental and enable x86-64 / FEX translation.");
+            ? @"This is a 32-bit x86 app. Open Experimental and enable x86 / x86-64 FEX translation."
+            : @"This is an x86_64/ARM64EC app. Open Experimental and enable x86 / x86-64 FEX translation.");
         return;
     }
 
@@ -214,7 +214,9 @@ static NSArray *JuiceArchitectureEnvironment(id self, SEL _cmd)
     return environment;
 }
 
-__attribute__((constructor))
+/* Install before default-priority UI wrappers such as boot progress so they
+ * decorate this single architecture route instead of competing with it. */
+__attribute__((constructor(300)))
 static void JuiceInstallArchitectureRouting(void)
 {
     Class cls = NSClassFromString(@"JuiceController");
