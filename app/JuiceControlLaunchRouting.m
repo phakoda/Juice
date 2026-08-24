@@ -12,6 +12,8 @@
  * Resolve the Windows path, populate the normal launcher fields, and delegate
  * to launchRequested. JuiceArchitectureRouting then makes the single decision:
  * ARM64 uses Grape; i386/x86-64/ARM64EC require the translated Grape-X64 path.
+ * MSI paths are not PE images, so route them through Wine's packaged msiexec;
+ * when FEX is enabled, request the hybrid runtime for that native helper.
  */
 
 static void (*JuiceOriginalControlAction)(id, SEL, uint32_t, NSString *);
@@ -62,13 +64,34 @@ static void JuiceRoutedControlAction(id self, SEL _cmd, uint32_t action, NSStrin
         return;
     }
 
-    exe.text = path;
-    if ([args isKindOfClass:UITextField.class]) args.text = @"";
+    BOOL installer = [path.pathExtension.lowercaseString isEqualToString:@"msi"];
+    BOOL hybrid = installer && [JuiceControlValue(self, @"experimentalX64") boolValue];
+    if (installer)
+    {
+        if (![args isKindOfClass:UITextField.class])
+        {
+            JuiceControlAppend(self, @"CONTROL_V1_LAUNCH_REJECTED reason=args-field-unavailable\n");
+            return;
+        }
+        exe.text = @"msiexec.exe";
+        args.text = [NSString stringWithFormat:@"/i \"%@\"", windowsPath ?: @""];
+        if (hybrid)
+        {
+            SEL force = NSSelectorFromString(@"juice_forceTranslatedRuntimeForNextLaunch");
+            if ([self respondsToSelector:force])
+                ((void (*)(id, SEL))objc_msgSend)(self, force);
+        }
+    }
+    else
+    {
+        exe.text = path;
+        if ([args isKindOfClass:UITextField.class]) args.text = @"";
+    }
     if ([mode isKindOfClass:UISegmentedControl.class]) mode.selectedSegmentIndex = 0;
 
     JuiceControlAppend(self, [NSString stringWithFormat:
-        @"CONTROL_V1_LAUNCH_ROUTE windows=%@ unix=%@ architecture=auto\n",
-        windowsPath ?: @"", path]);
+        @"CONTROL_V1_LAUNCH_ROUTE windows=%@ unix=%@ architecture=auto installer=%d hybrid_runtime=%d\n",
+        windowsPath ?: @"", path, installer, hybrid]);
 
     SEL launch = NSSelectorFromString(@"launchRequested");
     if ([self respondsToSelector:launch])
