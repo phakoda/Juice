@@ -20,6 +20,8 @@ jobs:
         run: bash scripts/verify-reconnect-hardening.sh
       - name: Verify sandbox storage invariants
         run: bash scripts/verify-storage-hardening.sh
+      - name: Verify hardware keyboard and architecture routing
+        run: bash scripts/verify-input-architecture-hardening.sh
 
   app-build:
     runs-on: macos-latest
