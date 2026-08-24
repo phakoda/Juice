@@ -10,7 +10,8 @@ mkdir -p "$WORK"
 "$ROOT/toolchain/juice-cc" -target arm64-apple-ios14.0 -arch arm64 \
   -isysroot "$JBROOT/usr/share/SDKs/iPhoneOS.sdk" -miphoneos-version-min=14.0 \
   -fobjc-arc -O2 -I"$ROOT/app" "$ROOT/app/JuiceZip.m" \
-  "$ROOT/app/tests/ZipExtractorTests.m" -framework Foundation -lz -o "$TEST"
+  "$ROOT/app/tests/ZipExtractorTests.m" -framework Foundation \
+  -framework CoreFoundation -lz -o "$TEST"
 
 "$JBROOT/usr/bin/python3" - "$WORK" <<'PY'
 import pathlib, sys, zipfile
