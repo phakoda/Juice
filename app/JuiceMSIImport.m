@@ -12,6 +12,12 @@
  * control protocol already accepts MSI. Copy an explicitly selected MSI into
  * Juice's writable import area, then launch the bundled msiexec through the
  * normal architecture/spawn path with a quoted Z: path.
+ *
+ * Grape-X64 intentionally keeps helper programs such as msiexec native ARM64
+ * while replacing its DLL layer with ARM64X/hybrid modules. If the user enabled
+ * FEX, request that hybrid environment for this one native-helper launch so an
+ * installer has the best chance of running x86/x64 custom actions and child
+ * processes. Without FEX enabled, the same MSI uses the lighter native runtime.
  */
 
 static void (*JuiceOriginalMSIPicker)(id, SEL, UIDocumentPickerViewController *, NSArray<NSURL *> *);
@@ -103,9 +109,18 @@ static void JuiceMSIPicked(id self, SEL _cmd, UIDocumentPickerViewController *co
     exe.text = @"msiexec.exe";
     args.text = [NSString stringWithFormat:@"/i \"%@\"", windowsPath];
     if ([mode isKindOfClass:UISegmentedControl.class]) mode.selectedSegmentIndex = 0;
+
+    BOOL hybrid = [JuiceMSIValue(self, @"experimentalX64") boolValue];
+    if (hybrid)
+    {
+        SEL force = NSSelectorFromString(@"juice_forceTranslatedRuntimeForNextLaunch");
+        if ([self respondsToSelector:force])
+            ((void (*)(id, SEL))objc_msgSend)(self, force);
+    }
+
     JuiceMSIAppend(self, [NSString stringWithFormat:
-        @"MSI_IMPORT_READY local=%@ windows=%@ launcher=msiexec.exe\n",
-        destination, windowsPath]);
+        @"MSI_IMPORT_READY local=%@ windows=%@ launcher=msiexec.exe hybrid_runtime=%d\n",
+        destination, windowsPath, hybrid]);
 
     SEL launch = NSSelectorFromString(@"launchRequested");
     if ([self respondsToSelector:launch])
