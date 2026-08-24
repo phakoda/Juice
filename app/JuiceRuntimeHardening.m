@@ -162,28 +162,51 @@ static JuiceRuntimeFramebuffer *JuiceCreateFramebuffer(id self, JuiceRuntimeMsg 
 {
     if (!JuiceFrameHeaderIsValid(message) || data.length != message.size) return nil;
 
-    JuiceRuntimeFramebuffer *frame = [JuiceRuntimeFramebuffer new];
-    if ([data isKindOfClass:NSMutableData.class])
-        frame.bytes = (NSMutableData *)data;
-    else
-        frame.bytes = [data mutableCopy];
-    frame.hwnd = message.hwnd;
-    frame.width = message.width;
-    frame.height = message.height;
-    frame.stride = message.stride;
-    frame.clientFD = clientFD;
-    frame.peerPID = peerPID;
-    frame.generation = 1;
-    frame.receivedFrames = 1;
-
     NSMutableDictionary *frames = JuiceFramebuffers(self);
     @synchronized(frames)
     {
-        JuiceRuntimeFramebuffer *old = frames[@(message.hwnd)];
-        if (old) @synchronized(old) { old.invalidated = YES; }
+        JuiceRuntimeFramebuffer *existing = frames[@(message.hwnd)];
+        if (existing)
+        {
+            @synchronized(existing)
+            {
+                /* Full-window paints are common (scrolling, animations, and
+                   explicit RedrawWindow calls). Reuse the live backing store
+                   when its layout is unchanged so full frames get exactly the
+                   same one-pending-render backpressure as dirty rectangles.
+                   Replacing the object for every full frame would leave an
+                   invalidated, multi-megabyte buffer retained by each queued
+                   main-thread block until UIKit caught up. */
+                if (!existing.invalidated && existing.clientFD == clientFD &&
+                    existing.width == message.width && existing.height == message.height &&
+                    existing.stride == message.stride && existing.bytes.length == data.length)
+                {
+                    memcpy(existing.bytes.mutableBytes, data.bytes, data.length);
+                    existing.peerPID = peerPID;
+                    existing.generation++;
+                    existing.receivedFrames++;
+                    return existing;
+                }
+                existing.invalidated = YES;
+            }
+        }
+
+        JuiceRuntimeFramebuffer *frame = [JuiceRuntimeFramebuffer new];
+        if ([data isKindOfClass:NSMutableData.class])
+            frame.bytes = (NSMutableData *)data;
+        else
+            frame.bytes = [data mutableCopy];
+        frame.hwnd = message.hwnd;
+        frame.width = message.width;
+        frame.height = message.height;
+        frame.stride = message.stride;
+        frame.clientFD = clientFD;
+        frame.peerPID = peerPID;
+        frame.generation = 1;
+        frame.receivedFrames = 1;
         frames[@(message.hwnd)] = frame;
+        return frame;
     }
-    return frame;
 }
 
 static JuiceRuntimeFramebuffer *JuiceApplyFrame(id self, JuiceRuntimeMsg message,
