@@ -13,6 +13,7 @@
 
 static NSArray *(*JuiceOriginalEnvironment)(id, SEL);
 static char JuiceSelectedMachineKey;
+static char JuiceForceTranslatedRuntimeKey;
 
 static id JuiceArchValue(id self, NSString *key)
 {
@@ -117,9 +118,21 @@ static void JuiceStopServerForRuntimeSwitch(id self, pid_t server)
         server, terminateResult, terminateError, waited == server, forced]);
 }
 
+static void JuiceForceTranslatedRuntimeForNextLaunch(id self, SEL _cmd)
+{
+    (void)_cmd;
+    objc_setAssociatedObject(self, &JuiceForceTranslatedRuntimeKey, @YES,
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    JuiceArchAppend(self, @"ARCH_ROUTE_FORCE_TRANSLATED queued=1\n");
+}
+
 static void JuiceArchitectureLaunchRequested(id self, SEL _cmd)
 {
     (void)_cmd;
+    BOOL forceTranslated = [objc_getAssociatedObject(self, &JuiceForceTranslatedRuntimeKey) boolValue];
+    objc_setAssociatedObject(self, &JuiceForceTranslatedRuntimeKey, nil,
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+
     NSString *path = JuiceCandidateExecutable(self);
     uint16_t machine = JuiceExecutableMachine(self, path);
     if (!machine)
@@ -131,8 +144,8 @@ static void JuiceArchitectureLaunchRequested(id self, SEL _cmd)
 
     BOOL win32 = machine == JUICE_PE_I386;
     BOOL x64 = machine == JUICE_PE_AMD64 || machine == JUICE_PE_ARM64EC;
-    BOOL translated = win32 || x64;
-    if (machine != JUICE_PE_ARM64 && !translated)
+    BOOL translated = forceTranslated || win32 || x64;
+    if (machine != JUICE_PE_ARM64 && !win32 && !x64)
     {
         JuiceRejectArchitecture(self, [NSString stringWithFormat:@"Unsupported PE machine 0x%04x.", machine]);
         return;
@@ -143,7 +156,7 @@ static void JuiceArchitectureLaunchRequested(id self, SEL _cmd)
     {
         JuiceRejectArchitecture(self, win32
             ? @"This is a 32-bit x86 app. Open Experimental and enable x86 / x86-64 FEX translation."
-            : @"This is an x86_64/ARM64EC app. Open Experimental and enable x86 / x86-64 FEX translation.");
+            : @"This launch needs the hybrid/FEX runtime. Open Experimental and enable x86 / x86-64 FEX translation.");
         return;
     }
 
@@ -175,8 +188,8 @@ static void JuiceArchitectureLaunchRequested(id self, SEL _cmd)
     JuiceArchSetValue(self, @"usingX64", @(translated));
     objc_setAssociatedObject(self, &JuiceSelectedMachineKey, @(machine), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     JuiceArchAppend(self, [NSString stringWithFormat:
-        @"PE_ARCH_DETECTED machine=0x%04x arch=%@ runtime=%@ path=%@ win32_wow64=%d\n",
-        machine, JuiceMachineName(self, machine), runtimeName, path, win32]);
+        @"PE_ARCH_DETECTED machine=0x%04x arch=%@ runtime=%@ path=%@ win32_wow64=%d forced_translated=%d\n",
+        machine, JuiceMachineName(self, machine), runtimeName, path, win32, forceTranslated]);
 
     SEL launch = NSSelectorFromString(@"launchTapped");
     if ([self respondsToSelector:launch])
@@ -221,6 +234,9 @@ static void JuiceInstallArchitectureRouting(void)
 {
     Class cls = NSClassFromString(@"JuiceController");
     if (!cls) return;
+
+    class_addMethod(cls, NSSelectorFromString(@"juice_forceTranslatedRuntimeForNextLaunch"),
+                    (IMP)JuiceForceTranslatedRuntimeForNextLaunch, "v@:");
 
     Method launch = class_getInstanceMethod(cls, NSSelectorFromString(@"launchRequested"));
     if (launch) method_setImplementation(launch, (IMP)JuiceArchitectureLaunchRequested);
