@@ -42,6 +42,9 @@ with zipfile.ZipFile(root / "unsafe.zip", "w") as z:
     z.writestr("../escape.txt", b"must not escape")
 with zipfile.ZipFile(root / "drive-path.zip", "w") as z:
     z.writestr("C:/escape.txt", b"must not escape")
+with zipfile.ZipFile(root / "case-collision.zip", "w") as z:
+    z.writestr("Readme.txt", b"first")
+    z.writestr("README.TXT", b"second")
 
 # Corrupt a stored member after zipfile has calculated its CRC.
 with zipfile.ZipFile(root / "crc.zip", "w", zipfile.ZIP_STORED) as z:
@@ -52,30 +55,37 @@ payload = 30 + name_len + extra_len
 crc_data[payload] ^= 0x20
 (root / "bad-crc.zip").write_bytes(crc_data)
 
-# Make the local header disagree with the central directory.  Accepting this
+# Make the local header disagree with the central directory. Accepting this
 # ambiguity is both a parser bug and a common ingredient in ZIP smuggling.
 inconsistent = bytearray((root / "portable.zip").read_bytes())
 struct.pack_into("<H", inconsistent, 8, 0)  # local method: stored; central: deflate
 (root / "inconsistent.zip").write_bytes(inconsistent)
 
+
+def minimal_stored(path, name, body):
+    crc = zlib.crc32(body) & 0xffffffff
+    local = struct.pack(
+        "<IHHHHHIIIHH", 0x04034B50, 20, 0, 0, 0, 0,
+        crc, len(body), len(body), len(name), 0,
+    ) + name + body
+    central = struct.pack(
+        "<IHHHHHHIIIHHHHHII", 0x02014B50, 20, 20, 0, 0, 0, 0,
+        crc, len(body), len(body), len(name), 0, 0,
+        0, 0, 0, 0,
+    ) + name
+    eocd = struct.pack(
+        "<IHHHHIIH", 0x06054B50, 0, 0, 1, 1, len(central), len(local), 0,
+    )
+    path.write_bytes(local + central + eocd)
+
+
 # Build one minimal legacy ZIP manually so the filename bytes can be CP437
-# without Python automatically setting the UTF-8 flag.  0x82 is 'é' in CP437.
-legacy_name = b"caf\x82.txt"
-legacy_body = b"legacy-name"
-legacy_crc = zlib.crc32(legacy_body) & 0xffffffff
-local = struct.pack(
-    "<IHHHHHIIIHH", 0x04034B50, 20, 0, 0, 0, 0,
-    legacy_crc, len(legacy_body), len(legacy_body), len(legacy_name), 0,
-) + legacy_name + legacy_body
-central = struct.pack(
-    "<IHHHHHHIIIHHHHHII", 0x02014B50, 20, 20, 0, 0, 0, 0,
-    legacy_crc, len(legacy_body), len(legacy_body), len(legacy_name), 0, 0,
-    0, 0, 0, 0,
-) + legacy_name
-eocd = struct.pack(
-    "<IHHHHIIH", 0x06054B50, 0, 0, 1, 1, len(central), len(local), 0,
-)
-(root / "cp437.zip").write_bytes(local + central + eocd)
+# without Python automatically setting the UTF-8 flag. 0x82 is 'é' in CP437.
+minimal_stored(root / "cp437.zip", b"caf\x82.txt", b"legacy-name")
+
+# Embedded NULs must never reach filesystem APIs; a C path conversion could
+# otherwise observe a different filename than the NSString validation did.
+minimal_stored(root / "nul-path.zip", b"safe.txt\x00.exe", b"must-not-extract")
 PY
 
 rm -rf "$WORK"/output-* "$WORK/escape.txt"
@@ -91,7 +101,7 @@ test "$(stat -f %z "$WORK/output-large/large.bin")" -eq $((48 * 1024 * 1024))
 "$TEST" "$WORK/cp437.zip" "$WORK/output-cp437"
 test "$(cat "$WORK/output-cp437/café.txt")" = legacy-name
 
-for bad in unsafe drive-path bad-crc inconsistent; do
+for bad in unsafe drive-path case-collision bad-crc inconsistent nul-path; do
   if "$TEST" "$WORK/$bad.zip" "$WORK/output-$bad"; then
     echo "Invalid ZIP unexpectedly succeeded: $bad.zip" >&2
     exit 3
