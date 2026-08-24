@@ -42,9 +42,9 @@ mkdir -p "$OUT"
   "$ROOT/app/JuiceApiSetBootstrap.m" "$ROOT/app/JuiceLegacyWin32.m" \
   "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
   "$ROOT/app/JuiceFramebufferFix.m" "$ROOT/app/JuiceBootProgress.m" \
-  "$ROOT/app/JuiceBootOverlayVisibility.m" \
+  "$ROOT/app/JuiceBootOverlayVisibility.m" "$ROOT/app/JuiceRuntimeHardening.m" \
   -framework UIKit -framework Foundation -framework QuartzCore \
-  -framework CoreGraphics -lz -o "$OUT/Juice"
+  -framework CoreGraphics -framework CoreFoundation -lz -o "$OUT/Juice"
 cp "$ROOT/config/Info.plist" "$OUT/Info.plist"
 
 # Generate the icon set from the compact canonical grape artwork data on every
