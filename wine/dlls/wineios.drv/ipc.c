@@ -5,6 +5,7 @@
 #include "config.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,11 +21,12 @@ static HWND input_target;
 static BOOL pointer_down;
 static BOOL write_all(int fd,const void *data,size_t size){const char *p=data;while(size){ssize_t n=write(fd,p,size);if(n<0&&errno==EINTR)continue;if(n<=0)return FALSE;p+=n;size-=n;}return TRUE;}
 static BOOL read_all(int fd,void *data,size_t size){char *p=data;while(size){ssize_t n=read(fd,p,size);if(n<0&&errno==EINTR)continue;if(n<=0)return FALSE;p+=n;size-=n;}return TRUE;}
+static void disconnect_ipc_locked(void){if(ipc_fd>=0)close(ipc_fd);ipc_fd=-1;queue_registered=FALSE;}
 static void send_msg(UINT type,HWND hwnd,const RECT *rect,const void *payload,UINT size,UINT stride,UINT flags)
 {
  struct juice_ios_msg msg={JUICE_IOS_MAGIC,type,size,(UINT64)(UINT_PTR)hwnd};
  if(rect){msg.x=rect->left;msg.y=rect->top;msg.width=rect->right-rect->left;msg.height=rect->bottom-rect->top;} msg.stride=stride;msg.flags=flags;
- pthread_mutex_lock(&ipc_lock);if(ipc_fd>=0&&(!write_all(ipc_fd,&msg,sizeof(msg))||(size&&!write_all(ipc_fd,payload,size)))){close(ipc_fd);ipc_fd=-1;}pthread_mutex_unlock(&ipc_lock);
+ pthread_mutex_lock(&ipc_lock);if(ipc_fd>=0&&(!write_all(ipc_fd,&msg,sizeof(msg))||(size&&!write_all(ipc_fd,payload,size))))disconnect_ipc_locked();pthread_mutex_unlock(&ipc_lock);
 }
 BOOL ios_ipc_process_input(void)
 {
@@ -45,15 +47,13 @@ BOOL ios_ipc_process_input(void)
   if(available<(ssize_t)sizeof(msg)) break;
   if(!read_all(ipc_fd,&msg,sizeof(msg)))
   {
-   close(ipc_fd);
-   ipc_fd=-1;
+   pthread_mutex_lock(&ipc_lock);disconnect_ipc_locked();pthread_mutex_unlock(&ipc_lock);
    break;
   }
   if(msg.size>64u*1024u)
   {
    fprintf(stderr,"[JuiceInput] rejected oversized message type=%u size=%u\n",msg.type,msg.size);
-   close(ipc_fd);
-   ipc_fd=-1;
+   pthread_mutex_lock(&ipc_lock);disconnect_ipc_locked();pthread_mutex_unlock(&ipc_lock);
    break;
   }
   if(msg.size)
@@ -62,8 +62,7 @@ BOOL ios_ipc_process_input(void)
    if(!payload||!read_all(ipc_fd,payload,msg.size))
    {
     free(payload);
-    close(ipc_fd);
-    ipc_fd=-1;
+    pthread_mutex_lock(&ipc_lock);disconnect_ipc_locked();pthread_mutex_unlock(&ipc_lock);
     break;
    }
   }
@@ -211,6 +210,7 @@ void ios_ipc_init(unsigned int width,unsigned int height,unsigned int dpi)
  const char *path=getenv("JUICE_IOS_SOCKET");
  struct sockaddr_un addr;
  struct juice_ios_msg hello={JUICE_IOS_MAGIC,JUICE_IOS_HELLO,0,0,0,0,(INT)width,(INT)height,dpi,(UINT)getpid()};
+ int one=1;
 
  if(!path||!*path) return;
  memset(&addr,0,sizeof(addr));
@@ -218,9 +218,15 @@ void ios_ipc_init(unsigned int width,unsigned int height,unsigned int dpi)
  if(strlen(path)>=sizeof(addr.sun_path)) return;
  strcpy(addr.sun_path,path);
  ipc_fd=socket(AF_UNIX,SOCK_STREAM,0);
- if(ipc_fd<0||connect(ipc_fd,(struct sockaddr *)&addr,sizeof(addr))<0)
+ if(ipc_fd<0) return;
+#ifdef SO_NOSIGPIPE
+ setsockopt(ipc_fd,SOL_SOCKET,SO_NOSIGPIPE,&one,sizeof(one));
+#else
+ (void)one;
+#endif
+ if(connect(ipc_fd,(struct sockaddr *)&addr,sizeof(addr))<0)
  {
-  if(ipc_fd>=0) close(ipc_fd);
+  close(ipc_fd);
   ipc_fd=-1;
   return;
  }
@@ -236,10 +242,76 @@ void ios_ipc_window(HWND hwnd,const RECT *rect,BOOL visible){send_msg(JUICE_IOS_
 void ios_ipc_destroy(HWND hwnd){send_msg(JUICE_IOS_DESTROY,hwnd,NULL,NULL,0,0,0);}
 void ios_ipc_present(HWND hwnd,const void *bits,unsigned int width,unsigned int height,unsigned int stride,const RECT *dirty)
 {
- struct juice_ios_msg msg={JUICE_IOS_MAGIC,JUICE_IOS_FRAME,stride*height,(UINT64)(UINT_PTR)hwnd,
-                           dirty->left,dirty->top,width,height,stride,0};
+ struct juice_ios_msg msg={JUICE_IOS_MAGIC,JUICE_IOS_FRAME,0,(UINT64)(UINT_PTR)hwnd};
+ const unsigned char *source=bits;
+ unsigned char *packed=NULL;
+ size_t full_size,payload_size,row_bytes;
+ unsigned int dirty_width,dirty_height,row;
+ RECT clipped;
+ BOOL partial=FALSE;
+
+ if(!bits||!width||!height||stride<width*4u) return;
+ full_size=(size_t)stride*height;
+ if(full_size>UINT_MAX) return;
+
+ SetRect(&clipped,0,0,width,height);
+ if(dirty)
+ {
+  if(dirty->left>clipped.left)clipped.left=dirty->left;
+  if(dirty->top>clipped.top)clipped.top=dirty->top;
+  if(dirty->right<clipped.right)clipped.right=dirty->right;
+  if(dirty->bottom<clipped.bottom)clipped.bottom=dirty->bottom;
+ }
+ if(clipped.left<0)clipped.left=0;
+ if(clipped.top<0)clipped.top=0;
+ if(clipped.right>(INT)width)clipped.right=width;
+ if(clipped.bottom>(INT)height)clipped.bottom=height;
+ if(clipped.right<=clipped.left||clipped.bottom<=clipped.top)return;
+
+ dirty_width=clipped.right-clipped.left;
+ dirty_height=clipped.bottom-clipped.top;
+ row_bytes=(size_t)dirty_width*4u;
+ payload_size=row_bytes*dirty_height;
+
+ /* Full frames are cheaper as a single contiguous write. For partial frames,
+  * packing rows costs one memcpy per row but avoids transmitting untouched
+  * pixels and keeps the receiver protocol simple. */
+ partial=clipped.left||clipped.top||dirty_width!=width||dirty_height!=height;
+ if(partial&&payload_size<full_size)
+ {
+  packed=malloc(payload_size);
+  if(packed)
+  {
+   for(row=0;row<dirty_height;row++)
+    memcpy(packed+(size_t)row*row_bytes,
+           source+(size_t)(clipped.top+row)*stride+(size_t)clipped.left*4u,
+           row_bytes);
+   source=packed;
+   msg.x=clipped.left;
+   msg.y=clipped.top;
+   msg.width=dirty_width;
+   msg.height=dirty_height;
+   msg.stride=row_bytes;
+   msg.size=payload_size;
+   msg.flags=JUICE_IOS_FRAME_DIRTY;
+  }
+  else partial=FALSE;
+ }
+
+ if(!partial||!packed)
+ {
+  source=bits;
+  msg.x=0;
+  msg.y=0;
+  msg.width=width;
+  msg.height=height;
+  msg.stride=stride;
+  msg.size=full_size;
+  msg.flags=0;
+ }
+
  pthread_mutex_lock(&ipc_lock);
- if(ipc_fd>=0&&(!write_all(ipc_fd,&msg,sizeof(msg))||!write_all(ipc_fd,bits,msg.size)))
- {close(ipc_fd);ipc_fd=-1;}
+ if(ipc_fd>=0&&(!write_all(ipc_fd,&msg,sizeof(msg))||!write_all(ipc_fd,source,msg.size)))disconnect_ipc_locked();
  pthread_mutex_unlock(&ipc_lock);
+ free(packed);
 }
