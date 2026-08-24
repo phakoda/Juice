@@ -79,6 +79,15 @@ static BOOL JuiceSendWineVirtualKey(id self, uint32_t vkey, NSString *name)
     return YES;
 }
 
+static BOOL JuicePasteIOSClipboard(id self)
+{
+    if (!JuiceHasWineKeyboardTarget(self)) return NO;
+    SEL selector = NSSelectorFromString(@"juice_pasteIOSClipboard:");
+    if (![self respondsToSelector:selector]) return NO;
+    ((void (*)(id, SEL, id))objc_msgSend)(self, selector, nil);
+    return YES;
+}
+
 static uint32_t JuiceVirtualKeyForHID(NSInteger hid, NSString **name)
 {
     uint32_t key = 0;
@@ -143,11 +152,20 @@ static void JuiceHardwarePressesBegan(id self, SEL _cmd, NSSet<UIPress *> *press
         }
 
         UIKeyModifierFlags modifiers = key.modifierFlags;
+        NSString *plain = key.charactersIgnoringModifiers.lowercaseString;
+        if (modifiers == UIKeyModifierCommand && [plain isEqualToString:@"v"])
+        {
+            BOOL delivered = JuicePasteIOSClipboard(self);
+            handledAny |= delivered;
+            shouldForwardOriginal |= !delivered;
+            continue;
+        }
+
         if (modifiers & (UIKeyModifierCommand | UIKeyModifierControl | UIKeyModifierAlternate))
         {
             /* The current wire protocol represents a virtual-key tap, not a
-               held modifier chord. Leave command/control/option combinations
-               to UIKit rather than emitting incorrect Windows shortcuts. */
+               held modifier chord. Leave other command/control/option
+               combinations to UIKit rather than emitting incorrect shortcuts. */
             shouldForwardOriginal = YES;
             continue;
         }
