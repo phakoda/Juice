@@ -4,6 +4,7 @@
 #import <errno.h>
 #import <fcntl.h>
 #import <limits.h>
+#import <stdlib.h>
 #import <string.h>
 #import <unistd.h>
 #import <zlib.h>
@@ -66,6 +67,8 @@ static NSString *JZEntryName(const uint8_t *bytes, NSUInteger length, BOOL utf8)
 static NSString *JZSafeDestination(NSString *root, NSString *entry)
 {
     if (!entry.length || [entry hasPrefix:@"/"]) return nil;
+    for (NSUInteger index = 0; index < entry.length; index++)
+        if ([entry characterAtIndex:index] == 0) return nil;
 
     NSMutableArray<NSString *> *safe = [NSMutableArray array];
     for (NSString *component in [entry componentsSeparatedByString:@"/"])
@@ -81,6 +84,14 @@ static NSString *JZSafeDestination(NSString *root, NSString *entry)
     NSString *standardPath = path.stringByStandardizingPath;
     NSString *prefix = [standardRoot stringByAppendingString:@"/"];
     return [standardPath hasPrefix:prefix] ? standardPath : nil;
+}
+
+static NSString *JZCollisionKey(NSString *path)
+{
+    /* Windows paths are case-insensitive in the environments Juice targets.
+       Reject case/normalization aliases rather than allowing archive order to
+       decide which payload wins on the iOS filesystem. */
+    return path.stringByStandardizingPath.precomposedStringWithCanonicalMapping.lowercaseString;
 }
 
 static BOOL JZWriteAll(int fd, const uint8_t *bytes, size_t length, NSError **error,
@@ -135,7 +146,15 @@ static BOOL JZExtractDeflated(const uint8_t *input, uint32_t compressedSize,
                       [NSString stringWithFormat:@"Could not initialize decompression for %@.",
                                                  path.lastPathComponent]);
 
-    uint8_t output[JZIOChunkSize];
+    uint8_t *output = malloc(JZIOChunkSize);
+    if (!output)
+    {
+        inflateEnd(&stream);
+        return JZFail(error, 18,
+                      [NSString stringWithFormat:@"Could not allocate the ZIP stream buffer for %@.",
+                                                 path.lastPathComponent]);
+    }
+
     const uint8_t *cursor = input;
     uint32_t remaining = compressedSize;
     uint64_t totalOutput = 0;
@@ -154,10 +173,10 @@ static BOOL JZExtractDeflated(const uint8_t *input, uint32_t compressedSize,
         }
 
         stream.next_out = output;
-        stream.avail_out = (uInt)sizeof(output);
+        stream.avail_out = JZIOChunkSize;
         status = inflate(&stream, Z_NO_FLUSH);
 
-        size_t produced = sizeof(output) - stream.avail_out;
+        size_t produced = JZIOChunkSize - stream.avail_out;
         if (produced)
         {
             totalOutput += produced;
@@ -199,6 +218,7 @@ static BOOL JZExtractDeflated(const uint8_t *input, uint32_t compressedSize,
                          [NSString stringWithFormat:@"Compressed data for %@ has inconsistent sizes.",
                                                     path.lastPathComponent]);
 
+    free(output);
     inflateEnd(&stream);
     if (success) *crcOut = (uint32_t)crc;
     return success;
@@ -259,6 +279,7 @@ static BOOL JZExtractDeflated(const uint8_t *input, uint32_t compressedSize,
           withIntermediateDirectories:YES attributes:nil error:error])
         return NO;
 
+    NSMutableSet<NSString *> *seenPaths = [NSMutableSet set];
     NSUInteger cursor = centralOffset;
     uint64_t extractedTotal = 0;
     for (uint16_t index = 0; index < entryCount; index++)
@@ -296,6 +317,12 @@ static BOOL JZExtractDeflated(const uint8_t *input, uint32_t compressedSize,
         NSString *outputPath = name ? JZSafeDestination(destination, name) : nil;
         if (!outputPath)
             return JZFail(error, 12, @"The ZIP contains an unsafe or invalid path.");
+
+        NSString *collisionKey = JZCollisionKey(outputPath);
+        if ([seenPaths containsObject:collisionKey])
+            return JZFail(error, 12,
+                          [NSString stringWithFormat:@"The ZIP contains duplicate or case-colliding path %@.", name]);
+        [seenPaths addObject:collisionKey];
 
         BOOL directory = [name hasSuffix:@"/"];
         if (directory)
