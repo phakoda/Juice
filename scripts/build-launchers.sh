@@ -50,9 +50,9 @@ if test -n "$LDID_BIN" && test -x "$LDID_BIN"; then
   done
   "$LDID_BIN" -S"$ROOT/config/lowva-helper-entitlements.plist" -Cadhoc "$OUT/juice-lowva-helper"
   helper_entitlements="$($LDID_BIN -e "$OUT/juice-lowva-helper" 2>/dev/null || true)"
-  printf '%s' "$helper_entitlements" | grep -q 'IOSurfaceRootUserClient' || {
-    echo "Low-VA helper signing is missing IOSurfaceRootUserClient." >&2
+  printf '%s' "$helper_entitlements" | grep -q 'platform-application' || {
+    echo "Low-VA helper signing is missing its minimal platform entitlement." >&2
     exit 3
   }
 fi
-echo "JUICE_LAUNCHERS_BUILD_OK path=$OUT lowva_helper=$OUT/juice-lowva-helper iosurface_entitlement=1"
+echo "JUICE_LAUNCHERS_BUILD_OK path=$OUT lowva_helper=$OUT/juice-lowva-helper entitlements=minimal-platform"

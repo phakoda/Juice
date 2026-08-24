@@ -1544,7 +1544,8 @@ static FILE *open_cached_revocation_file(const CERT_CONTEXT *cert, const CERT_RE
     BYTE hash_data[CACHED_CERT_HASH_SIZE];
     WCHAR path[MAX_PATH];
     WCHAR *appdata_path;
-    DWORD len, i, size;
+    int len;
+    DWORD i, size;
     HCRYPTPROV prov;
     HCRYPTHASH hash;
     HRESULT hr;
@@ -1555,10 +1556,10 @@ static FILE *open_cached_revocation_file(const CERT_CONTEXT *cert, const CERT_RE
         return NULL;
     }
 
-    len = swprintf(path, ARRAY_SIZE(path), L"%s\\Microsoft\\CryptnetUrlCache\\Content\\", appdata_path);
+    len = swprintf(path, ARRAY_SIZE(path), L"%s\\Microsoft\\CryptnetUrlCache\\Content", appdata_path);
     CoTaskMemFree(appdata_path);
 
-    if (len + CACHED_CERT_HASH_SIZE * 2 * sizeof(WCHAR) > ARRAY_SIZE(path) - 1)
+    if (len < 0 || len + 1 + CACHED_CERT_HASH_SIZE * 2 > ARRAY_SIZE(path) - 1)
     {
         WARN("Hash length exceeds static buffer; not caching.\n");
         return NULL;
@@ -1582,7 +1583,14 @@ static FILE *open_cached_revocation_file(const CERT_CONTEXT *cert, const CERT_RE
     CryptDestroyHash(hash);
     CryptReleaseContext(prov, 0);
 
-    SHCreateDirectoryExW(NULL, path, NULL);
+    /* Avoid routing every revocation check through shell32 when the cache
+     * directory already exists.  Apart from being needless overhead, a path
+     * ending in a separator can make SHCreateDirectoryExW repeatedly probe
+     * the directory itself on translated Win32 runtimes. */
+    if (GetFileAttributesW(path) == INVALID_FILE_ATTRIBUTES)
+        SHCreateDirectoryExW(NULL, path, NULL);
+    path[len++] = '\\';
+    path[len] = 0;
 
     for (i = 0; i < CACHED_CERT_HASH_SIZE; ++i)
     {

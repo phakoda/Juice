@@ -30,6 +30,11 @@
 
 WINE_DEFAULT_DEBUG_CHANNEL(crypt);
 
+/* Keep the synchronized host anchors available in memory.  The registry
+ * provider snapshots its contents while opening, so the first chain engine in
+ * a process otherwise misses roots imported during that same open. */
+static HCERTSTORE host_root_store;
+
 static const char *trust_status_to_str(DWORD status)
 {
     static const struct
@@ -131,8 +136,16 @@ static void check_and_store_certs( HCERTSTORE cached, HKEY key, HKEY import_key 
 
     while ((cert = CertEnumCertificatesInStore( cached, cert )))
     {
-        const DWORD allowed_errors = CERT_TRUST_IS_UNTRUSTED_ROOT | CERT_TRUST_IS_NOT_VALID_FOR_USAGE
-                                    | CERT_TRUST_INVALID_BASIC_CONSTRAINTS | CERT_TRUST_IS_NOT_TIME_VALID;
+        /* A certificate in the host's trusted-root bundle is an anchor by
+         * designation; its self-signature does not establish that trust and
+         * is not used to authenticate child certificates.  Some valid roots
+         * (notably older RSA anchors on iOS) cannot have that informational
+         * self-signature verified by the available provider.  Accept that
+         * error only here, while importing host-designated roots.  Normal
+         * certificate-chain verification remains strict. */
+        const DWORD allowed_errors = CERT_TRUST_IS_UNTRUSTED_ROOT | CERT_TRUST_IS_NOT_SIGNATURE_VALID
+                                    | CERT_TRUST_IS_NOT_VALID_FOR_USAGE | CERT_TRUST_INVALID_BASIC_CONSTRAINTS
+                                    | CERT_TRUST_IS_NOT_TIME_VALID;
         CERT_CHAIN_PARA chainPara = { sizeof(chainPara), { 0 } };
         PCCERT_CHAIN_CONTEXT chain;
         DWORD size;
@@ -167,7 +180,8 @@ static void check_and_store_certs( HCERTSTORE cached, HKEY key, HKEY import_key 
          * Thus, accept certs with any of the allowed errors.
          */
         if (chain->TrustStatus.dwErrorStatus & ~allowed_errors)
-            TRACE( "rejecting %s: %s\n", get_cert_common_name(cert),
+            TRACE( "rejecting %s: status=%#lx%s\n", get_cert_common_name(cert),
+                   chain->TrustStatus.dwErrorStatus,
                    trust_status_to_str( chain->TrustStatus.dwErrorStatus & ~CERT_TRUST_IS_UNTRUSTED_ROOT ));
         else
         {
@@ -794,9 +808,23 @@ void CRYPT_ImportSystemRootCertsToReg(void)
     sync_trusted_roots_from_known_locations(key, cached);
 
 done:
+    if (cached && !host_root_store)
+        host_root_store = CertDuplicateStore(cached);
     RegCloseKey(key);
     CertCloseStore(cached, 0);
     root_certs_imported = TRUE;
     ReleaseSemaphore(hsem, 1, NULL);
     CloseHandle(hsem);
+}
+
+HCERTSTORE CRYPT_DuplicateHostRootStore(void)
+{
+    CRYPT_ImportSystemRootCertsToReg();
+    if (host_root_store) return CertDuplicateStore(host_root_store);
+
+    /* Another process may have performed the synchronized import while this
+     * one waited on the named semaphore.  Reopen its persisted machine store
+     * as a fallback in that case. */
+    return CertOpenStore(CERT_STORE_PROV_SYSTEM_REGISTRY_W, 0, 0,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE | CERT_STORE_READONLY_FLAG, L"Root");
 }

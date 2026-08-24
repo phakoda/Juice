@@ -16,6 +16,43 @@ DATA_ROOT="${JUICE_DATA_ROOT:-/var/mobile/Documents/JuiceData}"
 test -x "$LOADER" || { echo "Missing Grape loader: $LOADER" >&2; exit 2; }
 test -x "$SERVER" || { echo "Missing Grape wineserver: $SERVER" >&2; exit 2; }
 test -x "$TRACER" || { echo "Missing Grape trace parent: $TRACER" >&2; exit 2; }
+
+require_runtime_marker()
+{
+  local path="$1" marker="$2" description="$3"
+  test -s "$path" || {
+    echo "Unsafe translated runtime: missing $description: $path" >&2
+    exit 3
+  }
+  # Consume all strings output.  grep -q would close the pipe early and, with
+  # pipefail, can turn a successful match into a false failure via SIGPIPE.
+  LC_ALL=C strings "$path" | grep -F "$marker" >/dev/null || {
+    echo "Unsafe translated runtime: $description lacks '$marker': $path" >&2
+    exit 3
+  }
+}
+
+# Refuse any translated launch before Wine can alter its address map unless
+# this installed runtime implements the complete XNU hole-list handshake.
+if test "${JUICE_EXPERIMENTAL_X64:-0}" = 1 ||
+   test "${JUICE_EXPERIMENTAL_WIN32:-0}" = 1; then
+  require_runtime_marker "$LOADER" JUICE_LOWVA_HOLELIST_OK "Wine loader"
+  require_runtime_marker "$LOADER" JUICE_LOWVA_ATOMIC_RESERVE_OK \
+    "Wine loader atomic low-VA reservation"
+  require_runtime_marker "$LOADER" JUICE_LOWVA_WIN32_2G_RESERVE_OK \
+    "Wine loader full Win32 2 GiB reservation"
+  require_runtime_marker "$GRAPE/tools/juice-lowva-helper" holes-disabled-v1 "low-VA helper"
+  require_runtime_marker "$GRAPE/build/wine-ios/dlls/ntdll/ntdll.so" JUICE_LOWVA_READY \
+    "Wine ntdll Unix library"
+  require_runtime_marker "$PE/ntdll.dll" NtWineRestoreCurrentTeb \
+    "Wine PE ntdll TEB recovery export"
+  require_runtime_marker "$PE/kernelbase.dll" NtWineRestoreCurrentTeb \
+    "Wine PE kernelbase TEB recovery import"
+  require_runtime_marker "$PE/user32.dll" NtWineRestoreCurrentTeb \
+    "Wine PE user32 TEB recovery import"
+  echo "JUICE_TRANSLATION_RUNTIME_SAFETY_OK runtime=$GRAPE protocol=holes-disabled-v4-teb-tls-recovery"
+fi
+
 prefix_needs_initialization=0
 if test ! -f "$PREFIX/.juice-prefix-ready"; then
   prefix_needs_initialization=1
@@ -105,7 +142,11 @@ export WINEPREFIX="$PREFIX"
 export WINELOADER="$GRAPE/tools/grape-nested-wrapper"
 export WINELOADERNOEXEC=1
 export WINESERVER="$SERVER"
-winedllpath="$PE:$PE_ROOT:$NATIVE/crypt32:$NATIVE/secur32:$NATIVE/wineios.drv:$NATIVE/winevulkan:$NATIVE/win32u:$NATIVE/ws2_32"
+# Point Wine at the multi-architecture root first.  Wine appends
+# aarch64-windows or i386-windows while resolving a module.  Putting the
+# aarch64 leaf first lets a WoW64 lookup fall through to the hybrid ARM64
+# kernel32.dll and fail with STATUS_INVALID_IMAGE_FORMAT (c000007b).
+winedllpath="$PE_ROOT:$NATIVE/crypt32:$NATIVE/dnsapi:$NATIVE/secur32:$NATIVE/wineios.drv:$NATIVE/winevulkan:$NATIVE/win32u:$NATIVE/ws2_32"
 if test "${JUICE_EXPERIMENTAL_X64:-0}" = 1 ||
    test "${JUICE_EXPERIMENTAL_WIN32:-0}" = 1; then
   export HODLL64="${HODLL64:-libarm64ecfex.dll}"
@@ -116,6 +157,11 @@ if test "${JUICE_EXPERIMENTAL_WIN32:-0}" = 1; then
 fi
 export WINEDLLPATH="$winedllpath"
 export DYLD_LIBRARY_PATH="${DYLD_LIBRARY_PATH:-/var/jb/usr/lib}"
+bundle_ca="$(dirname "$GRAPE")/Libraries/ca-certificates.pem"
+if test -s "$bundle_ca"; then
+  export JUICE_CA_BUNDLE="${JUICE_CA_BUNDLE:-$bundle_ca}"
+  export SSL_CERT_FILE="${SSL_CERT_FILE:-$bundle_ca}"
+fi
 export WINEARCH=win64
 export WINEDEBUG="${WINEDEBUG:--all}"
 export JUICE_SKIP_WINEBOOT="$effective_skip_wineboot"
@@ -124,17 +170,45 @@ export PATH="/usr/bin:/bin:${PATH:-}"
 mkdir -p "$JUICE_WINESERVER_ROOT"
 chmod 700 "$JUICE_WINESERVER_ROOT"
 
+server_pid=-1
+client_pid=-1
+# Monitor mode gives each background job its own process group even in this
+# non-interactive device shell. This lets cleanup terminate Wine's nested
+# wrappers as well as their immediate parent when a bounded test is cancelled.
+set -m
 "$SERVER" -f &
 server_pid=$!
+set +m
 cleanup()
 {
+  if test "$client_pid" -gt 0; then
+    kill -TERM "-$client_pid" 2>/dev/null || kill -TERM "$client_pid" 2>/dev/null || true
+  fi
   # Ask the prefix's server to terminate every registered Wine client before
   # reaping the foreground server.  Service processes daemonize during
   # wineboot and otherwise survive short CLI smoke-test invocations on iOS.
   "$SERVER" -k 2>/dev/null || true
-  kill "$server_pid" 2>/dev/null || true
+  # Give wineserver a bounded grace period to flush registry changes.  Killing
+  # it immediately loses newly imported trust roots and installer registry
+  # state on persistent iOS prefixes.
+  timeout 5 "$SERVER" -w 2>/dev/null || true
+  kill -TERM "-$server_pid" 2>/dev/null || kill -TERM "$server_pid" 2>/dev/null || true
+  sleep 1
+  if test "$client_pid" -gt 0; then
+    kill -KILL "-$client_pid" 2>/dev/null || kill -KILL "$client_pid" 2>/dev/null || true
+    wait "$client_pid" 2>/dev/null || true
+  fi
+  kill -KILL "-$server_pid" 2>/dev/null || kill -KILL "$server_pid" 2>/dev/null || true
   wait "$server_pid" 2>/dev/null || true
 }
 trap cleanup EXIT
 sleep 1
-"$TRACER" "$LOADER" "$@"
+set +e
+set -m
+"$TRACER" "$LOADER" "$@" &
+client_pid=$!
+set +m
+wait "$client_pid"
+client_status=$?
+set -e
+exit "$client_status"

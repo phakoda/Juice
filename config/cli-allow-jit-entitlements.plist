@@ -6,21 +6,18 @@
     <true/>
     <key>com.apple.private.security.no-sandbox</key>
     <true/>
+    <!-- Required for translated Wine processes to access their persistent
+         GrapePrefix-x86_64 container after the UIKit host restarts. -->
     <key>com.apple.private.security.storage.AppDataContainers</key>
     <true/>
     <key>com.apple.private.skip-library-validation</key>
     <true/>
-    <key>get-task-allow</key>
-    <true/>
-    <key>task_for_pid-allow</key>
-    <true/>
-    <key>com.apple.system-task-ports</key>
-    <true/>
-    <key>com.apple.system-task-ports.control</key>
-    <true/>
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
     <key>com.apple.private.persona-mgmt</key>
+    <true/>
+    <!-- Required by the Wine loader's PT_TRACE_ME handshake. -->
+    <key>get-task-allow</key>
     <true/>
 </dict>
 </plist>

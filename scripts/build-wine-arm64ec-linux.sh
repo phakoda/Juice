@@ -15,6 +15,15 @@ PE_WRAPPER="${JUICE_ARM64EC_PE_WRAPPER:-$ROOT/build/toolchain-linux/clang}"
 PE_PACKER="${JUICE_INCBIN_PACKER:-$ROOT/toolchain/juice-pack-incbins.py}"
 PE_PYTHON="${JUICE_PYTHON:-$(command -v python3 || true)}"
 LOGDIR="${JUICE_BUILD_LOG_DIR:-$ROOT/build/logs}"
+make_fresh_args=()
+if test -n "${JUICE_ARM64EC_ASSUME_NEW_INPUTS:-}"; then
+  IFS=: read -r -a assume_new_inputs <<< "$JUICE_ARM64EC_ASSUME_NEW_INPUTS"
+  for input in "${assume_new_inputs[@]}"; do
+    test -n "$input" || continue
+    test -e "$input" || { echo "Missing forced-rebuild input: $input" >&2; exit 2; }
+    make_fresh_args+=(--assume-new="$input")
+  done
+fi
 
 if test "${JUICE_ARM64EC_RECONFIGURE:-${JUICE_RECONFIGURE:-0}}" = 1 || test ! -f "$BUILD/Makefile"; then
   "$ROOT/scripts/configure-wine-arm64ec-linux.sh"
@@ -127,8 +136,11 @@ echo "JUICE_ARM64EC_TARGETS hybrid=${#hybrid_targets[@]} arm64_program_fallback=
 LOG="$LOGDIR/wine-arm64ec.log"
 RETRY_LOG="$LOGDIR/wine-arm64ec-retry.log"
 echo "JUICE_ARM64EC_BUILD_STAGE jobs=$JOBS log=$LOG"
+if test "${#make_fresh_args[@]}" -gt 0; then
+  echo "JUICE_ARM64EC_ASSUME_NEW_INPUTS count=${#make_fresh_args[@]}"
+fi
 set +e
-"$MAKE" --output-sync=target -C "$BUILD" -j"$JOBS" \
+"$MAKE" "${make_fresh_args[@]}" --output-sync=target -C "$BUILD" -j"$JOBS" \
   SHELL="$SHELL_BIN" PWD="$BUILD" \
   "arm64ec_CC=$PE_WRAPPER" "aarch64_CC=$PE_WRAPPER" \
   "${hybrid_targets[@]}" 2>&1 | tee "$LOG"
@@ -141,7 +153,7 @@ if test "$status" -ne 0; then
   for target in "${hybrid_targets[@]}"; do
     echo "===== $target =====" | tee -a "$RETRY_LOG"
     set +e
-    "$MAKE" --output-sync=target -C "$BUILD" -j1 \
+    "$MAKE" "${make_fresh_args[@]}" --output-sync=target -C "$BUILD" -j1 \
       SHELL="$SHELL_BIN" PWD="$BUILD" \
       "arm64ec_CC=$PE_WRAPPER" "aarch64_CC=$PE_WRAPPER" \
       "$target" 2>&1 | tee -a "$RETRY_LOG"

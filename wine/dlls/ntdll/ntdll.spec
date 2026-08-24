@@ -471,6 +471,7 @@
 @ stdcall -syscall=0x003a NtWriteVirtualMemory(long ptr ptr long ptr)
 @ stdcall -syscall=0x0046 NtYieldExecution()
 @ stdcall -private -syscall NtWineGetCurrentTebAccessor(ptr)
+@ stdcall NtWineRestoreCurrentTeb()
 @ stdcall NtdllDefWindowProc_A(long long long long)
 @ stdcall NtdllDefWindowProc_W(long long long long)
 @ stdcall NtdllDialogWndProc_A(long long long long)

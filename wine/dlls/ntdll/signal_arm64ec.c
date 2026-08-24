@@ -1914,6 +1914,50 @@ static void __attribute__((naked)) arm64x_check_call(void)
 {
     asm( ".seh_proc \"#arm64x_check_call\"\n\t"
          ".seh_endprologue\n\t"
+#ifdef JUICE_IOS_PE
+         /*
+          * ARM64EC indirect calls pass through here extremely frequently.
+          * Darwin can clear its platform-reserved x18 after a native/FEX
+          * transition, so deliberately faulting on the PEB load turns every
+          * indirect call into a SIGSEGV.  Once NtWineRestoreCurrentTeb has
+          * cached the Unix pthread-TLS accessor, invoke it directly.  The
+          * accessor uses preserve_all, but explicitly retain the volatile
+          * Windows argument/vector registers that it may use because this
+          * naked gate is also entered from generated x86-64 code.  x12-x15
+          * are already preserved by that ABI (and are disallowed ARM64EC
+          * registers), so do not touch them here.
+          */
+         "cbnz x18, .Ljuice_teb_ready\n\t"
+         "adrp x16, juice_teb_accessor\n\t"
+         "ldr x16, [x16, #:lo12:juice_teb_accessor]\n\t"
+         "cbz x16, .Ljuice_teb_ready\n\t"
+         "sub sp, sp, #0xf0\n\t"
+         "stp x0,  x1,  [sp, #0x00]\n\t"
+         "stp x2,  x3,  [sp, #0x10]\n\t"
+         "stp x4,  x5,  [sp, #0x20]\n\t"
+         "stp x6,  x7,  [sp, #0x30]\n\t"
+         "stp x8,  x9,  [sp, #0x40]\n\t"
+         "stp x10, x11, [sp, #0x50]\n\t"
+         "str x30, [sp, #0x60]\n\t"
+         "stp q0, q1, [sp, #0x70]\n\t"
+         "stp q2, q3, [sp, #0x90]\n\t"
+         "stp q4, q5, [sp, #0xb0]\n\t"
+         "stp q6, q7, [sp, #0xd0]\n\t"
+         "blr x16\n\t"
+         "ldp q0, q1, [sp, #0x70]\n\t"
+         "ldp q2, q3, [sp, #0x90]\n\t"
+         "ldp q4, q5, [sp, #0xb0]\n\t"
+         "ldp q6, q7, [sp, #0xd0]\n\t"
+         "ldr x30, [sp, #0x60]\n\t"
+         "ldp x10, x11, [sp, #0x50]\n\t"
+         "ldp x8,  x9,  [sp, #0x40]\n\t"
+         "ldp x6,  x7,  [sp, #0x30]\n\t"
+         "ldp x4,  x5,  [sp, #0x20]\n\t"
+         "ldp x2,  x3,  [sp, #0x10]\n\t"
+         "ldp x0,  x1,  [sp, #0x00]\n\t"
+         "add sp, sp, #0xf0\n"
+         ".Ljuice_teb_ready:\n\t"
+#endif
          /* check for EC code */
          "ldr x16, [x18, #0x60]\n\t"        /* peb */
          "lsr x17, x11, #18\n\t"            /* dest / page_size / 64 */

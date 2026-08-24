@@ -210,6 +210,8 @@ else
   echo "JUICE_WIN32_RUNTIME_SKIPPED reason=components_missing hint='make win32-components'"
 fi
 
+bash "$ROOT/scripts/verify-translation-runtime-safety.sh" "$GRAPE"
+
 (
   cd "$STAGE"
   LC_ALL=C find Grape-X64 -type f -print0 | sort -z |

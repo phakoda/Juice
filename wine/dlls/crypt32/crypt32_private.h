@@ -361,6 +361,7 @@ WINECRYPT_CERTSTORE *CRYPT_FileNameOpenStoreW(HCRYPTPROV hCryptProv,
  DWORD dwFlags, const void *pvPara);
 
 void CRYPT_ImportSystemRootCertsToReg(void);
+HCERTSTORE CRYPT_DuplicateHostRootStore(void);
 BOOL CRYPT_SerializeContextToReg(HKEY key, DWORD flags, const WINE_CONTEXT_INTERFACE *context_iface,
     const void *context);
 void CRYPT_RegReadSerializedFromReg(HKEY key, DWORD contextType,

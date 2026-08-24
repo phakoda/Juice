@@ -61,6 +61,10 @@ if test "${JUICE_WITHOUT_GNUTLS:-0}" != 1; then
     echo "Configured GnuTLS soname is absent: $ROOTLESS/usr/lib/$JUICE_GNUTLS_SONAME" >&2
     exit 3
   }
+  test -s "$ROOTLESS/etc/ssl/certs/cacert.pem" || {
+    echo "Pinned CA bundle is absent: $ROOTLESS/etc/ssl/certs/cacert.pem" >&2
+    exit 3
+  }
 fi
 
 for name in "${!selected[@]}"; do
@@ -75,6 +79,7 @@ if test "${JUICE_WITHOUT_GNUTLS:-0}" != 1; then
     echo "Bundled GnuTLS soname was not materialized: $DESTINATION/$JUICE_GNUTLS_SONAME" >&2
     exit 3
   }
+  cp -a "$ROOTLESS/etc/ssl/certs/cacert.pem" "$DESTINATION/$JUICE_CA_BUNDLE_NAME"
 fi
 
 count="$(find "$DESTINATION" -maxdepth 1 -type f | wc -l | tr -d ' ')"

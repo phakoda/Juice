@@ -48,6 +48,7 @@ dlls/mpr/aarch64-windows/mpr.dll
 dlls/msi/aarch64-windows/msi.dll
 dlls/msacm32/aarch64-windows/msacm32.dll
 dlls/mspatcha/aarch64-windows/mspatcha.dll
+dlls/mswsock/aarch64-windows/mswsock.dll
 dlls/msvcrt/aarch64-windows/msvcrt.dll
 dlls/mountmgr.sys/aarch64-windows/mountmgr.sys
 dlls/ncrypt/aarch64-windows/ncrypt.dll
@@ -62,6 +63,7 @@ dlls/odbccp32/aarch64-windows/odbccp32.dll
 dlls/ole32/aarch64-windows/ole32.dll
 dlls/oleaut32/aarch64-windows/oleaut32.dll
 dlls/opengl32/aarch64-windows/opengl32.dll
+dlls/psapi/aarch64-windows/psapi.dll
 dlls/rpcrt4/aarch64-windows/rpcrt4.dll
 dlls/rsaenh/aarch64-windows/rsaenh.dll
 dlls/schannel/aarch64-windows/schannel.dll
@@ -88,6 +90,7 @@ dlls/wineios.drv/aarch64-windows/wineios.drv
 dlls/wintrust/aarch64-windows/wintrust.dll
 dlls/winevulkan/aarch64-windows/winevulkan.dll
 dlls/ws2_32/aarch64-windows/ws2_32.dll
+dlls/wsock32/aarch64-windows/wsock32.dll
 dlls/xinput1_1/aarch64-windows/xinput1_1.dll
 dlls/xinput1_2/aarch64-windows/xinput1_2.dll
 dlls/xinput1_3/aarch64-windows/xinput1_3.dll

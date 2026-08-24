@@ -316,7 +316,36 @@ void *anon_mmap_fixed( void *start, size_t size, int prot, int flags )
 
 static void *anon_mmap_alloc_flags( size_t size, int prot, int flags )
 {
+    void *ret;
+
     assert( !(size & host_page_mask) );
+
+#if defined(__APPLE__) && defined(__aarch64__)
+    /*
+     * Once Juice exposes low addresses to an x86 translator, mmap(NULL) may
+     * place Wine's own Unix-side caches inside guest address space.  A later
+     * VirtualProtect/VirtualFree then changes or removes the native mapping.
+     * This was observed with the NtWaitForAlertByThreadId futex page, leaving
+     * a thread in a permanent native fault loop.  Keep address-unspecified
+     * Wine bookkeeping above 4 GiB; fixed guest mappings use
+     * anon_mmap_fixed() and are intentionally unaffected.
+     */
+    if (getenv( "JUICE_LOWVA_READY" ))
+    {
+        /* This iOS runtime's task map ends below 12 GiB, so use a hint in
+         * the otherwise quiet 6 GiB region instead of a desktop-style high
+         * address that the kernel would reject outright. */
+        ret = mmap( (void *)0x180000000ull, size, prot,
+                    MAP_PRIVATE | MAP_ANON | flags, -1, 0 );
+        if (ret != MAP_FAILED && (uintptr_t)ret < 0x100000000ull)
+        {
+            munmap( ret, size );
+            errno = ENOMEM;
+            return MAP_FAILED;
+        }
+        return ret;
+    }
+#endif
     return mmap( NULL, size, prot, MAP_PRIVATE | MAP_ANON | flags, -1, 0 );
 }
 
@@ -797,8 +826,18 @@ static void mmap_init( const struct preload_info *preload_info )
 
     if (preload_info) return;
     /* if we don't have a preloader, try to reserve the space now */
-    reserve_area( (void *)0x000000010000, (void *)0x000068000000 );
-    reserve_area( (void *)0x00007f000000, (void *)0x00007fff0000 );
+    /* The Juice loader has already mapped this complete range PROT_NONE.
+     * Do not call reserve_area() here: its non-replacing probe correctly sees
+     * the loader mapping as occupied and consequently never records it in
+     * reserved_areas.  Register the existing reservation directly so normal
+     * Win32 allocations can replace pieces of it with MAP_FIXED. */
+    if (getenv( "JUICE_LOWVA_READY" ))
+        mmap_add_reserved_area( (void *)0x000000010000, 0x7fff0000 );
+    else
+    {
+        reserve_area( (void *)0x000000010000, (void *)0x000068000000 );
+        reserve_area( (void *)0x00007f000000, (void *)0x00007fff0000 );
+    }
     reserve_area( (void *)0x7ffffe000000, (void *)0x7fffffff0000 );
 
 #endif

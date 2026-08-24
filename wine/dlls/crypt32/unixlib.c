@@ -915,6 +915,8 @@ static void import_certs_from_path(LPCSTR path, BOOL allow_dir)
 }
 
 static const char * const CRYPT_knownLocations[] = {
+ "/var/jb/etc/ssl/cert.pem",                  /* Procursus rootless iOS */
+ "/var/jb/etc/ssl/certs/cacert.pem",          /* Procursus rootless iOS */
  "/var/jb/etc/ssl/certs/ca-certificates.crt", /* rootless iOS */
  "/var/jb/etc/ssl/certs",                    /* rootless iOS */
  "/etc/ssl/certs/ca-certificates.crt",
@@ -928,7 +930,17 @@ static const char * const CRYPT_knownLocations[] = {
 
 static void load_root_certs(void)
 {
+    const char *juice_ca_bundle = getenv( "JUICE_CA_BUNDLE" );
     unsigned int i;
+
+    /*
+     * iOS does not expose its system anchor set as an enumerable collection.
+     * Juice therefore ships the pinned Mozilla/Procursus bundle and passes
+     * its absolute path through the process environment.  Keep the normal
+     * Wine host locations as fallbacks for development and jailbreak setups.
+     */
+    if (juice_ca_bundle && *juice_ca_bundle)
+        import_certs_from_path( juice_ca_bundle, FALSE );
 
 #if defined(__APPLE__) && !TARGET_OS_IPHONE
     const SecTrustSettingsDomain domains[] = {

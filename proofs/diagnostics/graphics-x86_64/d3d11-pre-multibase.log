@@ -1,0 +1,1003 @@
+JUICE_HEADLESS_TEST_BEGIN
+EXTERNAL_INPUT_READY keyboard=hardware gamecontroller=xinput-v1 state=/var/mobile/Containers/Data/Application/31FD36ED-09D6-4C6D-B8F7-CD64EFFB7022/Documents/JuiceData/controller-v1.bin
+DISPLAY_SOCKET path=/var/mobile/Containers/Data/Application/31FD36ED-09D6-4C6D-B8F7-CD64EFFB7022/Documents/j.sock bind=0 listen=0 errno=2
+CONTROL_V1_SOCKET path=/var/mobile/Containers/Data/Application/31FD36ED-09D6-4C6D-B8F7-CD64EFFB7022/Documents/jc1.sock bind=0 listen=0 errno=2
+EXPERIMENTAL_STATE multi_window=1 x86_64=1
+HOST_METAL_DEVICE available=0 name=none
+GUI_READY
+EXPERIMENTAL_X86_64 enabled=1
+AUTO_LAUNCH_CUSTOM path=/var/mobile/Documents/JuiceData/SmokeTests/graphics-x86_64/juice-d3d11-smoke.exe machine=0x8664
+PE_ARCH_DETECTED machine=0x8664 arch=x86_64 runtime=Grape-X64 path=/var/mobile/Documents/JuiceData/SmokeTests/graphics-x86_64/juice-d3d11-smoke.exe
+RUNTIME_SELECTED runtime=Grape-X64 prefix=/var/mobile/Containers/Data/Application/31FD36ED-09D6-4C6D-B8F7-CD64EFFB7022/Documents/JuiceData/GrapePrefix-x86_64
+PREFIX_RUNTIME_LINKS count=0 system32=/var/mobile/Containers/Data/Application/31FD36ED-09D6-4C6D-B8F7-CD64EFFB7022/Documents/JuiceData/GrapePrefix-x86_64/drive_c/windows/system32
+PREFIX_APISET_READY path=/var/mobile/Containers/Data/Application/31FD36ED-09D6-4C6D-B8F7-CD64EFFB7022/Documents/JuiceData/GrapePrefix-x86_64/drive_c/windows/system32/apisetschema.dll existing=0
+Wine server: 0 pid=19767
+
+GUI launch /var/mobile/Documents/JuiceData/SmokeTests/graphics-x86_64/juice-d3d11-smoke.exe: 0 pid=19768
+[JuiceWine parent] bundle libraries path=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Libraries:/var/jb/usr/lib
+[JuiceWine parent] launching /private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/loader/wine
+[JuiceWine parent] child PID=19769
+[JuiceWine] iOS low-VA release start=0x10000 end=0x100000000 status=0 OK
+[JuiceLowVA] MAP_FIXED failed count=1 start=0x10000 size=0x67ff0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=2 start=0x10000 size=0x33ff0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=3 start=0x10000 size=0x19ff0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=4 start=0x10000 size=0xcff0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=5 start=0x10000 size=0x67f0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=6 start=0x10000 size=0x33f0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=7 start=0x10000 size=0x19f0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=8 start=0x10000 size=0xcf0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=9 start=0x10000 size=0x670000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=10 start=0x10000 size=0x330000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=11 start=0x10000 size=0x190000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=12 start=0x10000 size=0xc0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=13 start=0x10000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=14 start=0x10000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=15 start=0x10000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=16 start=0x20000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=17 start=0x20000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=18 start=0x30000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=19 start=0x40000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=20 start=0x40000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=21 start=0x50000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=22 start=0x50000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=23 start=0x60000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=24 start=0x70000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=25 start=0x70000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=26 start=0x70000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=27 start=0x80000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=28 start=0x80000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=29 start=0x90000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=30 start=0xa0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=31 start=0xa0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=32 start=0xb0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] suppressing repeated MAP_FIXED failures; sampling every 256 probes
+[JuiceLowVA] MAP_FIXED failed count=256 start=0x7b0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=512 start=0xfc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=768 start=0x17c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=1024 start=0x1fc0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=1280 start=0x27c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=1536 start=0x2fd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=1792 start=0x37b0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=2048 start=0x3fc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=2304 start=0x47c0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=2560 start=0x4fb0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=2816 start=0x57c0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=3072 start=0x5fe0000 size=0x1a0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=3328 start=0x67e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=3584 start=0x6fc0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=3840 start=0x77d0000 size=0x70000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=4096 start=0x7fd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=4352 start=0x87c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=4608 start=0x8fd0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=4864 start=0x97d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=5120 start=0x9fc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=5376 start=0xa7d0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=5632 start=0xafc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=5888 start=0xb7c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=6144 start=0xbfc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=6400 start=0xc7e0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=6656 start=0xcff0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=6912 start=0xd7c0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=7168 start=0xdfd0000 size=0x70000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=7424 start=0xe7d0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=7680 start=0xefc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=7936 start=0xf7d0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=8192 start=0xffd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=8448 start=0x107c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=8704 start=0x10fd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=8960 start=0x117c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=9216 start=0x11fc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=9472 start=0x127c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=9728 start=0x12fe0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=9984 start=0x137f0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=10240 start=0x13fc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=10496 start=0x147d0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=10752 start=0x14fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=11008 start=0x157d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=11264 start=0x15fd0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=11520 start=0x167e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=11776 start=0x16fd0000 size=0x40000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=12032 start=0x177d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=12288 start=0x17fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=12544 start=0x187d0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=12800 start=0x18fd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=13056 start=0x197e0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=13312 start=0x1a000000 size=0x1a000000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=13568 start=0x1a7c0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=13824 start=0x1afd0000 size=0x70000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=14080 start=0x1b7d0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=14336 start=0x1bfc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=14592 start=0x1c7d0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=14848 start=0x1cfd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=15104 start=0x1d7c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=15360 start=0x1dfd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=15616 start=0x1e7c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=15872 start=0x1efc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=16128 start=0x1f7c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=16384 start=0x1ffe0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=16640 start=0x207f0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=16896 start=0x20fc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=17152 start=0x217d0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=17408 start=0x21fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=17664 start=0x227d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=17920 start=0x22fd0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=18176 start=0x237e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=18432 start=0x23fd0000 size=0x40000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=18688 start=0x247d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=18944 start=0x24fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=19200 start=0x257d0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=19456 start=0x25fd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=19712 start=0x267e0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=19968 start=0x27000000 size=0xd000000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=20224 start=0x277c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=20480 start=0x27fd0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=20736 start=0x287d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=20992 start=0x28fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=21248 start=0x297d0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=21504 start=0x29fe0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=21760 start=0x2a7d0000 size=0x40000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=22016 start=0x2afd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=22272 start=0x2b7d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=22528 start=0x2bfd0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=22784 start=0x2c7d0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=23040 start=0x2cfe0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=23296 start=0x2d800000 size=0x6800000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=23552 start=0x2dfd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=23808 start=0x2e7d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=24064 start=0x2efe0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=24320 start=0x2f7e0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=24576 start=0x2ffd0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=24832 start=0x307f0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=25088 start=0x30fd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=25344 start=0x317e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=25600 start=0x31fe0000 size=0x70000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=25856 start=0x327d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=26112 start=0x32fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=26368 start=0x337e0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=26624 start=0x34000000 size=0x1a000000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=26880 start=0x347c0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=27136 start=0x34fd0000 size=0x70000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=27392 start=0x357d0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=27648 start=0x35fc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=27904 start=0x367d0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=28160 start=0x36fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=28416 start=0x377c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=28672 start=0x37fd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=28928 start=0x387c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=29184 start=0x38fc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=29440 start=0x397c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=29696 start=0x39fe0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=29952 start=0x3a7f0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=30208 start=0x3afc0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=30464 start=0x3b7d0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=30720 start=0x3bfd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=30976 start=0x3c7d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=31232 start=0x3cfd0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=31488 start=0x3d7e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=31744 start=0x3dfd0000 size=0x40000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=32000 start=0x3e7d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=32256 start=0x3efd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=32512 start=0x3f7d0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=32768 start=0x3ffd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=33024 start=0x407e0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=33280 start=0x41000000 size=0xd000000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=33536 start=0x417c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=33792 start=0x41fd0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=34048 start=0x427d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=34304 start=0x42fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=34560 start=0x437d0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=34816 start=0x43fe0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=35072 start=0x447d0000 size=0x40000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=35328 start=0x44fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=35584 start=0x457d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=35840 start=0x45fd0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=36096 start=0x467d0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=36352 start=0x46fe0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=36608 start=0x47800000 size=0x6800000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=36864 start=0x47fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=37120 start=0x487d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=37376 start=0x48fe0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=37632 start=0x497e0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=37888 start=0x49fd0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=38144 start=0x4a7f0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=38400 start=0x4afd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=38656 start=0x4b7e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=38912 start=0x4bfe0000 size=0x70000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=39168 start=0x4c7d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=39424 start=0x4cfd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=39680 start=0x4d7e0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=39936 start=0x4e000000 size=0xd000000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=40192 start=0x4e7c0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=40448 start=0x4efd0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=40704 start=0x4f7d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=40960 start=0x4ffd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=41216 start=0x507d0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=41472 start=0x50fe0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=41728 start=0x517d0000 size=0x40000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=41984 start=0x51fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=42240 start=0x527d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=42496 start=0x52fd0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=42752 start=0x537d0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=43008 start=0x53fe0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=43264 start=0x54800000 size=0x6800000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=43520 start=0x54fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=43776 start=0x557d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=44032 start=0x55fe0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=44288 start=0x567e0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=44544 start=0x56fd0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=44800 start=0x577f0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=45056 start=0x57fd0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=45312 start=0x587e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=45568 start=0x58fe0000 size=0x70000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=45824 start=0x597d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=46080 start=0x59fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=46336 start=0x5a7e0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=46592 start=0x5b000000 size=0x6800000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=46848 start=0x5b7d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=47104 start=0x5bfd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=47360 start=0x5c7e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=47616 start=0x5cfe0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=47872 start=0x5d7d0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=48128 start=0x5dff0000 size=0xd0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=48384 start=0x5e7d0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=48640 start=0x5efe0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=48896 start=0x5f7e0000 size=0x70000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=49152 start=0x5ffd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=49408 start=0x607d0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=49664 start=0x60fe0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=49920 start=0x61800000 size=0x3400000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=50176 start=0x61fe0000 size=0x40000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=50432 start=0x627e0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=50688 start=0x62ff0000 size=0x70000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=50944 start=0x637e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=51200 start=0x63fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=51456 start=0x647f0000 size=0x60000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=51712 start=0x64fd0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=51968 start=0x657f0000 size=0x40000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=52224 start=0x65fe0000 size=0x30000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=52480 start=0x667e0000 size=0x20000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=52736 start=0x66fe0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=52992 start=0x677e0000 size=0x10000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=53248 start=0x7f000000 size=0x3f0000 prot=0 errno=12
+[JuiceLowVA] MAP_FIXED failed count=53504 start=0x7f7f0000 size=0x80000 prot=0 errno=12
+[JuiceWine] PT_TRACE_ME succeeded; csflags=0x32007005 CS_DEBUGGED=YES
+[JuiceWine] requesting controlled tracer detach
+[JuiceWine parent] child stopped pid=19769 signal=17 (Suspended (signal): 17)
+[JuiceWine parent] PT_DETACH pid=19769 result=0
+[JuiceWine parent] child now running untraced
+[JuiceWine] resumed after tracer detach; csflags=0x32007005 CS_DEBUGGED=YES
+err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fff70000-0x3ffff0000, unix_prot 0.
+err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x100000000-0x100110000, unix_prot 0x3.
+[JuiceStage] running controlled wineboot initialization
+108178.468:0024:err:environ:run_wineboot failed to start wineboot c0000017
+[JuiceWine] host-page expanding executable section .text: section=0x140001000 mapping=0x140000000 size=16384
+[JuiceWine] anonymous PE executable section .text at 0x140000000 size=16384
+108178.472:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x100000000-0x100100000, unix_prot 0x3.
+[JuiceStage] loading Windows ntdll; transfer=0x140001000 teb=0x17ffd8000 peb=0x17ffdc000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/aarch64-windows/ntdll.dll machine=8664 status=00000000
+108178.473:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ff960000-0x3ffff0000, unix_prot 0x7.
+108178.550:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fff70000-0x3ffff0000, unix_prot 0x1.
+[JuiceWine] anonymous PE executable section .text at 0x17f8e0000 size=983040
+[JuiceWine] anonymous PE executable section .hexpthk at 0x17f9d0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/aarch64-windows/ntdll.dll status=40000003 module=0x17f8d0000 size=690000
+[JuiceStage] load_ntdll returned; transfer=0x140001000
+[JuiceStage] load_wow64_ntdll returned
+[JuiceStage] calling load_apiset_dll
+108178.632:0024:err:module:load_apiset_dll failed to load apiset: c000000f
+[JuiceStage] load_apiset_dll returned; stack_base=0x107a00000 stack_limit=0x107908000
+[JuiceStage] calling server_init_process_done
+[JuiceStage] server_init_process_done entered
+[JuiceStage] calling signal_init_process; teb=0x17ffd8000
+[JuiceStage] signal_init_process returned
+[JuiceStage] init_teb_data returned; syscall_frame=0x28010fcd0 stack_base=0x107a00000 stack_limit=0x107908000
+[JuiceStage] init_process_done server call returned; status=00000000 suspend=0 transfer=0x140001000 teb=0x17ffd8000 peb=0x17ffdc000
+[JuiceStage] calling signal_start_thread
+[JuiceStage] init_syscall_frame entered; entry=0x140001000 arg=0x17ffdc000 teb=0x17ffd8000 data=0x280000000 frame=0x28010fcd0 stack_base=0x107a00000 stack_limit=0x107908000
+[JuiceStage] calling signal_set_full_context; ctx=0x1079ffc70 target_pc=0x17f99bd48 target_sp=0x107a00000 target_x18=0x17ffd8000 LdrInitializeThunk=0x17f99bd7c RtlUserThreadStart=0x17f99bd48
+[JuiceStage] signal_set_full_context returned; status=00000000 frame_pc=0x17f99bd48 frame_sp=0x107a00000 frame_x18=0x17ffd8000 restore=00400007
+[JuiceStage] init_syscall_frame complete; dispatcher_pc=0x17f99bd7c user_sp=0x1079ffc70 x16=0x17f99bd7c x17=0x1079ffc70 x18=0x17ffd8000 restore=00400007
+[JuiceX18] broad #1 pc=0x17f972f98 fault=0x17ee instr=796fde48 x8=0x0 x16=0x2b002b x17=0x100 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #2 pc=0x17f9a1a7c fault=0x60 instr=f940324c x8=0x0 x16=0x17f972f98 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #3 pc=0x17f998158 fault=0x1788 instr=f94bc648 x8=0x17f99c024 x16=0x17f9a1a7c x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #4 pc=0x17f9a250c fault=0x60 instr=f9403248 x8=0x104550090 x16=0x104550108 x17=0x104550888 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #5 pc=0x17f9730bc fault=0x180c instr=b9580e48 x8=0x3 x16=0x17f998334 x17=0x1079fefc0 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #6 pc=0x17f965b54 fault=0x60 instr=f9403248 x8=0x17fa36850 x16=0x0 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #7 pc=0x17f965c78 fault=0x60 instr=f9403248 x8=0x20 x16=0x104553c16 x17=0x1045400d0 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #8 pc=0x17f9a19e4 fault=0x3000 instr=b9700248 x8=0x96 x16=0x725c x17=0x225c x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #9 pc=0x104731e54 fault=0x378 instr=f941be4a x8=0x33 x16=0x104731e50 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #10 pc=0x17f9a19e4 fault=0x3000 instr=b9700248 x8=0x9 x16=0x725c x17=0x225c x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #11 pc=0x17f964fc8 fault=0x60 instr=f9403248 x8=0xffffffe3 x16=0x17ffdb0bf x17=0x225c x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #12 pc=0x17f99fd9c fault=0x48 instr=b9404a48 x8=0x1045500d8 x16=0x17f964fc8 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #13 pc=0x17f96503c fault=0x60 instr=f9403248 x8=0x1045534a8 x16=0x104552fa4 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #14 pc=0x17f96503c fault=0x60 instr=f9403248 x8=0x1045563b4 x16=0x1079ff398 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #15 pc=0x17f986960 fault=0x60 instr=f9403248 x8=0x80000005 x16=0x1079fef7e x17=0x1079ff0f0 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #16 pc=0x104731e54 fault=0x378 instr=f941be4a x8=0x1d x16=0x104731e50 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #17 pc=0x17f964b2c fault=0x60 instr=f9403248 x8=0x0 x16=0x17f9971ec x17=0x1079ff590 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #18 pc=0x17f964a44 fault=0x60 instr=f9403248 x8=0x3 x16=0x104553d48 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #19 pc=0x17f9a19e4 fault=0x3000 instr=b9700248 x8=0x63 x16=0x725c x17=0x225c x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #20 pc=0x104731e54 fault=0x378 instr=f941be4a x8=0x39 x16=0x104731e50 x17=0x1079ff090 x18=0x0 teb=0x17ffd8000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/libarm64ecfex/aarch64-windows/libarm64ecfex.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/libarm64ecfex.dll/aarch64-windows/libarm64ecfex.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/libarm64ecfex.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/libarm64ecfex.dll machine=0000 status=00000000
+108178.643:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffc30000-0x3fffec000, unix_prot 0x7.
+[JuiceWine] host-page expanding executable section .text: section=0x17f491000 mapping=0x17f490000 size=2064384
+[JuiceWine] anonymous PE executable section .text at 0x17f490000 size=2064384
+[JuiceWine] anonymous PE executable section .hexpthk at 0x17f688000 size=16384
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/libarm64ecfex.dll status=40000003 module=0x17f490000 size=3bc000
+[JuiceX18] broad #21 pc=0x17f99648c fault=0x1788 instr=f94bc648 x8=0x17f99c024 x16=0xc40 x17=0xffffffffbff00000 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #22 pc=0x17f9a1d74 fault=0x48 instr=b9404a42 x8=0xffffffff x16=0x17f9994e4 x17=0x1079fecf0 x18=0x0 teb=0x17ffd8000
+108178.755:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=000000017F490000 slot=36b540 exit=0000000000000000
+[JuiceX18] broad #23 pc=0x17f99648c fault=0x1788 instr=f94bc648 x8=0x17f99c024 x16=0x1079fedb0 x17=0x17f9a1eec x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #24 pc=0x17f9a19e4 fault=0x3000 instr=b9700248 x8=0xd x16=0x725c x17=0x225c x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #25 pc=0x17f955cac fault=0x2c8 instr=f9416648 x8=0x1079ff0d0 x16=0x17ffdb195 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #26 pc=0x17f99648c fault=0x1788 instr=f94bc648 x8=0x17f99c024 x16=0x17f9994e4 x17=0x1079fea90 x18=0x0 teb=0x17ffd8000
+108178.755:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=000000017F490000 slot=000000017F7FB540 value=0000000000000000 expected=0000000000000000
+[JuiceX18] broad #27 pc=0x17f98ded4 fault=0x60 instr=f9403248 x8=0x10477c330 x16=0x17f996964 x17=0x1079ff410 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #28 pc=0x17f99fd9c fault=0x48 instr=b9404a48 x8=0x1045500d8 x16=0x17f98ded4 x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #29 pc=0x17f9a1b28 fault=0x3004 instr=b9700648 x8=0x7f x16=0x17f99fd9c x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #30 pc=0x17f9a1dd4 fault=0x3004 instr=b9300640 x8=0x1d x16=0x17ffdb42c x17=0x1079ffc70 x18=0x0 teb=0x17ffd8000
+108178.756:0024:err:seh:arm64ec_process_init [JuiceHybrid] process dispatch module=000000017F490000 exit=000000017F497B60 jump=000000017F497B30 ret=000000017F497B38
+[JuiceX18] broad #31 pc=0x17f9856a8 fault=0x60 instr=f9403240 x8=0x17fa36000 x16=0xe x17=0x17f9a1eec x18=0x0 teb=0x17ffd8000
+[JuiceX18] broad #32 pc=0x17f995a80 fault=0x60 instr=f9403250 x8=0x17f99c030 x16=0x17f995a80 x17=0x1079fbff0 x18=0x0 teb=0x17ffd8000
+[JuiceX18] derived #1 pc=0x17f621288 fault=0x1500 instr=b9000113 base=x8 value=0x1500 fixed=0x17ffd9500 teb=0x17ffd8000
+starting FEX based libarm64ecfex.dll
+[JuiceFEX] profiler ready
+[JuiceFEX] handlers ready
+[JuiceFEX] allocator hooks ready
+[JuiceFEX] host features ready
+[JuiceFEX] context created
+[JuiceFEX] core initialized
+108178.773:0024:fixme:process:NtSetInformationProcess (0xffffffffffffffff,0x000007d0,0x1079fcf50,0x00000004) stub
+108178.773:0024:fixme:process:NtSetInformationProcess (0xffffffffffffffff,0x000007d1,0x1079fcf78,0x00000008) stub
+[JuiceFEX] trackers ready
+[JuiceFEX] images and CPU features ready
+108178.774:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffe0000-0x3fffe4000, unix_prot 0x7.
+[JuiceFEX] x64 return thunk ready
+108178.842:0024:fixme:process:NtSetInformationProcess (0xffffffffffffffff,0x000007d0,0x1079fcfe0,0x00000004) stub
+[JuiceFEX] process init complete
+108178.851:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffe0000-0x3fffe4000, unix_prot 0x3.
+108178.916:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffb0000-0x3ffff0000, unix_prot 0x3.
+108178.984:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3eeff0000-0x3ffff0000, unix_prot 0x3.
+108179.052:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffe0000-0x3fffe4000, unix_prot 0x3.
+108179.120:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffbd0000-0x3ffff0000, unix_prot 0.
+[JuiceFEX] call-ret live allocation=0x16e010000-0x16e430000 committed=0x16e020000 default=0x16e120000 state=0x16e120000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/kernel32/aarch64-windows/kernel32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/kernel32.dll/aarch64-windows/kernel32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/kernel32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/kernel32.dll machine=0000 status=00000000
+108179.196:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffcc0000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x16dcf0000 size=393216
+[JuiceWine] anonymous PE executable section .hexpthk at 0x16dd50000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/kernel32.dll status=40000003 module=0x16dce0000 size=330000
+108179.272:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=000000016DCE0000 slot=b0740 exit=000000017F497B60
+108179.272:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=000000016DD90740 value=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/kernelbase/aarch64-windows/kernelbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/kernelbase.dll/aarch64-windows/kernelbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/kernelbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/kernelbase.dll machine=0000 status=00000000
+108179.278:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ff900000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x16d600000 size=983040
+[JuiceWine] anonymous PE executable section .hexpthk at 0x16d6f0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/kernelbase.dll status=40000003 module=0x16d5f0000 size=6f0000
+108179.347:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=000000016D5F0000 slot=188788 exit=000000017F497B60
+108179.347:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=000000016D778788 value=000000017F497B60
+108179.347:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=000000016D5F0000 slot=000000016D778788 value=000000017F497B60 expected=000000017F497B60
+108179.349:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=000000016DCE0000 slot=000000016DD90740 value=000000017F497B60 expected=000000017F497B60
+108179.350:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] kernel32 load_dll returned module=000000016DCE0000 slot=000000016DD90740 value=000000017F497B60 expected=000000017F497B60
+108179.352:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after main import fixup module=000000016DCE0000 slot=000000016DD90740 value=000000017F497B60 expected=000000017F497B60
+108179.361:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after kernel32 process attach module=000000016DCE0000 slot=000000016DD90740 value=000000017F497B60 expected=000000017F497B60
+108179.361:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after dependency process attach module=000000016DCE0000 slot=000000016DD90740 value=000000017F497B60 expected=000000017F497B60
+108179.362:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] loader_init exit module=000000016DCE0000 slot=000000016DD90740 value=000000017F497B60 expected=000000017F497B60
+108179.362:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3feff0000-0x3ffff0000, unix_prot 0x3.
+108179.429:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ff7f0000-0x3ffff0000, unix_prot 0x3.
+108179.497:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffe0000-0x3fffec000, unix_prot 0x3.
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/d3d11/aarch64-windows/d3d11.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/d3d11.dll/aarch64-windows/d3d11.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/d3d11.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/d3d11.dll machine=0000 status=00000000
+108179.578:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ff9b0000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x16b3b0000 size=458752
+[JuiceWine] anonymous PE executable section .hexpthk at 0x16b420000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/d3d11.dll status=40000003 module=0x16b3a0000 size=640000
+108179.652:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=000000016B3A0000 slot=e0350 exit=000000017F497B60
+108179.652:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=000000016B480350 value=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/dxgi/aarch64-windows/dxgi.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/dxgi.dll/aarch64-windows/dxgi.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/dxgi.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/dxgi.dll machine=0000 status=00000000
+108179.658:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffd10000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x16b0d0000 size=196608
+[JuiceWine] anonymous PE executable section .hexpthk at 0x16b100000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/dxgi.dll status=40000003 module=0x16b0c0000 size=2e0000
+108179.724:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=000000016B0C0000 slot=90330 exit=000000017F497B60
+108179.724:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=000000016B150330 value=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/wined3d/aarch64-windows/wined3d.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/wined3d.dll/aarch64-windows/wined3d.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/wined3d.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wined3d.dll machine=0000 status=00000000
+108179.728:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fd110000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x1681f0000 size=4325376
+[JuiceWine] anonymous PE executable section .hexpthk at 0x168610000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wined3d.dll status=40000003 module=0x1681e0000 size=2ee0000
+108179.815:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=00000001681E0000 slot=5e1400 exit=000000017F497B60
+108179.815:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=00000001687C1400 value=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/opengl32/aarch64-windows/opengl32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/opengl32.dll/aarch64-windows/opengl32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/opengl32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/opengl32.dll machine=0000 status=00000000
+108179.822:0024:err:virtual:map_fixed_area out of memory for 0x7b5e0000-0x7bff0000
+108179.822:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ff5e0000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x1677e0000 size=1310720
+[JuiceWine] anonymous PE executable section .hexpthk at 0x167920000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/opengl32.dll status=40000003 module=0x1677d0000 size=a10000
+108179.894:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=00000001677D0000 slot=26b098 exit=000000017F497B60
+108179.894:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=0000000167A3B098 value=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/gdi32/aarch64-windows/gdi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/gdi32.dll/aarch64-windows/gdi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/gdi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/gdi32.dll machine=0000 status=00000000
+108179.899:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffb80000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x167370000 size=655360
+[JuiceWine] anonymous PE executable section .hexpthk at 0x167410000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/gdi32.dll status=40000003 module=0x167360000 size=470000
+108179.973:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=0000000167360000 slot=1112e0 exit=000000017F497B60
+108179.973:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=00000001674712E0 value=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/user32/aarch64-windows/user32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/user32.dll/aarch64-windows/user32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/user32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/user32.dll machine=0000 status=00000000
+108179.979:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ff700000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x166a80000 size=1179648
+[JuiceWine] anonymous PE executable section .hexpthk at 0x166ba0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/user32.dll status=40000003 module=0x166a70000 size=8f0000
+108180.050:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=0000000166A70000 slot=1b1f70 exit=000000017F497B60
+108180.050:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=0000000166C21F70 value=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/sechost/aarch64-windows/sechost.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/sechost.dll/aarch64-windows/sechost.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/sechost.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/sechost.dll machine=0000 status=00000000
+108180.056:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffea0000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x16bca0000 size=131072
+[JuiceWine] anonymous PE executable section .hexpthk at 0x16bcc0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/sechost.dll status=40000003 module=0x16bc90000 size=150000
+108180.129:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=000000016BC90000 slot=60470 exit=000000017F497B60
+108180.129:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=000000016BCF0470 value=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/ucrtbase/aarch64-windows/ucrtbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/ucrtbase.dll/aarch64-windows/ucrtbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/ucrtbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/ucrtbase.dll machine=0000 status=00000000
+108180.135:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ff960000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x1663f0000 size=1179648
+[JuiceWine] anonymous PE executable section .hexpthk at 0x166510000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/ucrtbase.dll status=40000003 module=0x1663e0000 size=690000
+108180.207:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=00000001663E0000 slot=197128 exit=000000017F497B60
+108180.207:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=0000000166577128 value=000000017F497B60
+108180.207:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=00000001663E0000 slot=0000000166577128 value=000000017F497B60 expected=000000017F497B60
+108180.208:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=000000016BC90000 slot=000000016BCF0470 value=000000017F497B60 expected=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/advapi32/aarch64-windows/advapi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/advapi32.dll/aarch64-windows/advapi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/advapi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/advapi32.dll machine=0000 status=00000000
+108180.212:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffd90000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x166190000 size=327680
+[JuiceWine] anonymous PE executable section .hexpthk at 0x1661e0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/advapi32.dll status=40000003 module=0x166180000 size=260000
+108180.290:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=0000000166180000 slot=a04c0 exit=000000017F497B60
+108180.290:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=00000001662204C0 value=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/msvcrt/aarch64-windows/msvcrt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/msvcrt.dll/aarch64-windows/msvcrt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/msvcrt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/msvcrt.dll machine=0000 status=00000000
+108180.295:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffa50000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x165bf0000 size=983040
+[JuiceWine] anonymous PE executable section .hexpthk at 0x165ce0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/msvcrt.dll status=40000003 module=0x165be0000 size=5a0000
+108180.368:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=0000000165BE0000 slot=145ee8 exit=000000017F497B60
+108180.368:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=0000000165D25EE8 value=000000017F497B60
+108180.368:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=0000000165BE0000 slot=0000000165D25EE8 value=000000017F497B60 expected=000000017F497B60
+108180.369:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=0000000166180000 slot=00000001662204C0 value=000000017F497B60 expected=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/win32u/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/win32u.dll/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/win32u.dll machine=0000 status=00000000
+108180.375:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffec0000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x165ac0000 size=262144
+[JuiceWine] anonymous PE executable section .hexpthk at 0x165b00000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/win32u.dll status=40000003 module=0x165ab0000 size=130000
+108180.450:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=0000000165AB0000 slot=90088 exit=000000017F497B60
+108180.450:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=0000000165B40088 value=000000017F497B60
+108180.450:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=0000000165AB0000 slot=0000000165B40088 value=000000017F497B60 expected=000000017F497B60
+108180.450:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=0000000166A70000 slot=0000000166C21F70 value=000000017F497B60 expected=000000017F497B60
+108180.450:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=0000000167360000 slot=00000001674712E0 value=000000017F497B60 expected=000000017F497B60
+108180.451:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=00000001677D0000 slot=0000000167A3B098 value=000000017F497B60 expected=000000017F497B60
+108180.451:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=00000001681E0000 slot=00000001687C1400 value=000000017F497B60 expected=000000017F497B60
+108180.451:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=000000016B0C0000 slot=000000016B150330 value=000000017F497B60 expected=000000017F497B60
+108180.452:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=000000016B3A0000 slot=000000016B480350 value=000000017F497B60 expected=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/imm32/aarch64-windows/imm32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/imm32.dll/aarch64-windows/imm32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/imm32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/imm32.dll machine=0000 status=00000000
+108180.675:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffe80000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x165950000 size=196608
+[JuiceWine] anonymous PE executable section .hexpthk at 0x165980000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/imm32.dll status=40000003 module=0x165940000 size=170000
+108180.746:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=0000000165940000 slot=60450 exit=000000017F497B60
+108180.746:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=00000001659A0450 value=000000017F497B60
+108180.746:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=0000000165940000 slot=00000001659A0450 value=000000017F497B60 expected=000000017F497B60
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/wineios.drv/aarch64-windows/wineios.drv machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/wineios.drv/aarch64-windows/wineios.drv machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/wineios.drv machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wineios.drv machine=0000 status=00000000
+108180.755:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fff00000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x165860000 size=65536
+[JuiceWine] anonymous PE executable section .hexpthk at 0x165870000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wineios.drv status=40000003 module=0x165850000 size=f0000
+108180.831:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=0000000165850000 slot=40068 exit=000000017F497B60
+108180.831:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=0000000165890068 value=000000017F497B60
+108180.831:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=0000000165850000 slot=0000000165890068 value=000000017F497B60 expected=000000017F497B60
+DISPLAY_CLIENT_CONNECTED fd=7
+[JuiceInput] display connected path=/var/mobile/Containers/Data/Application/31FD36ED-09D6-4C6D-B8F7-CD64EFFB7022/Documents/j.sock desktop=1024x768 dpi=96
+DISPLAY_EVENT HELLO fd=7 pid=19769 desktop=1024x768 dpi=96
+[JuiceInput] queue fd registered fd=19 tid=0x24
+[JuiceDriver] ios init set driver create=0x127f98e78 client_surface=0x127f999fc size=1216
+[JuiceDriver] install prev=0x12a759348 lazy=0x12a759348 null=0x12a781f10 candidate=0x129808200 create=0x127f98e78 installed=1
+[JuiceDriver] direct-load status=00000000 driver=0x129808200
+JUICE_MOLTENVK_DRIVER_READY version=48 handle=0x76e440
+[mvk-info] MoltenVK version 1.4.2, supporting Vulkan version 1.4.357.
+	The following 152 Vulkan extensions are supported:
+	VK_KHR_16bit_storage v1
+	VK_KHR_8bit_storage v1
+	VK_KHR_bind_memory2 v1
+	VK_KHR_buffer_device_address v1
+	VK_KHR_calibrated_timestamps v1
+	VK_KHR_copy_commands2 v1
+	VK_KHR_create_renderpass2 v1
+	VK_KHR_dedicated_allocation v3
+	VK_KHR_deferred_host_operations v4
+	VK_KHR_depth_stencil_resolve v1
+	VK_KHR_descriptor_update_template v1
+	VK_KHR_device_group v4
+	VK_KHR_device_group_creation v1
+	VK_KHR_driver_properties v1
+	VK_KHR_dynamic_rendering v1
+	VK_KHR_dynamic_rendering_local_read v1
+	VK_KHR_external_fence v1
+	VK_KHR_external_fence_capabilities v1
+	VK_KHR_external_memory v1
+	VK_KHR_external_memory_capabilities v1
+	VK_KHR_external_semaphore v1
+	VK_KHR_external_semaphore_capabilities v1
+	VK_KHR_format_feature_flags2 v2
+	VK_KHR_fragment_shader_barycentric v1
+	VK_KHR_get_memory_requirements2 v1
+	VK_KHR_get_physical_device_properties2 v2
+	VK_KHR_get_surface_capabilities2 v1
+	VK_KHR_global_priority v1
+	VK_KHR_image_format_list v1
+	VK_KHR_imageless_framebuffer v1
+	VK_KHR_incremental_present v2
+	VK_KHR_index_type_uint8 v1
+	VK_KHR_line_rasterization v1
+	VK_KHR_load_store_op_none v1
+	VK_KHR_maintenance1 v2
+	VK_KHR_maintenance2 v1
+	VK_KHR_maintenance3 v1
+	VK_KHR_maintenance4 v2
+	VK_KHR_maintenance5 v1
+	VK_KHR_maintenance6 v1
+	VK_KHR_maintenance7 v1
+	VK_KHR_maintenance8 v1
+	VK_KHR_maintenance9 v1
+	VK_KHR_map_memory2 v1
+	VK_KHR_multiview v1
+	VK_KHR_portability_subset v1
+	VK_KHR_present_id v1
+	VK_KHR_present_id2 v1
+	VK_KHR_present_wait v1
+	VK_KHR_present_wait2 v1
+	VK_KHR_push_descriptor v2
+	VK_KHR_relaxed_block_layout v1
+	VK_KHR_robustness2 v1
+	VK_KHR_sampler_mirror_clamp_to_edge v3
+	VK_KHR_sampler_ycbcr_conversion v14
+	VK_KHR_separate_depth_stencil_layouts v1
+	VK_KHR_shader_draw_parameters v1
+	VK_KHR_shader_expect_assume v1
+	VK_KHR_shader_float_controls v4
+	VK_KHR_shader_float_controls2 v1
+	VK_KHR_shader_float16_int8 v1
+	VK_KHR_shader_fma v1
+	VK_KHR_shader_integer_dot_product v1
+	VK_KHR_shader_maximal_reconvergence v1
+	VK_KHR_shader_non_semantic_info v1
+	VK_KHR_shader_quad_control v1
+	VK_KHR_shader_relaxed_extended_instruction v1
+	VK_KHR_shader_subgroup_extended_types v1
+	VK_KHR_shader_subgroup_rotate v2
+	VK_KHR_shader_subgroup_uniform_control_flow v1
+	VK_KHR_shader_terminate_invocation v1
+	VK_KHR_spirv_1_4 v1
+	VK_KHR_storage_buffer_storage_class v1
+	VK_KHR_surface v25
+	VK_KHR_surface_maintenance1 v1
+	VK_KHR_surface_protected_capabilities v1
+	VK_KHR_swapchain v70
+	VK_KHR_swapchain_maintenance1 v1
+	VK_KHR_swapchain_mutable_format v1
+	VK_KHR_synchronization2 v1
+	VK_KHR_timeline_semaphore v2
+	VK_KHR_uniform_buffer_standard_layout v1
+	VK_KHR_variable_pointers v1
+	VK_KHR_vertex_attribute_divisor v1
+	VK_KHR_vulkan_memory_model v3
+	VK_KHR_zero_initialize_workgroup_memory v1
+	VK_EXT_4444_formats v1
+	VK_EXT_buffer_device_address v2
+	VK_EXT_calibrated_timestamps v2
+	VK_EXT_debug_marker v4
+	VK_EXT_debug_report v10
+	VK_EXT_debug_utils v2
+	VK_EXT_depth_clip_control v1
+	VK_EXT_descriptor_indexing v2
+	VK_EXT_extended_dynamic_state v1
+	VK_EXT_extended_dynamic_state2 v1
+	VK_EXT_extended_dynamic_state3 v2
+	VK_EXT_external_memory_host v1
+	VK_EXT_external_memory_metal v1
+	VK_EXT_fragment_shader_interlock v1
+	VK_EXT_global_priority v2
+	VK_EXT_global_priority_query v1
+	VK_EXT_headless_surface v1
+	VK_EXT_host_image_copy v1
+	VK_EXT_host_query_reset v1
+	VK_EXT_image_2d_view_of_3d v1
+	VK_EXT_image_robustness v1
+	VK_EXT_index_type_uint8 v1
+	VK_EXT_inline_uniform_block v1
+	VK_EXT_layer_settings v2
+	VK_EXT_legacy_dithering v2
+	VK_EXT_line_rasterization v1
+	VK_EXT_load_store_op_none v1
+	VK_EXT_memory_budget v1
+	VK_EXT_metal_objects v2
+	VK_EXT_metal_surface v1
+	VK_EXT_non_seamless_cube_map v1
+	VK_EXT_pipeline_creation_cache_control v3
+	VK_EXT_pipeline_creation_feedback v1
+	VK_EXT_pipeline_robustness v1
+	VK_EXT_post_depth_coverage v1
+	VK_EXT_primitive_topology_list_restart v1
+	VK_EXT_private_data v1
+	VK_EXT_provoking_vertex v1
+	VK_EXT_robustness2 v1
+	VK_EXT_sample_locations v1
+	VK_EXT_scalar_block_layout v1
+	VK_EXT_separate_stencil_usage v1
+	VK_EXT_shader_atomic_float v1
+	VK_EXT_shader_demote_to_helper_invocation v1
+	VK_EXT_shader_stencil_export v1
+	VK_EXT_shader_subgroup_ballot v1
+	VK_EXT_shader_subgroup_vote v1
+	VK_EXT_shader_viewport_index_layer v1
+	VK_EXT_subgroup_size_control v2
+	VK_EXT_surface_maintenance1 v1
+	VK_EXT_swapchain_colorspace v5
+	VK_EXT_swapchain_maintenance1 v1
+	VK_EXT_texel_buffer_alignment v1
+	VK_EXT_texture_compression_astc_hdr v1
+	VK_EXT_tooling_info v1
+	VK_EXT_vertex_attribute_divisor v3
+	VK_AMD_gpu_shader_half_float v2
+	VK_AMD_negative_viewport_height v1
+	VK_AMD_shader_image_load_store_lod v1
+	VK_AMD_shader_trinary_minmax v1
+	VK_GOOGLE_display_timing v1
+	VK_IMG_format_pvrtc v1
+	VK_INTEL_shader_integer_functions2 v1
+	VK_MVK_ios_surface v3
+	VK_MVK_moltenvk v37
+	VK_NV_fragment_shader_barycentric v1
+[mvk-info] GPU device:
+	model: Apple A13 GPU
+	type: Integrated
+	vendorID: 0x106b
+	deviceID: 0x10050006
+	pipelineCacheUUID: DB660224-1005-0006-0000-000100000000
+	GPU memory available: 1961 MB
+	GPU memory used: 0 MB
+	Metal Shading Language 3.0
+	supports the following GPU Features:
+		GPU Family Metal 3
+		GPU Family Apple 6
+		Read-Write Texture Tier 2
+[mvk-info] Created VkInstance for Vulkan version 1.0.357, as requested by app, with the following 3 Vulkan extensions enabled:
+	VK_KHR_external_fence_capabilities v1
+	VK_KHR_external_semaphore_capabilities v1
+	VK_KHR_get_physical_device_properties2 v2
+108180.863:0024:fixme:iosdrv:ios_OpenGLInit OpenGL unavailable; Metal translation backend required
+108180.893:0024:err:win:get_desktop_window failed to start explorer c0000017
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/uxtheme/aarch64-windows/uxtheme.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/uxtheme.dll/aarch64-windows/uxtheme.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/uxtheme.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/uxtheme.dll machine=0000 status=00000000
+108180.900:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffe20000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x165690000 size=196608
+[JuiceWine] anonymous PE executable section .hexpthk at 0x1656c0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/uxtheme.dll status=40000003 module=0x165680000 size=1d0000
+108180.978:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=0000000165680000 slot=90a00 exit=000000017F497B60
+108180.978:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=0000000165710A00 value=000000017F497B60
+108180.978:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=0000000165680000 slot=0000000165710A00 value=000000017F497B60 expected=000000017F497B60
+[JuiceX18] derived #2 pc=0x17f98de3c fault=0x1258 instr=79000268 base=x19 value=0x1258 fixed=0x17ffd9258 teb=0x17ffd8000
+108180.984:0024:err:winediag:wined3d_dll_init Using the Vulkan renderer.
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/dlls/winevulkan/aarch64-windows/winevulkan.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/build/wine-ios/programs/winevulkan.dll/aarch64-windows/winevulkan.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/winevulkan.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/winevulkan.dll machine=0000 status=00000000
+108180.990:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffc80000-0x3ffff0000, unix_prot 0x7.
+[JuiceWine] anonymous PE executable section .text at 0x165330000 size=262144
+[JuiceWine] anonymous PE executable section .hexpthk at 0x165370000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/759209CC-173D-43CB-81B8-59B62280B5A0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/winevulkan.dll status=40000003 module=0x165320000 size=370000
+108181.066:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata module=0000000165320000 slot=90268 exit=000000017F497B60
+108181.066:0024:err:seh:arm64ec_update_hybrid_metadata [JuiceHybrid] metadata stored address=00000001653B0268 value=000000017F497B60
+108181.066:0024:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] after import fixup module=0000000165320000 slot=00000001653B0268 value=000000017F497B60 expected=000000017F497B60
+[mvk-info] MoltenVK version 1.4.2, supporting Vulkan version 1.4.357.
+	The following 152 Vulkan extensions are supported:
+	VK_KHR_16bit_storage v1
+	VK_KHR_8bit_storage v1
+	VK_KHR_bind_memory2 v1
+	VK_KHR_buffer_device_address v1
+	VK_KHR_calibrated_timestamps v1
+	VK_KHR_copy_commands2 v1
+	VK_KHR_create_renderpass2 v1
+	VK_KHR_dedicated_allocation v3
+	VK_KHR_deferred_host_operations v4
+	VK_KHR_depth_stencil_resolve v1
+	VK_KHR_descriptor_update_template v1
+	VK_KHR_device_group v4
+	VK_KHR_device_group_creation v1
+	VK_KHR_driver_properties v1
+	VK_KHR_dynamic_rendering v1
+	VK_KHR_dynamic_rendering_local_read v1
+	VK_KHR_external_fence v1
+	VK_KHR_external_fence_capabilities v1
+	VK_KHR_external_memory v1
+	VK_KHR_external_memory_capabilities v1
+	VK_KHR_external_semaphore v1
+	VK_KHR_external_semaphore_capabilities v1
+	VK_KHR_format_feature_flags2 v2
+	VK_KHR_fragment_shader_barycentric v1
+	VK_KHR_get_memory_requirements2 v1
+	VK_KHR_get_physical_device_properties2 v2
+	VK_KHR_get_surface_capabilities2 v1
+	VK_KHR_global_priority v1
+	VK_KHR_image_format_list v1
+	VK_KHR_imageless_framebuffer v1
+	VK_KHR_incremental_present v2
+	VK_KHR_index_type_uint8 v1
+	VK_KHR_line_rasterization v1
+	VK_KHR_load_store_op_none v1
+	VK_KHR_maintenance1 v2
+	VK_KHR_maintenance2 v1
+	VK_KHR_maintenance3 v1
+	VK_KHR_maintenance4 v2
+	VK_KHR_maintenance5 v1
+	VK_KHR_maintenance6 v1
+	VK_KHR_maintenance7 v1
+	VK_KHR_maintenance8 v1
+	VK_KHR_maintenance9 v1
+	VK_KHR_map_memory2 v1
+	VK_KHR_multiview v1
+	VK_KHR_portability_subset v1
+	VK_KHR_present_id v1
+	VK_KHR_present_id2 v1
+	VK_KHR_present_wait v1
+	VK_KHR_present_wait2 v1
+	VK_KHR_push_descriptor v2
+	VK_KHR_relaxed_block_layout v1
+	VK_KHR_robustness2 v1
+	VK_KHR_sampler_mirror_clamp_to_edge v3
+	VK_KHR_sampler_ycbcr_conversion v14
+	VK_KHR_separate_depth_stencil_layouts v1
+	VK_KHR_shader_draw_parameters v1
+	VK_KHR_shader_expect_assume v1
+	VK_KHR_shader_float_controls v4
+	VK_KHR_shader_float_controls2 v1
+	VK_KHR_shader_float16_int8 v1
+	VK_KHR_shader_fma v1
+	VK_KHR_shader_integer_dot_product v1
+	VK_KHR_shader_maximal_reconvergence v1
+	VK_KHR_shader_non_semantic_info v1
+	VK_KHR_shader_quad_control v1
+	VK_KHR_shader_relaxed_extended_instruction v1
+	VK_KHR_shader_subgroup_extended_types v1
+	VK_KHR_shader_subgroup_rotate v2
+	VK_KHR_shader_subgroup_uniform_control_flow v1
+	VK_KHR_shader_terminate_invocation v1
+	VK_KHR_spirv_1_4 v1
+	VK_KHR_storage_buffer_storage_class v1
+	VK_KHR_surface v25
+	VK_KHR_surface_maintenance1 v1
+	VK_KHR_surface_protected_capabilities v1
+	VK_KHR_swapchain v70
+	VK_KHR_swapchain_maintenance1 v1
+	VK_KHR_swapchain_mutable_format v1
+	VK_KHR_synchronization2 v1
+	VK_KHR_timeline_semaphore v2
+	VK_KHR_uniform_buffer_standard_layout v1
+	VK_KHR_variable_pointers v1
+	VK_KHR_vertex_attribute_divisor v1
+	VK_KHR_vulkan_memory_model v3
+	VK_KHR_zero_initialize_workgroup_memory v1
+	VK_EXT_4444_formats v1
+	VK_EXT_buffer_device_address v2
+	VK_EXT_calibrated_timestamps v2
+	VK_EXT_debug_marker v4
+	VK_EXT_debug_report v10
+	VK_EXT_debug_utils v2
+	VK_EXT_depth_clip_control v1
+	VK_EXT_descriptor_indexing v2
+	VK_EXT_extended_dynamic_state v1
+	VK_EXT_extended_dynamic_state2 v1
+	VK_EXT_extended_dynamic_state3 v2
+	VK_EXT_external_memory_host v1
+	VK_EXT_external_memory_metal v1
+	VK_EXT_fragment_shader_interlock v1
+	VK_EXT_global_priority v2
+	VK_EXT_global_priority_query v1
+	VK_EXT_headless_surface v1
+	VK_EXT_host_image_copy v1
+	VK_EXT_host_query_reset v1
+	VK_EXT_image_2d_view_of_3d v1
+	VK_EXT_image_robustness v1
+	VK_EXT_index_type_uint8 v1
+	VK_EXT_inline_uniform_block v1
+	VK_EXT_layer_settings v2
+	VK_EXT_legacy_dithering v2
+	VK_EXT_line_rasterization v1
+	VK_EXT_load_store_op_none v1
+	VK_EXT_memory_budget v1
+	VK_EXT_metal_objects v2
+	VK_EXT_metal_surface v1
+	VK_EXT_non_seamless_cube_map v1
+	VK_EXT_pipeline_creation_cache_control v3
+	VK_EXT_pipeline_creation_feedback v1
+	VK_EXT_pipeline_robustness v1
+	VK_EXT_post_depth_coverage v1
+	VK_EXT_primitive_topology_list_restart v1
+	VK_EXT_private_data v1
+	VK_EXT_provoking_vertex v1
+	VK_EXT_robustness2 v1
+	VK_EXT_sample_locations v1
+	VK_EXT_scalar_block_layout v1
+	VK_EXT_separate_stencil_usage v1
+	VK_EXT_shader_atomic_float v1
+	VK_EXT_shader_demote_to_helper_invocation v1
+	VK_EXT_shader_stencil_export v1
+	VK_EXT_shader_subgroup_ballot v1
+	VK_EXT_shader_subgroup_vote v1
+	VK_EXT_shader_viewport_index_layer v1
+	VK_EXT_subgroup_size_control v2
+	VK_EXT_surface_maintenance1 v1
+	VK_EXT_swapchain_colorspace v5
+	VK_EXT_swapchain_maintenance1 v1
+	VK_EXT_texel_buffer_alignment v1
+	VK_EXT_texture_compression_astc_hdr v1
+	VK_EXT_tooling_info v1
+	VK_EXT_vertex_attribute_divisor v3
+	VK_AMD_gpu_shader_half_float v2
+	VK_AMD_negative_viewport_height v1
+	VK_AMD_shader_image_load_store_lod v1
+	VK_AMD_shader_trinary_minmax v1
+	VK_GOOGLE_display_timing v1
+	VK_IMG_format_pvrtc v1
+	VK_INTEL_shader_integer_functions2 v1
+	VK_MVK_ios_surface v3
+	VK_MVK_moltenvk v37
+	VK_NV_fragment_shader_barycentric v1
+[mvk-info] GPU device:
+	model: Apple A13 GPU
+	type: Integrated
+	vendorID: 0x106b
+	deviceID: 0x10050006
+	pipelineCacheUUID: DB660224-1005-0006-0000-000100000000
+	GPU memory available: 1961 MB
+	GPU memory used: 0 MB
+	Metal Shading Language 3.0
+	supports the following GPU Features:
+		GPU Family Metal 3
+		GPU Family Apple 6
+		Read-Write Texture Tier 2
+[mvk-info] Created VkInstance for Vulkan version 1.1.357, as requested by app, with the following 4 Vulkan extensions enabled:
+	VK_KHR_external_semaphore_capabilities v1
+	VK_KHR_get_physical_device_properties2 v2
+	VK_KHR_surface v25
+	VK_EXT_metal_surface v1
+108181.067:0024:fixme:d3d:adapter_vk_init_driver_info Failed to retrieve GPU description for device "Apple GPU" 106b:10050006.
+108181.067:0024:fixme:ntdll:NtQuerySystemInformation info_class SYSTEM_PERFORMANCE_INFORMATION
+[mvk-info] Vulkan semaphores using MTLEvent.
+[mvk-info] Descriptor sets binding resources using Metal3 argument buffers.
+[mvk-info] Created VkDevice to run on GPU Apple A13 GPU with the following 8 Vulkan extensions enabled:
+	VK_KHR_swapchain v70
+	VK_KHR_synchronization2 v1
+	VK_EXT_extended_dynamic_state v1
+	VK_EXT_extended_dynamic_state2 v1
+	VK_EXT_extended_dynamic_state3 v2
+	VK_EXT_host_query_reset v1
+	VK_EXT_shader_stencil_export v1
+	VK_EXT_vertex_attribute_divisor v3
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_FOGENABLE) (0x1c) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_SPECULARENABLE) (0x1d) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_COLORKEYENABLE) (0x29) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_RANGEFOGENABLE) (0x30) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_LIGHTING) (0x89) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_COLORVERTEX) (0x8d) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_LOCALVIEWER) (0x8e) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_NORMALIZENORMALS) (0x8f) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_DIFFUSEMATERIALSOURCE) (0x91) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_SPECULARMATERIALSOURCE) (0x92) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_AMBIENTMATERIALSOURCE) (0x93) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_EMISSIVEMATERIALSOURCE) (0x94) should have a representative.
+108181.085:0024:err:d3d:validate_state_table State STATE_RENDER(WINED3D_RS_VERTEXBLEND) (0x97) should have a representative.
+108181.086:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x100000000-0x100110000, unix_prot 0x3.
+108181.086:0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x100000000-0x100100000, unix_prot 0x3.
+[JuiceStage] init_syscall_frame entered; entry=0x1684197b8 arg=0x12dc20040 teb=0x17ffd4000 data=0x12d7e0000 frame=0x12d8efb00 stack_base=0x12daf0000 stack_limit=0x12d9f8000
+[JuiceStage] calling signal_set_full_context; ctx=0x12daefc70 target_pc=0x17f99bd48 target_sp=0x12daf0000 target_x18=0x17ffd4000 LdrInitializeThunk=0x17f99bd7c RtlUserThreadStart=0x17f99bd48
+[JuiceStage] signal_set_full_context returned; status=00000000 frame_pc=0x17f99bd48 frame_sp=0x12daf0000 frame_x18=0x17ffd4000 restore=00400007
+[JuiceStage] init_syscall_frame complete; dispatcher_pc=0x17f99bd7c user_sp=0x12daefc70 x16=0x17f99bd7c x17=0x12daefc70 x18=0x17ffd4000 restore=00400007
+108181.090:0038:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffb0000-0x3ffff0000, unix_prot 0x3.
+[JuiceCreate] ex=00000000 class=0x1079ff520 version=0x0 name=0x1079ff500 style=08000000 x=0 y=0 cx=0 cy=0 parent=0x0 menu=0x0 classinst=0x0 params=0x0 flags=00000000 inst=0x0 classptr=0x1079ff770 ansi=1
+108181.161:0038:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3eeff0000-0x3ffff0000, unix_prot 0x3.
+108181.228:0038:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0xf3540000-0x104540000, unix_prot 0x3.
+108181.228:0038:err:virtual:map_free_area couldn't map free area in range 0x10000-0x3ffff0000, size 0x11000000
+108181.228:0038:err:virtual:allocate_virtual_memory out of memory for allocation, base 0x0 size 11000000
+108181.228:0038:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffbd0000-0x3ffff0000, unix_prot 0.
+[JuiceFEX] call-ret live allocation=0x164f00000-0x165320000 committed=0x164f10000 default=0x165010000 state=0x165010000
+108181.298:0038:err:module:juice_trace_arm64ec_dispatch [JuiceHybrid] loader_init exit module=000000016DCE0000 slot=000000016DD90740 value=000000017F497B60 expected=000000017F497B60
+DISPLAY_EVENT WINDOW pid=19769 hwnd=0x1002c rect=0,0 112x27 visible=0
+[JuiceMonitor] callee hwnd=0x1002c hmon=0x1 info=0x28010f720 monitor=0,0,1024,768 work=0,0,1024,768 flags=00000001
+[JuiceMinMax] hwnd=0x1002c min=112,27 maxtrack=1036,780 max=1024,768 pos=-3,-3
+[JuiceRect] input hwnd=0x1002c dpi=96/1 raw=96/1 win=0,0,112,27 client=0,0,112,27 visible=0,0,112,27
+[JuiceRect] mapped hwnd=0x1002c win=0,0,112,27 client=0,0,112,27 visible=0,0,112,27
+[JuiceGeom] changed hwnd=0x1002c flags=3c ptr=0x28010f620 window=0,0,112,27 client=0,0,112,27 visible=0,0,112,27 surface=0x12a7644f0 shown=0
+[JuiceCreate] ex=00000000 class=0x28010f590 version=0x0 name=0x28010f580 style=8c000000 x=0 y=0 cx=1 cy=1 parent=0x0 menu=0x0 classinst=0x0 params=0x0 flags=00000000 inst=0x0 classptr=0x0 ansi=0
+[JuiceRect] input hwnd=0x10030 dpi=96/1 raw=96/1 win=0,0,1,1 client=0,0,1,1 visible=0,0,1,1
+DISPLAY_EVENT WINDOW pid=19769 hwnd=0x10030 rect=0,0 1x1 visible=0
+[JuiceRect] mapped hwnd=0x10030 win=0,0,1,1 client=0,0,1,1 visible=0,0,1,1
+[JuiceGeom] changed hwnd=0x10030 flags=3c ptr=0x28010eed0 window=0,0,1,1 client=0,0,1,1 visible=0,0,1,1 surface=0x12a7644f0 shown=0
+[JuiceRect] input hwnd=0x10030 dpi=96/1 raw=96/1 win=0,0,1,1 client=0,0,1,1 visible=0,0,1,1
+DISPLAY_EVENT WINDOW pid=19769 hwnd=0x10030 rect=0,0 1x1 visible=0
+[JuiceRect] mapped hwnd=0x10030 win=0,0,1,1 client=0,0,1,1 visible=0,0,1,1
+[JuiceGeom] changed hwnd=0x10030 flags=18 ptr=0x28010eed0 window=0,0,1,1 client=0,0,1,1 visible=0,0,1,1 surface=0x12a7644f0 shown=0
+[JuiceDriver] create-enter hwnd=0x10030
+[JuiceDriver] create-success hwnd=0x10030
+[JuiceRect] input hwnd=0x1002c dpi=96/1 raw=96/1 win=0,0,112,27 client=3,22,109,24 visible=0,0,112,27
+[JuiceRect] mapped hwnd=0x1002c win=0,0,112,27 client=3,22,109,24 visible=0,0,112,27
+[JuiceGeom] changed hwnd=0x1002c flags=18 ptr=0x28010f620 window=0,0,112,27 client=3,22,109,24 visible=0,0,112,27 surface=0x12a7644f0 shown=0
+DISPLAY_EVENT WINDOW pid=19769 hwnd=0x1002c rect=0,0 112x27 visible=0
+[JuiceDriver] create-enter hwnd=0x1002c
+[JuiceDriver] create-success hwnd=0x1002c
+[JuiceRect] input hwnd=0x1002c dpi=96/1 raw=96/1 win=0,0,112,27 client=3,22,109,24 visible=0,0,112,27
+[JuiceRect] mapped hwnd=0x1002c win=0,0,112,27 client=3,22,109,24 visible=0,0,112,27
+[JuiceGeom] changed hwnd=0x1002c flags=181b ptr=0x28010f820 window=0,0,112,27 client=3,22,109,24 visible=0,0,112,27 surface=0x12a7644f0 shown=0
+DISPLAY_EVENT WINDOW pid=19769 hwnd=0x1002c rect=0,0 112x27 visible=0
+JUICE_MOLTENVK_CLIENT_SURFACE_READY hwnd=0x1002c device=Apple A13 GPU size=106x2
+DISPLAY_EVENT WINDOW pid=19769 hwnd=0x1002c rect=0,0 112x27 visible=0
+JUICE_MOLTENVK_SURFACE_CREATE hwnd=0x1002c result=0 host=0x105834dc0
+[JuiceRect] input hwnd=0x1002c dpi=96/1 raw=96/1 win=0,0,112,27 client=3,22,109,24 visible=0,0,112,27
+[JuiceRect] mapped hwnd=0x1002c win=0,0,112,27 client=3,22,109,24 visible=0,0,112,27
+[JuiceGeom] changed hwnd=0x1002c flags=181f ptr=0x28010f970 window=0,0,112,27 client=3,22,109,24 visible=0,0,112,27 surface=0x12a7644f0 shown=0
+[mvk-info] Created 2 swapchain images with size (106, 2) and contents scale 1.0 in layer (null) (0x105d23d20) on screen Main Screen.
+MULTI_WINDOW_VIEWPORT rect=0,0 1024x768 desktop=1024x768 locked=0
+[JuiceStage] native segv #1; signal=10 code=1 pc=0x17f54e09c instruction=b900000a lr=0x17f54e088 sp=0x17f47ffa0 x8=0x1 x16=0xffffffffffbc91b0 x17=0x110160680 x18=0x0 addr=0x1288007a0 esr=000000009200004f ec=24 teb=0x17ffd8000 frame=0x28010fcd0
+[JuiceStage] native regs x0=0x1288007a0 x1=0x16e430020 x2=0x1100104b8 x3=0x1100104c0 x4=0x17f47fe6f x5=0x17f47fdf8 x6=0x0 x7=0xc000 x9=0xfa8 x10=0x940001b9 x11=0x16e430027 x12=0xfffffffffffffff8 x13=0x0 x14=0x0 x15=0x140001467
+[JuiceStage] native code -20=aa0003e1 -1c=f9400740 -18=97fd492f -14=f9400f48 -10=91000508 -0c=f9000f48 -08=b94003ea -04=f94007e0 +00=b900000a +04=91001001 +08=94035a13 +0c=b94002a8
+108181.370:0024:trace:seh:dispatch_exception code=c0000005 (EXCEPTION_ACCESS_VIOLATION) flags=0 addr=000000017F54E09C
+108181.370:0024:trace:seh:dispatch_exception  info[0]=0000000000000001
+108181.370:0024:trace:seh:dispatch_exception  info[1]=00000001288007A0
+108181.370:0024:trace:seh:dispatch_exception rip=000000017f54e09c rsp=000000017f47ffa0 rbp=00000001079fffd0 eflags=00000243
+108181.370:0024:trace:seh:dispatch_exception rax=0000000000000001 rbx=000000016e430008 rcx=00000001288007a0 rdx=000000016e430020
+108181.370:0024:trace:seh:dispatch_exception rsi=00000001400013ee rdi=000000016e430000  r8=00000001100104b8  r9=00000001100104c0
+108181.370:0024:trace:seh:dispatch_exception r10=000000017f47fe6f r11=000000017f47fdf8 r12=0000000128800e84 r13=000000016e430008
+108181.370:0024:trace:seh:dispatch_exception r14=00000001100104a0 r15=0000000128800ad0 mxcsr=00001fa1 cs=0033 ss=002b
+[JuiceX18] trampoline #1 retry=0x17f99a30c restored_x17=0x28010fcd0 teb=0x17ffd8000

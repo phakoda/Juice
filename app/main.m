@@ -12,6 +12,7 @@
 #import <sys/wait.h>
 #import <fcntl.h>
 #import <unistd.h>
+#import <errno.h>
 
 #define JUICE_MAGIC 0x4a554943u
 #define MSG_HELLO 1u
@@ -46,6 +47,32 @@ static BOOL ReadAll(int fd,void *p,size_t n){char *b=p;while(n){ssize_t r=read(f
 static BOOL WriteAll(int fd,const void *p,size_t n){const char *b=p;while(n){ssize_t r=write(fd,p,n);if(r<=0)return NO;p=(const char *)p+r;n-=r;}return YES;}
 static char **CopyStrings(NSArray<NSString *> *a){char **v=calloc(a.count+1,sizeof(char *));for(NSUInteger i=0;i<a.count;i++)v[i]=strdup(a[i].UTF8String);return v;}
 static void FreeStrings(char **v){if(!v)return;for(size_t i=0;v[i];i++)free(v[i]);free(v);}
+static int SpawnInNewProcessGroup(pid_t *pid,const char *path,
+                                  const posix_spawn_file_actions_t *actions,
+                                  char *const argv[],char *const envp[])
+{
+ posix_spawnattr_t attributes;
+ short flags=POSIX_SPAWN_SETPGROUP;
+ int result=posix_spawnattr_init(&attributes);
+ if(result)return result;
+ result=posix_spawnattr_setflags(&attributes,flags);
+ if(!result)result=posix_spawnattr_setpgroup(&attributes,0);
+ if(!result)result=posix_spawn(pid,path,actions,&attributes,argv,envp);
+ posix_spawnattr_destroy(&attributes);
+ return result;
+}
+static void TerminateProcessGroup(pid_t leader)
+{
+ if(leader<=0)return;
+ if(kill(-leader,SIGTERM)&&errno==ESRCH)kill(leader,SIGTERM);
+ dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(1.0*NSEC_PER_SEC)),
+                dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{
+  errno=0;
+  if(kill(-leader,0)==0||errno==EPERM)kill(-leader,SIGKILL);
+  else if(errno==ESRCH&&kill(leader,0)==0)kill(leader,SIGKILL);
+  waitpid(leader,NULL,WNOHANG);
+ });
+}
 static void CopyControlString(char *destination,size_t capacity,NSString *value){if(!capacity)return;destination[0]=0;if(value.length) [value getCString:destination maxLength:capacity encoding:NSUTF8StringEncoding];}
 static NSString *JuiceDocumentsRoot(void)
 {
@@ -185,9 +212,49 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
 {if(![self sendPresses:presses down:NO cancelled:YES])[super pressesCancelled:presses withEvent:event];}
 @end
 
+@interface JuiceInstalledAppsController : UITableViewController
+@property(nonatomic,copy) NSArray<NSDictionary *> *applications;
+@property(nonatomic,copy) void (^selectionHandler)(NSDictionary *application);
+@end
+
+@implementation JuiceInstalledAppsController
+-(void)viewDidLoad
+{
+ [super viewDidLoad];
+ self.title=@"Installed Apps";
+ self.navigationItem.leftBarButtonItem=[[UIBarButtonItem alloc]
+  initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self
+  action:@selector(cancelTapped)];
+ [self.tableView registerClass:UITableViewCell.class forCellReuseIdentifier:@"InstalledApp"];
+}
+-(void)cancelTapped{[self dismissViewControllerAnimated:YES completion:nil];}
+-(NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{return (NSInteger)self.applications.count;}
+-(UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+ UITableViewCell *cell=[tableView dequeueReusableCellWithIdentifier:@"InstalledApp"];
+ if(cell.detailTextLabel==nil)
+  cell=[[UITableViewCell alloc]initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:@"InstalledApp"];
+ NSDictionary *application=self.applications[(NSUInteger)indexPath.row];
+ cell.textLabel.text=application[@"title"];
+ cell.detailTextLabel.text=application[@"detail"];
+ cell.detailTextLabel.numberOfLines=2;
+ cell.accessoryType=UITableViewCellAccessoryDisclosureIndicator;
+ return cell;
+}
+-(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+ NSDictionary *application=self.applications[(NSUInteger)indexPath.row];
+ void (^handler)(NSDictionary *)=[self.selectionHandler copy];
+ [self dismissViewControllerAnimated:YES completion:^{if(handler)handler(application);}];
+}
+@end
+
 @interface JuiceController : UIViewController <UITextFieldDelegate,UIDocumentPickerDelegate>
 @property(nonatomic,strong) WineCanvas *canvas;
 @property(nonatomic,strong) UITextView *log;
+@property(nonatomic,strong) NSMutableString *pendingVisibleLog;
+@property(nonatomic,strong) NSFileHandle *persistentLogHandle;
 @property(nonatomic,strong) UITextField *exeField,*argsField,*debugField,*stdinField,*guiTextField;
 @property(nonatomic,strong) UISegmentedControl *mode,*clickMode;
 @property(nonatomic,strong) UISwitch *x64Switch,*winebootSwitch;
@@ -211,7 +278,9 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
 @property(nonatomic) BOOL experimentalMultiWindow,experimentalX64;
 @property(nonatomic) struct juice_gamepad_shared_state *gamepadState;
 @property(nonatomic) uint32_t hardwareKeyEvents;
-@property(nonatomic) BOOL didAutoLaunch,reportedFrame,fullscreen,usingX64,serverUsingX64,desktopMode,prefixNeedsInitialization;
+@property(nonatomic) uint64_t launchGeneration;
+@property(nonatomic) BOOL visibleLogFlushScheduled;
+@property(nonatomic) BOOL didAutoLaunch,reportedFrame,fullscreen,usingX64,usingWin32,serverUsingX64,desktopMode,prefixNeedsInitialization;
 @property(nonatomic,copy) NSString *persistentLogPath;
 @end
 @implementation JuiceController
@@ -222,6 +291,7 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  self.clients=[NSMutableArray array];
  self.wineWindows=[NSMutableDictionary dictionary];
  self.wineWindowOrder=[NSMutableArray array];
+ self.pendingVisibleLog=[NSMutableString string];
  self.wineDesktopSize=CGSizeMake(1024,768);
  self.lastLegacyClient=self.inputClient=-1;
  NSUserDefaults *defaults=NSUserDefaults.standardUserDefaults;
@@ -232,12 +302,17 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  self.listenFD=self.activeClient=self.controlListenFD=self.controlPickerFD=-1;
  self.child=self.server=-1;
  self.childInput=self.gamepadFD=-1;
+ [NSNotificationCenter.defaultCenter addObserver:self
+  selector:@selector(applicationWillResignActive:)
+  name:UIApplicationWillResignActiveNotification object:nil];
  NSString *dataRoot=JuiceDataRoot();
  [NSFileManager.defaultManager createDirectoryAtPath:dataRoot
   withIntermediateDirectories:YES attributes:nil error:nil];
  self.persistentLogPath=[JuiceDocumentsRoot() stringByAppendingPathComponent:@"Juice-GUI-Headless.log"];
  [@"JUICE_HEADLESS_TEST_BEGIN\n" writeToFile:self.persistentLogPath atomically:YES
   encoding:NSUTF8StringEncoding error:nil];
+ self.persistentLogHandle=[NSFileHandle fileHandleForWritingAtPath:self.persistentLogPath];
+ [self.persistentLogHandle seekToEndOfFile];
  [self buildUI];
  [self setupExternalInput];
  [self startDisplayServer];
@@ -274,7 +349,7 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
   self.argsField.text=[arguments stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]?:@"";
   if(debug.length)self.debugField.text=[debug stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
   JuicePEMachine machine=[self machineForExecutableAtPath:autoPath];
-  if(machine==JuicePEMachineAMD64||machine==JuicePEMachineARM64EC)
+  if(machine==JuicePEMachineI386||machine==JuicePEMachineAMD64||machine==JuicePEMachineARM64EC)
    [self applyExperimentalX64Enabled:YES];
   [self append:[NSString stringWithFormat:@"AUTO_LAUNCH_CUSTOM path=%@ machine=0x%04x\n",autoPath,machine]];
  }
@@ -322,7 +397,10 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  self.exeField.text=@"winemine.exe";
  self.argsField=[self field:@"Arguments"];
  self.debugField=[self field:@"WINEDEBUG channels"];
- self.debugField.text=@"+loaddll,+iosdrv,+explorer,+seh";
+ /* Error-only logging is the safe interactive default.  Verbose Wine trace
+  * channels can produce megabytes per second and used to starve UIKit while
+  * an installer was active.  Smoke scripts may still request exact channels. */
+ self.debugField.text=@"-all,err+all";
  self.stdinField=[self field:@"CLI stdin"];
  self.stdinField.delegate=self;
  self.guiTextField=[self field:@"Text for focused Windows control"];
@@ -339,7 +417,7 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  [self.x64Switch addTarget:self action:@selector(experimentalX64SwitchChanged)
   forControlEvents:UIControlEventValueChanged];
  UILabel *x64Label=[UILabel new];
- x64Label.text=@"Experimental x86_64 (auto-detect)";
+ x64Label.text=@"Experimental x86 / x86_64 (auto-detect)";
  x64Label.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
  UIStackView *x64Row=[[UIStackView alloc]initWithArrangedSubviews:@[x64Label,self.x64Switch]];
  x64Row.axis=UILayoutConstraintAxisHorizontal;
@@ -371,7 +449,7 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  keyRow.axis=UILayoutConstraintAxisHorizontal;
  keyRow.distribution=UIStackViewDistributionFillEqually;
 
- self.form=[[UIStackView alloc]initWithArrangedSubviews:@[self.exeField,[self button:@"Choose EXE or Portable ZIP" action:@selector(chooseExeTapped)],self.argsField,self.debugField,x64Row,winebootRow,selectors,launchers,textRow,keyRow,self.stdinField]];
+ self.form=[[UIStackView alloc]initWithArrangedSubviews:@[self.exeField,[self button:@"Choose EXE or Portable ZIP" action:@selector(chooseExeTapped)],[self button:@"Installed Apps (Program Files)" action:@selector(showInstalledApps)],self.argsField,self.debugField,x64Row,winebootRow,selectors,launchers,textRow,keyRow,self.stdinField]];
  self.form.axis=UILayoutConstraintAxisVertical;
  self.form.spacing=4;
  self.form.translatesAutoresizingMaskIntoConstraints=NO;
@@ -498,9 +576,9 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
   handler:^(__unused UIAction *action){[weakSelf applyExperimentalMultiWindowEnabled:!weakSelf.experimentalMultiWindow];}];
  multi.discoverabilityTitle=@"Render menus, dialogs and popups over their application";
  multi.state=self.experimentalMultiWindow?UIMenuElementStateOn:UIMenuElementStateOff;
- UIAction *x64=[UIAction actionWithTitle:@"x86-64 / FEX translation" image:nil identifier:nil
+ UIAction *x64=[UIAction actionWithTitle:@"x86 / x86-64 / FEX translation" image:nil identifier:nil
   handler:^(__unused UIAction *action){[weakSelf applyExperimentalX64Enabled:!weakSelf.experimentalX64];}];
- x64.discoverabilityTitle=@"Allow the experimental x86-64 runtime";
+ x64.discoverabilityTitle=@"Allow experimental 32-bit and 64-bit x86 applications";
  x64.state=self.experimentalX64?UIMenuElementStateOn:UIMenuElementStateOff;
  self.experimentalButton.menu=[UIMenu menuWithTitle:@"Experimental features" children:@[multi,x64]];
 }
@@ -780,7 +858,53 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
 -(void)sendBackspace{[self sendVirtualKey:0x08 name:@"backspace"];}
 -(void)sendTab{[self sendVirtualKey:0x09 name:@"tab"];}
 -(void)sendEnter{[self sendVirtualKey:0x0d name:@"enter"];}
--(void)append:(NSString *)s{if(!s)return;NSLog(@"JUICE_GUI %@",[s stringByTrimmingCharactersInSet:NSCharacterSet.newlineCharacterSet]);@synchronized(self){NSFileHandle *h=[NSFileHandle fileHandleForWritingAtPath:self.persistentLogPath];if(h){[h seekToEndOfFile];[h writeData:[s dataUsingEncoding:NSUTF8StringEncoding]];[h closeFile];}}dispatch_async(dispatch_get_main_queue(),^{self.log.text=[(self.log.text?:@"") stringByAppendingString:s];[self.log scrollRangeToVisible:NSMakeRange(self.log.text.length,0)];});}
+-(void)flushVisibleLog
+{
+ NSAssert(NSThread.isMainThread,@"Visible log updates must stay on UIKit's main thread");
+ NSString *snapshot;
+ @synchronized(self)
+ {
+  snapshot=[self.pendingVisibleLog copy];
+  self.visibleLogFlushScheduled=NO;
+ }
+ /* The debug view is not visible in desktop/fullscreen mode.  Avoid asking
+  * TextKit to lay out trace text there; the bounded snapshot is applied as
+  * soon as the user exposes the controls again. */
+ if(self.fullscreen||!self.log)return;
+ self.log.text=snapshot?:@"";
+ if(self.log.text.length)
+  [self.log scrollRangeToVisible:NSMakeRange(self.log.text.length,0)];
+}
+-(void)append:(NSString *)s
+{
+ if(!s.length)return;
+ NSData *encoded=[s dataUsingEncoding:NSUTF8StringEncoding];
+ BOOL scheduleFlush=NO;
+ static const NSUInteger visibleLimit=64*1024;
+ @synchronized(self)
+ {
+  if(encoded.length&&self.persistentLogHandle)
+  {
+   @try{[self.persistentLogHandle writeData:encoded];}
+   @catch(__unused NSException *exception){}
+  }
+  [self.pendingVisibleLog appendString:s];
+  if(self.pendingVisibleLog.length>visibleLimit)
+  {
+   NSUInteger start=self.pendingVisibleLog.length-visibleLimit;
+   NSRange sequence=[self.pendingVisibleLog rangeOfComposedCharacterSequenceAtIndex:start];
+   [self.pendingVisibleLog deleteCharactersInRange:NSMakeRange(0,sequence.location)];
+  }
+  if(!self.fullscreen&&!self.visibleLogFlushScheduled)
+  {
+   self.visibleLogFlushScheduled=YES;
+   scheduleFlush=YES;
+  }
+ }
+ if(scheduleFlush)
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.25*NSEC_PER_SEC)),
+                 dispatch_get_main_queue(),^{[self flushVisibleLog];});
+}
 -(void)startDisplayServer{
  self.socketPath=[JuiceDocumentsRoot() stringByAppendingPathComponent:@"j.sock"];unlink(self.socketPath.fileSystemRepresentation);self.listenFD=socket(AF_UNIX,SOCK_STREAM,0);struct sockaddr_un a={0};a.sun_family=AF_UNIX;strncpy(a.sun_path,self.socketPath.fileSystemRepresentation,sizeof(a.sun_path)-1);int br=bind(self.listenFD,(void *)&a,sizeof(a));int lr=br?-1:listen(self.listenFD,8);[self append:[NSString stringWithFormat:@"DISPLAY_SOCKET path=%@ bind=%d listen=%d errno=%d\n",self.socketPath,br,lr,errno]];
  dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{while(1){int fd=accept(self.listenFD,NULL,NULL);if(fd<0)break;@synchronized(self.clients){[self.clients addObject:@(fd)];}[self append:[NSString stringWithFormat:@"DISPLAY_CLIENT_CONNECTED fd=%d\n",fd]];dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{[self readClient:fd];});}});
@@ -947,17 +1071,6 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  NSString *path=[self unixPathForWindowsPath:windowsPath];
  if(action==JUICE_CONTROL_ACTION_LAUNCH_PATH)
  {
-  if(!self.experimentalX64)
-  {
-   [self append:@"EXPERIMENTAL_X86_64_LAUNCH_REJECTED reason=disabled\n"];
-   UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"Experimental x86-64 is disabled"
-    message:@"Open Experimental and enable x86-64 / FEX translation to launch this application."
-    preferredStyle:UIAlertControllerStyleAlert];
-   [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
-   [self presentViewController:alert animated:YES completion:nil];
-   return;
-  }
-  self.x64Switch.on=YES;
   self.exeField.text=path;
   self.argsField.text=@"";
   [self launchRequested];
@@ -970,7 +1083,12 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  CGDataProviderRef provider=CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
  CGColorSpaceRef colorSpace=CGColorSpaceCreateDeviceRGB();
  CGImageRef cgImage=CGImageCreate(width,height,8,32,stride,colorSpace,
-  kCGBitmapByteOrder32Little|kCGImageAlphaPremultipliedFirst,provider,NULL,false,
+  /* Wine's software window surfaces are XRGB8888, not premultiplied BGRA.
+   * The high byte is undefined padding and is commonly zero after GDI text
+   * and primitive drawing.  Treating it as alpha makes an otherwise complete
+   * desktop transparent in UIKit (only controls that happened to write 0xff
+   * remain visible).  Keep the display boundary opaque for every Win32 app. */
+  kCGBitmapByteOrder32Little|kCGImageAlphaNoneSkipFirst,provider,NULL,false,
   kCGRenderingIntentDefault);
  UIImage *image=cgImage?[UIImage imageWithCGImage:cgImage scale:1 orientation:UIImageOrientationUp]:nil;
  if(cgImage)CGImageRelease(cgImage);
@@ -1106,6 +1224,125 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
   default:return @"unknown";
  }
 }
+-(BOOL)fileAtPath:(NSString *)path containsSafetyMarker:(NSString *)marker
+{
+ NSError *error=nil;
+ NSData *contents=[NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:&error];
+ NSData *needle=[marker dataUsingEncoding:NSASCIIStringEncoding];
+ if(!contents.length||!needle.length)
+ {
+  [self append:[NSString stringWithFormat:@"TRANSLATION_SAFETY_READ_FAILED path=%@ error=%@\n",
+   path,error.localizedDescription?:@"empty file"]];
+  return NO;
+ }
+ return [contents rangeOfData:needle options:0 range:NSMakeRange(0,contents.length)].location!=NSNotFound;
+}
+-(BOOL)translatedRuntimeIsSafe:(NSString *)runtime detail:(NSString **)detail
+{
+ NSArray<NSArray<NSString *> *> *requirements=@[
+  @[@"build/wine-ios/loader/wine",@"JUICE_LOWVA_HOLELIST_OK"],
+  @[@"build/wine-ios/loader/wine",@"JUICE_LOWVA_ATOMIC_RESERVE_OK"],
+  @[@"build/wine-ios/loader/wine",@"JUICE_LOWVA_WIN32_2G_RESERVE_OK"],
+  @[@"tools/juice-lowva-helper",@"holes-disabled-v1"],
+  @[@"build/wine-ios/dlls/ntdll/ntdll.so",@"JUICE_LOWVA_READY"]
+ ];
+ for(NSArray<NSString *> *requirement in requirements)
+ {
+  NSString *path=[runtime stringByAppendingPathComponent:requirement[0]];
+  if(![self fileAtPath:path containsSafetyMarker:requirement[1]])
+  {
+   if(detail)*detail=[NSString stringWithFormat:@"%@ is missing %@.",requirement[0],requirement[1]];
+   return NO;
+  }
+ }
+ [self append:[NSString stringWithFormat:
+  @"JUICE_TRANSLATION_RUNTIME_SAFETY_OK runtime=%@ protocol=holes-disabled-v3-full-win32-reserve\n",runtime]];
+ return YES;
+}
+-(NSArray<NSDictionary *> *)installedExecutables
+{
+ NSString *dataRoot=JuiceDataRoot();
+ NSArray<NSDictionary *> *roots=@[
+  @{@"label":@"ARM64",@"path":[dataRoot stringByAppendingPathComponent:@"GrapePrefix/drive_c/Program Files"]},
+  @{@"label":@"ARM64",@"path":[dataRoot stringByAppendingPathComponent:@"GrapePrefix/drive_c/Program Files (Arm)"]},
+  @{@"label":@"x86 / FEX",@"path":[dataRoot stringByAppendingPathComponent:@"GrapePrefix-x86_64/drive_c/Program Files"]},
+  @{@"label":@"x86 / FEX",@"path":[dataRoot stringByAppendingPathComponent:@"GrapePrefix-x86_64/drive_c/Program Files (x86)"]}
+ ];
+ NSFileManager *files=NSFileManager.defaultManager;
+ NSMutableArray<NSDictionary *> *found=[NSMutableArray array];
+ NSMutableSet<NSString *> *seen=[NSMutableSet set];
+ for(NSDictionary *root in roots)
+ {
+  NSString *rootPath=root[@"path"];
+  BOOL rootDirectory=NO;
+  if(![files fileExistsAtPath:rootPath isDirectory:&rootDirectory]||!rootDirectory)continue;
+  NSDirectoryEnumerator<NSString *> *enumerator=[files enumeratorAtPath:rootPath];
+  NSString *relative;
+  while((relative=[enumerator nextObject])&&found.count<256)
+  {
+   NSArray<NSString *> *components=relative.pathComponents;
+   NSString *path=[rootPath stringByAppendingPathComponent:relative];
+   BOOL directory=NO;
+   [files fileExistsAtPath:path isDirectory:&directory];
+   if(components.count>4)
+   {
+    if(directory)[enumerator skipDescendants];
+    continue;
+   }
+   if(directory||![relative.pathExtension.lowercaseString isEqualToString:@"exe"])continue;
+   NSString *identity=path.lowercaseString;
+   if([seen containsObject:identity])continue;
+   JuicePEMachine machine=[self machineForExecutableAtPath:path];
+   if(machine!=JuicePEMachineARM64&&machine!=JuicePEMachineI386&&
+      machine!=JuicePEMachineAMD64&&machine!=JuicePEMachineARM64EC)continue;
+   [seen addObject:identity];
+   NSString *folder=components.count>1?components.firstObject:relative.lastPathComponent.stringByDeletingPathExtension;
+   NSString *executable=relative.lastPathComponent;
+   NSString *title=[folder caseInsensitiveCompare:executable.stringByDeletingPathExtension]==NSOrderedSame?
+    folder:[NSString stringWithFormat:@"%@ — %@",folder,executable];
+   NSString *architecture=[self nameForMachine:machine];
+   [found addObject:@{@"title":[NSString stringWithFormat:@"%@  [%@]",title,architecture],
+                      @"detail":[NSString stringWithFormat:@"%@ • %@",root[@"label"],relative],
+                      @"path":path,@"machine":@(machine)}];
+  }
+ }
+ [found sortUsingComparator:^NSComparisonResult(NSDictionary *left,NSDictionary *right){
+  return [left[@"title"] localizedCaseInsensitiveCompare:right[@"title"]];
+ }];
+ return found;
+}
+-(void)showInstalledApps
+{
+ NSArray<NSDictionary *> *applications=[self installedExecutables];
+ if(!applications.count)
+ {
+  UIAlertController *alert=[UIAlertController alertControllerWithTitle:@"No installed apps"
+   message:@"No launchable executables were found in either persistent Program Files directory."
+   preferredStyle:UIAlertControllerStyleAlert];
+  [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+  [self presentViewController:alert animated:YES completion:nil];
+  return;
+ }
+ JuiceInstalledAppsController *picker=[JuiceInstalledAppsController new];
+ picker.applications=applications;
+ __weak typeof(self) weakSelf=self;
+ picker.selectionHandler=^(NSDictionary *application){
+  typeof(self) strongSelf=weakSelf;
+  if(!strongSelf)return;
+  NSString *path=application[@"path"];
+  JuicePEMachine machine=(JuicePEMachine)[application[@"machine"] unsignedShortValue];
+  strongSelf.exeField.text=path;
+  strongSelf.argsField.text=@"";
+  if(machine==JuicePEMachineI386||machine==JuicePEMachineAMD64||machine==JuicePEMachineARM64EC)
+   [strongSelf applyExperimentalX64Enabled:YES];
+  [strongSelf append:[NSString stringWithFormat:@"INSTALLED_APP_SELECTED machine=0x%04x path=%@\n",machine,path]];
+  [strongSelf launchRequested];
+ };
+ UINavigationController *navigation=[[UINavigationController alloc]initWithRootViewController:picker];
+ navigation.modalPresentationStyle=UIModalPresentationPageSheet;
+ [self presentViewController:navigation animated:YES completion:nil];
+ [self append:[NSString stringWithFormat:@"INSTALLED_APP_BROWSER_OPEN count=%lu\n",(unsigned long)applications.count]];
+}
 -(void)rejectLaunch:(NSString *)message
 {
  [self append:[NSString stringWithFormat:@"ARCH_ROUTE_REJECTED %@\n",message]];
@@ -1123,12 +1360,8 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
   [self rejectLaunch:[NSString stringWithFormat:@"Juice could not read a valid PE architecture from %@.",path.lastPathComponent]];
   return;
  }
- if(machine==JuicePEMachineI386)
- {
-  [self rejectLaunch:@"32-bit x86 applications are not supported by this x86_64 experiment."];
-  return;
- }
- BOOL experimental=(machine==JuicePEMachineAMD64||machine==JuicePEMachineARM64EC);
+ BOOL win32=machine==JuicePEMachineI386;
+ BOOL experimental=win32||machine==JuicePEMachineAMD64||machine==JuicePEMachineARM64EC;
  if(machine!=JuicePEMachineARM64&&!experimental)
  {
   [self rejectLaunch:[NSString stringWithFormat:@"Unsupported PE machine 0x%04x.",machine]];
@@ -1136,7 +1369,7 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  }
  if(experimental&&!self.experimentalX64)
  {
-  [self rejectLaunch:@"This is an x86_64/ARM64EC app. Open Experimental and enable x86-64 / FEX translation."];
+  [self rejectLaunch:@"This is an x86 application. Open Experimental and enable x86 / x86-64 FEX translation."];
   return;
  }
  NSString *runtimeName=experimental?@"Grape-X64":@"Grape";
@@ -1147,13 +1380,34 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
   [self rejectLaunch:[NSString stringWithFormat:@"%@ is not installed in this build.",runtimeName]];
   return;
  }
- if(self.server>0&&self.serverUsingX64!=experimental)
+ if(experimental)
  {
-  kill(self.server,SIGTERM);
-  waitpid(self.server,NULL,WNOHANG);
-  self.server=-1;
+  NSString *safetyError=nil;
+  if(![self translatedRuntimeIsSafe:runtime detail:&safetyError])
+  {
+   [self rejectLaunch:[NSString stringWithFormat:
+    @"Juice refused this translated launch because the installed runtime is unsafe. %@",
+    safetyError?:@"The low-address safety handshake is incomplete."]];
+   return;
+  }
+  NSString *pe=[runtime stringByAppendingPathComponent:@"runtime/lib/wine"];
+  NSString *translator=[pe stringByAppendingPathComponent:
+   win32?@"aarch64-windows/libwow64fex.dll":@"aarch64-windows/libarm64ecfex.dll"];
+  NSString *guestNtdll=[pe stringByAppendingPathComponent:
+   win32?@"i386-windows/ntdll.dll":@"aarch64-windows/ntdll.dll"];
+  if(![NSFileManager.defaultManager fileExistsAtPath:translator]||
+     ![NSFileManager.defaultManager fileExistsAtPath:guestNtdll])
+  {
+   [self rejectLaunch:[NSString stringWithFormat:
+    @"The %@ translation components are missing from this build.",[self nameForMachine:machine]]];
+   return;
+  }
  }
  self.usingX64=experimental;
+ self.usingWin32=win32;
+ self.grape=runtime;
+ self.prefix=[JuiceDataRoot() stringByAppendingPathComponent:
+  (experimental?@"GrapePrefix-x86_64":@"GrapePrefix")];
  [self append:[NSString stringWithFormat:@"PE_ARCH_DETECTED machine=0x%04x arch=%@ runtime=%@ path=%@\n",
   machine,[self nameForMachine:machine],runtimeName,path]];
  [self launchTapped];
@@ -1378,9 +1632,31 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
   if(self.prefixNeedsInitialization)continue;
   if(juiceManaged&&[f fileExistsAtPath:destination])
    [f removeItemAtPath:destination error:nil];
-  if(![f fileExistsAtPath:destination]&&
+ if(![f fileExistsAtPath:destination]&&
      [f createSymbolicLinkAtPath:destination withDestinationPath:source error:nil])
    linkedModules++;
+ }
+ NSUInteger linkedWin32Modules=0;
+ if(self.usingWin32&&!self.prefixNeedsInitialization)
+ {
+  NSString *i386=[self.grape stringByAppendingPathComponent:@"runtime/lib/wine/i386-windows"];
+  NSString *syswow64=[self.prefix stringByAppendingPathComponent:@"drive_c/windows/syswow64"];
+  [f createDirectoryAtPath:syswow64 withIntermediateDirectories:YES attributes:nil error:nil];
+  for(NSString *name in [f contentsOfDirectoryAtPath:i386 error:nil]?:@[])
+  {
+   NSString *extension=name.pathExtension.lowercaseString;
+   if(!([extension isEqualToString:@"dll"]||[extension isEqualToString:@"exe"]||
+        [extension isEqualToString:@"drv"]))continue;
+   NSString *source=[i386 stringByAppendingPathComponent:name];
+   NSString *destination=[syswow64 stringByAppendingPathComponent:name];
+   if([f destinationOfSymbolicLinkAtPath:destination error:nil])
+    [f removeItemAtPath:destination error:nil];
+   if(![f fileExistsAtPath:destination]&&
+      [f createSymbolicLinkAtPath:destination withDestinationPath:source error:nil])
+    linkedWin32Modules++;
+  }
+  [self append:[NSString stringWithFormat:@"PREFIX_WIN32_RUNTIME_LINKS count=%lu syswow64=%@\n",
+   (unsigned long)linkedWin32Modules,syswow64]];
  }
  NSString *user=[self.prefix stringByAppendingPathComponent:@"user.reg"];
  NSMutableString *reg=[NSMutableString stringWithContentsOfFile:user encoding:NSUTF8StringEncoding error:nil];
@@ -1396,7 +1672,8 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
 -(NSArray *)environment
 {
  NSString *b=[self.grape stringByAppendingPathComponent:@"build/wine-ios"];
- NSString *pe=[self.grape stringByAppendingPathComponent:@"runtime/lib/wine/aarch64-windows"];
+ NSString *peRoot=[self.grape stringByAppendingPathComponent:@"runtime/lib/wine"];
+ NSString *caBundle=[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:@"Libraries/ca-certificates.pem"];
  NSMutableArray *variables=[NSMutableArray arrayWithArray:@[
   [@"HOME=" stringByAppendingString:NSHomeDirectory()],
   [@"TMPDIR=" stringByAppendingString:NSTemporaryDirectory()],
@@ -1404,8 +1681,10 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
   [@"WINELOADER=" stringByAppendingString:[self.grape stringByAppendingPathComponent:@"tools/grape-nested-wrapper"]],
   @"WINELOADERNOEXEC=1",
   [@"WINESERVER=" stringByAppendingString:[b stringByAppendingPathComponent:@"server/wineserver"]],
-  [@"WINEDLLPATH=" stringByAppendingString:[NSString stringWithFormat:@"%@:%@:%@:%@:%@:%@:%@:%@",pe,[JuiceDataRoot() stringByAppendingPathComponent:@"native"],[b stringByAppendingPathComponent:@"dlls/crypt32"],[b stringByAppendingPathComponent:@"dlls/secur32"],[b stringByAppendingPathComponent:@"dlls/wineios.drv"],[b stringByAppendingPathComponent:@"dlls/winevulkan"],[b stringByAppendingPathComponent:@"dlls/win32u"],[b stringByAppendingPathComponent:@"dlls/ws2_32"]]],
+  [@"WINEDLLPATH=" stringByAppendingString:[NSString stringWithFormat:@"%@:%@:%@:%@:%@:%@:%@:%@:%@",peRoot,[JuiceDataRoot() stringByAppendingPathComponent:@"native"],[b stringByAppendingPathComponent:@"dlls/crypt32"],[b stringByAppendingPathComponent:@"dlls/dnsapi"],[b stringByAppendingPathComponent:@"dlls/secur32"],[b stringByAppendingPathComponent:@"dlls/wineios.drv"],[b stringByAppendingPathComponent:@"dlls/winevulkan"],[b stringByAppendingPathComponent:@"dlls/win32u"],[b stringByAppendingPathComponent:@"dlls/ws2_32"]]],
   @"DYLD_LIBRARY_PATH=/var/jb/usr/lib",
+  [@"JUICE_CA_BUNDLE=" stringByAppendingString:caBundle],
+  [@"SSL_CERT_FILE=" stringByAppendingString:caBundle],
   [@"JUICE_IOS_SOCKET=" stringByAppendingString:self.socketPath],
   [@"JUICE_IOS_CONTROL_SOCKET=" stringByAppendingString:self.controlSocketPath],
   [@"JUICE_GAMEPAD_STATE=" stringByAppendingString:JuiceWindowsPath([JuiceDataRoot() stringByAppendingPathComponent:@"controller-v1.bin"])],
@@ -1417,11 +1696,157 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
   @"WINEARCH=win64",@"PATH=/usr/bin:/bin",@"LANG=C"
  ]];
  if(self.usingX64)[variables addObjectsFromArray:@[@"HODLL64=libarm64ecfex.dll",@"JUICE_EXPERIMENTAL_X64=1"]];
+ if(self.usingWin32)[variables addObjectsFromArray:@[@"HODLL=libwow64fex.dll",@"JUICE_EXPERIMENTAL_WIN32=1"]];
  return variables;
 }
 -(NSString *)resolveExe{NSString *e=self.exeField.text;if([e containsString:@"/"])return e;return [[self.grape stringByAppendingPathComponent:@"runtime/lib/wine/aarch64-windows"]stringByAppendingPathComponent:e];}
--(void)launchTapped{[self stopTapped];[self preparePrefix];NSArray *parts=self.argsField.text.length?[self.argsField.text componentsSeparatedByString:@" "]:@[];NSString *build=[self.grape stringByAppendingPathComponent:@"build/wine-ios"],*loader=[build stringByAppendingPathComponent:@"loader/wine"],*server=[build stringByAppendingPathComponent:@"server/wineserver"],*tracer=[self.grape stringByAppendingPathComponent:@"tools/grape-trace-parent"],*exe=[self resolveExe];NSArray *environment=[self environment];char **env=CopyStrings(environment);if(self.server<=0){char **serverArgv=CopyStrings(@[server,@"-f"]);posix_spawn_file_actions_t sf;posix_spawn_file_actions_init(&sf);int nullfd=open("/dev/null",O_WRONLY);if(nullfd>=0){posix_spawn_file_actions_adddup2(&sf,nullfd,1);posix_spawn_file_actions_adddup2(&sf,nullfd,2);}int sr=posix_spawn(&_server,server.UTF8String,&sf,NULL,serverArgv,env);posix_spawn_file_actions_destroy(&sf);if(nullfd>=0)close(nullfd);FreeStrings(serverArgv);[self append:[NSString stringWithFormat:@"Wine server: %d pid=%d\n",sr,self.server]];if(!sr)usleep(350000);}NSMutableArray *args=[NSMutableArray arrayWithObjects:tracer,loader,exe,nil];[args addObjectsFromArray:parts];char **argv=CopyStrings(args);int outputPipe[2],inputPipe[2];pipe(outputPipe);pipe(inputPipe);posix_spawn_file_actions_t fa;posix_spawn_file_actions_init(&fa);posix_spawn_file_actions_adddup2(&fa,inputPipe[0],0);posix_spawn_file_actions_adddup2(&fa,outputPipe[1],1);posix_spawn_file_actions_adddup2(&fa,outputPipe[1],2);posix_spawn_file_actions_addclose(&fa,inputPipe[1]);posix_spawn_file_actions_addclose(&fa,outputPipe[0]);int launchCwdFD=open(".",O_RDONLY);if(launchCwdFD>=0&&[exe containsString:@"/"])chdir(exe.stringByDeletingLastPathComponent.fileSystemRepresentation);int r=posix_spawn(&_child,tracer.UTF8String,&fa,NULL,argv,env);if(launchCwdFD>=0){fchdir(launchCwdFD);close(launchCwdFD);}posix_spawn_file_actions_destroy(&fa);close(inputPipe[0]);close(outputPipe[1]);self.childInput=r?-1:inputPipe[1];if(r)close(inputPipe[1]);int readFD=outputPipe[0];FreeStrings(argv);FreeStrings(env);self.canvas.hidden=self.mode.selectedSegmentIndex==1;[self append:[NSString stringWithFormat:@"\n%@ launch %@: %d pid=%d\n",self.mode.selectedSegmentIndex?@"CLI":@"GUI",exe,r,self.child]];if(!r)dispatch_async(dispatch_get_global_queue(0,0),^{char b[2048];ssize_t n;while((n=read(readFD,b,sizeof(b)))>0){NSString *text=[[NSString alloc]initWithBytes:b length:n encoding:NSUTF8StringEncoding];[self append:text?:@""];}close(readFD);waitpid(self.child,NULL,0);self.child=-1;if(self.childInput>=0){close(self.childInput);self.childInput=-1;}});}
--(void)stopTapped{if(self.childInput>=0){close(self.childInput);self.childInput=-1;}if(self.child>0){kill(self.child,SIGTERM);self.child=-1;}}
+-(void)launchTapped
+{
+ [self stopAllWineProcesses:@"new-launch"];
+ [self preparePrefix];
+ NSArray *parts=self.argsField.text.length?
+  [self.argsField.text componentsSeparatedByString:@" "]:@[];
+ NSString *build=[self.grape stringByAppendingPathComponent:@"build/wine-ios"];
+ NSString *loader=[build stringByAppendingPathComponent:@"loader/wine"];
+ NSString *server=[build stringByAppendingPathComponent:@"server/wineserver"];
+ NSString *tracer=[self.grape stringByAppendingPathComponent:@"tools/grape-trace-parent"];
+ NSString *exe=[self resolveExe];
+ NSArray *environment=[self environment];
+ char **env=CopyStrings(environment);
+
+ char **serverArgv=CopyStrings(@[server,@"-f"]);
+ posix_spawn_file_actions_t serverActions;
+ posix_spawn_file_actions_init(&serverActions);
+ int nullfd=open("/dev/null",O_WRONLY);
+ if(nullfd>=0)
+ {
+  posix_spawn_file_actions_adddup2(&serverActions,nullfd,1);
+  posix_spawn_file_actions_adddup2(&serverActions,nullfd,2);
+ }
+ int serverResult=SpawnInNewProcessGroup(&_server,server.UTF8String,
+                                         &serverActions,serverArgv,env);
+ posix_spawn_file_actions_destroy(&serverActions);
+ if(nullfd>=0)close(nullfd);
+ FreeStrings(serverArgv);
+ [self append:[NSString stringWithFormat:@"Wine server: %d pid=%d pgid=%d\n",
+  serverResult,self.server,self.server]];
+ if(!serverResult)usleep(350000);
+ else self.server=-1;
+
+ NSMutableArray *args=[NSMutableArray arrayWithObjects:tracer,loader,exe,nil];
+ [args addObjectsFromArray:parts];
+ char **argv=CopyStrings(args);
+ int outputPipe[2],inputPipe[2];
+ pipe(outputPipe);
+ pipe(inputPipe);
+ posix_spawn_file_actions_t actions;
+ posix_spawn_file_actions_init(&actions);
+ posix_spawn_file_actions_adddup2(&actions,inputPipe[0],0);
+ posix_spawn_file_actions_adddup2(&actions,outputPipe[1],1);
+ posix_spawn_file_actions_adddup2(&actions,outputPipe[1],2);
+ posix_spawn_file_actions_addclose(&actions,inputPipe[1]);
+ posix_spawn_file_actions_addclose(&actions,outputPipe[0]);
+ int launchCwdFD=open(".",O_RDONLY);
+ if(launchCwdFD>=0&&[exe containsString:@"/"])
+  chdir(exe.stringByDeletingLastPathComponent.fileSystemRepresentation);
+ int result=SpawnInNewProcessGroup(&_child,tracer.UTF8String,&actions,argv,env);
+ if(launchCwdFD>=0){fchdir(launchCwdFD);close(launchCwdFD);}
+ posix_spawn_file_actions_destroy(&actions);
+ close(inputPipe[0]);
+ close(outputPipe[1]);
+ self.childInput=result?-1:inputPipe[1];
+ if(result)close(inputPipe[1]);
+ int readFD=outputPipe[0];
+ pid_t launchedChild=self.child;
+ uint64_t generation=++self.launchGeneration;
+ FreeStrings(argv);
+ FreeStrings(env);
+ self.canvas.hidden=self.mode.selectedSegmentIndex==1;
+ [self append:[NSString stringWithFormat:@"\n%@ launch %@: %d pid=%d pgid=%d generation=%llu\n",
+  self.mode.selectedSegmentIndex?@"CLI":@"GUI",exe,result,self.child,self.child,
+  (unsigned long long)generation]];
+ if(result)
+ {
+  close(readFD);
+  self.child=-1;
+  return;
+ }
+ dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{
+  char buffer[2048];
+  ssize_t count;
+  while((count=read(readFD,buffer,sizeof(buffer)))>0)
+  {
+   NSString *text=[[NSString alloc]initWithBytes:buffer length:count
+    encoding:NSUTF8StringEncoding];
+   [self append:text?:@""];
+  }
+  close(readFD);
+  int status=0;
+  waitpid(launchedChild,&status,0);
+  dispatch_async(dispatch_get_main_queue(),^{
+   if(self.launchGeneration!=generation)return;
+   if(self.child==launchedChild)self.child=-1;
+   if(self.childInput>=0){close(self.childInput);self.childInput=-1;}
+   [self append:[NSString stringWithFormat:@"PROCESS_GROUP_EXITED pgid=%d status=%d\n",
+    launchedChild,status]];
+  });
+ });
+}
+-(void)stopAllWineProcesses:(NSString *)reason
+{
+ self.launchGeneration++;
+ if(self.childInput>=0){close(self.childInput);self.childInput=-1;}
+ pid_t childGroup=self.child;
+ pid_t serverGroup=self.server;
+ int shutdownResult=0;
+ int shutdownStatus=0;
+ /* Always ask the selected prefix's server to shut down before launching a
+  * replacement.  A force-quit cannot run UIKit cleanup, so self.server is
+  * empty on the next host process even though the previous wineserver and
+  * its clients may still own the prefix. */
+ if(self.grape.length&&self.prefix.length&&
+    [NSFileManager.defaultManager fileExistsAtPath:self.prefix])
+ {
+  NSString *serverPath=[[self.grape stringByAppendingPathComponent:@"build/wine-ios"]
+   stringByAppendingPathComponent:@"server/wineserver"];
+  NSArray *shutdownEnvironment=[self environment];
+  char **shutdownEnv=CopyStrings(shutdownEnvironment);
+  char **shutdownArgv=CopyStrings(@[serverPath,@"-k"]);
+  pid_t shutdownPID=-1;
+  shutdownResult=posix_spawn(&shutdownPID,serverPath.UTF8String,NULL,NULL,
+                             shutdownArgv,shutdownEnv);
+  FreeStrings(shutdownArgv);
+  FreeStrings(shutdownEnv);
+  if(!shutdownResult)
+  {
+   pid_t waited=0;
+   for(NSUInteger attempt=0;attempt<40&&waited==0;attempt++)
+   {
+    waited=waitpid(shutdownPID,&shutdownStatus,WNOHANG);
+    if(waited==0)usleep(25000);
+   }
+   if(waited==0)
+   {
+    kill(shutdownPID,SIGKILL);
+    waitpid(shutdownPID,&shutdownStatus,0);
+    shutdownResult=ETIMEDOUT;
+   }
+  }
+ }
+ self.child=self.server=-1;
+ if(childGroup>0)TerminateProcessGroup(childGroup);
+ if(serverGroup>0)TerminateProcessGroup(serverGroup);
+ if(childGroup>0||serverGroup>0||shutdownResult==0)
+  [self append:[NSString stringWithFormat:
+   @"PROCESS_GROUP_STOP reason=%@ child_pgid=%d server_pgid=%d wineserver_kill=%d status=%d\n",
+   reason,childGroup,serverGroup,shutdownResult,shutdownStatus]];
+}
+-(void)applicationWillResignActive:(NSNotification *)notification
+{
+ (void)notification;
+ [self stopAllWineProcesses:@"application-will-resign-active"];
+}
+-(void)stopTapped{[self stopAllWineProcesses:@"user-stop"];}
 -(BOOL)textFieldShouldReturn:(UITextField *)field
 {
  if(field==self.guiTextField)
@@ -1439,7 +1864,7 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  [field resignFirstResponder];
  return YES;
 }
--(void)dealloc{[NSNotificationCenter.defaultCenter removeObserver:self];[self stopTapped];if(self.gamepadState){[self writeGamepadConnected:NO gamepad:nil];munmap(self.gamepadState,JUICE_GAMEPAD_SHARED_SIZE);self.gamepadState=NULL;}if(self.gamepadFD>=0)close(self.gamepadFD);if(self.listenFD>=0)close(self.listenFD);if(self.controlListenFD>=0)close(self.controlListenFD);if(self.controlPickerFD>=0)close(self.controlPickerFD);unlink(self.socketPath.fileSystemRepresentation);unlink(self.controlSocketPath.fileSystemRepresentation);}
+-(void)dealloc{[NSNotificationCenter.defaultCenter removeObserver:self];[self stopTapped];@try{[self.persistentLogHandle synchronizeFile];[self.persistentLogHandle closeFile];}@catch(__unused NSException *exception){}if(self.gamepadState){[self writeGamepadConnected:NO gamepad:nil];munmap(self.gamepadState,JUICE_GAMEPAD_SHARED_SIZE);self.gamepadState=NULL;}if(self.gamepadFD>=0)close(self.gamepadFD);if(self.listenFD>=0)close(self.listenFD);if(self.controlListenFD>=0)close(self.controlListenFD);if(self.controlPickerFD>=0)close(self.controlPickerFD);unlink(self.socketPath.fileSystemRepresentation);unlink(self.controlSocketPath.fileSystemRepresentation);}
 @end
 @interface AppDelegate:UIResponder<UIApplicationDelegate>@property(nonatomic,strong)UIWindow *window;@end
 @implementation AppDelegate

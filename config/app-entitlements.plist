@@ -2,10 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- Required by CoreTrust/iOS to execute the bundled Grape Mach-O tools. -->
     <key>platform-application</key>
     <true/>
+    <!-- Required by iOS for Juice to posix_spawn the bundled Grape runtime.
+         Without this key the host launches, but both Wine and wineserver fail
+         with EPERM even on a TrollStore/Dopamine installation. -->
     <key>com.apple.private.security.no-sandbox</key>
     <true/>
+    <!-- platform-application tightens container access. Keep the narrowly
+         scoped storage grant so a restarted host can reopen its own persistent
+         Wine prefixes; without it NSFileManager returns EPERM after force-quit. -->
     <key>com.apple.private.security.storage.AppDataContainers</key>
     <true/>
     <key>get-task-allow</key>

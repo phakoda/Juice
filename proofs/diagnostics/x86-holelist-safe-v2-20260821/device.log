@@ -1,0 +1,13 @@
+JUICE_WIN32_RUNTIME_LINKS count=86 syswow64=/var/mobile/Documents/JuiceData/GrapePrefix-x86_64/drive_c/windows/syswow64
+[JuiceWine parent] bundle libraries path=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Libraries:/var/jb/usr/lib
+[JuiceWine parent] launching /var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/loader/wine
+[JuiceWine parent] child PID=3315
+JUICE_LOWVA_HOLELIST_OK old_reuse=0 new_reuse=1 allocator=entry-list
+JUICE_LOWVA_HELPER_BEGIN path=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/tools/juice-lowva-helper target_pid=3315 root_persona=1
+JUICE_LOWVA_KERNEL_MIN_OK pid=3315 task=0xffffffde2112cf18 map=0xffffffdcec8def80 old=0x104910000 new=0x10000 max=0x2d8000000 already=0
+JUICE_LOWVA_HELPER_OK target_pid=3315
+JUICE_LOWVA_KERNEL_PROBE_OK address=0x20000 size=0x4000
+JUICE_LOWVA_HOLELIST_OK old_reuse=0 new_reuse=0 allocator=entry-list
+JUICE_LOWVA_READY target_pid=3315
+[JuiceWine] iOS low-VA release start=0x10000 end=0x100000000 status=0 OK
+[JuiceWine parent] child terminated by signal 10 (Bus error: 10)

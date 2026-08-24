@@ -1,0 +1,11 @@
+{"os_version":"iPhone OS 16.6 (20G75)","bug_type":"115","timestamp":"2026-08-21 20:47:51.00 +0800","name":"Reset count","roots_installed":0,"incident_id":"C6579DC1-1809-4A85-AC02-52299B277D20"}
+Incident Identifier: C6579DC1-1809-4A85-AC02-52299B277D20
+CrashReporter Key:   062987173bc21e81fc70960fc85ba1eacfd43ea1
+Date: 2026-08-21 20:47:51.01 +0800
+Reset count: 1
+Boot failure count: 0
+Boot faults: 
+Boot stage: 0x0
+Boot app: 2681261667
+socId: 8030
+socRevision: 11

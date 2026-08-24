@@ -1,0 +1,1 @@
+JUICE_D3D12_SMOKE_FAIL stage=D3D12CreateDevice hr=0x887a0004

@@ -14,6 +14,7 @@ required=(
   scripts/run-control-bridge-smoke-device.py
   scripts/run-gui-text-smoke-device.py scripts/run-grape-cli-device.sh
   scripts/run-arm64-smoke-device.sh scripts/run-x86_64-smoke-device.sh
+  scripts/verify-translation-runtime-safety.sh
   scripts/verify-wine-patch.sh
   toolchain/juice-bison toolchain/juice-cc toolchain/juice-cxx
   toolchain/juice-pe-clang.c toolchain/juice-pack-incbins.py
@@ -60,8 +61,20 @@ cc -std=c11 -Wall -Wextra -fsyntax-only "$ROOT/toolchain/juice-pe-clang.c"
 grep -q 'PORTABLE_ZIP_READY' "$ROOT/app/main.m"
 grep -q 'FULLSCREEN_CHANGED' "$ROOT/app/main.m"
 grep -q 'GUI_TEXT_SENT' "$ROOT/app/main.m"
+grep -q 'kCGImageAlphaNoneSkipFirst' "$ROOT/app/main.m"
+grep -q 'force-quit cannot run UIKit cleanup' "$ROOT/app/main.m"
 grep -q 'CONTROL_V1_FILE_PICKER_OPEN' "$ROOT/app/main.m"
 grep -q 'PE_ARCH_DETECTED' "$ROOT/app/main.m"
+grep -q 'INSTALLED_APP_BROWSER_OPEN' "$ROOT/app/main.m"
+grep -q 'visibleLimit=64\*1024' "$ROOT/app/main.m"
+grep -q 'self.debugField.text=@"-all,err+all"' "$ROOT/app/main.m"
+grep -q 'class_getInstanceVariable( cls, "_usingWin32" )' \
+  "$ROOT/app/JuiceLegacyWin32.m"
+if grep -Fq 'self.log.text=[(self.log.text?:@"") stringByAppendingString:s]' \
+  "$ROOT/app/main.m"; then
+  echo "UIKit log rendering must remain bounded and batched." >&2
+  exit 1
+fi
 grep -q 'MOUSE_BUTTON_MODE' "$ROOT/app/main.m"
 grep -q 'DYLD_LIBRARY_PATH=' "$ROOT/app/main.m"
 grep -q 'offset + 22u + JZRead16' "$ROOT/app/JuiceZip.m"
@@ -88,12 +101,47 @@ grep -q 'JUICE_FREETYPE_CONFIG_RETROFIT' "$ROOT/scripts/build-all-linux-x86_64.s
 grep -q 'JUICE_RUNTIME_LIBRARIES_READY' "$ROOT/scripts/package-tipa.sh"
 grep -q 'JUICE_IOS_LIBRARIES_BUNDLED' "$ROOT/scripts/bundle-ios-libraries.sh"
 grep -q 'JUICE_WOW64_PAGEZERO_PATCHED' "$ROOT/scripts/patch-ios-wow64-pagezero.py"
+grep -q 'JUICE_ARM64EC_ASSUME_NEW_INPUTS' \
+  "$ROOT/scripts/build-wine-arm64ec-linux.sh"
+grep -q 'NtWineRestoreCurrentTeb' "$ROOT/wine/dlls/ntdll/ntdll.spec"
+grep -q 'NtWineGetCurrentTebAccessor' "$ROOT/wine/dlls/ntdll/thread.c"
+grep -q 'mov x18, %0' "$ROOT/wine/dlls/ntdll/thread.c"
+grep -q 'teb = NtWineRestoreCurrentTeb' "$ROOT/wine/include/winnt.h"
+if grep -Fq 'ldr %0, [x18, #0x30]' "$ROOT/wine/include/winnt.h"; then
+  echo "Wine builtins must not deliberately fault to recover x18/TEB." >&2
+  exit 1
+fi
+grep -q 'JUICE_TRANSLATION_RUNTIME_SAFETY_OK' \
+  "$ROOT/scripts/verify-translation-runtime-safety.sh"
+grep -q 'verify-translation-runtime-safety.sh' "$ROOT/scripts/package-tipa.sh"
+grep -q 'verify-translation-runtime-safety.sh' "$ROOT/scripts/package-reuse-tipa.sh"
 # The experimental x64 loader now keeps its signed 4 GiB __PAGEZERO intact so
 # iOS will exec it. Low VA is unlocked in the live task by the bundled root
-# helper instead; verify that packaging preserves the specialized entitlement.
+# helper instead; verify that packaging signs the helper without the obsolete
+# IOSurface or unrestricted task-port entitlements.
 grep -q 'JUICE_LOWVA_HELPER_SIGNED' "$ROOT/scripts/package-tipa.sh"
 grep -q 'lowva-helper-entitlements.plist' "$ROOT/scripts/package-tipa.sh"
-grep -q 'IOSurfaceRootUserClient' "$ROOT/config/lowva-helper-entitlements.plist"
+if grep -Eq 'IOSurfaceRootUserClient|task_for_pid|system-task-ports' \
+  "$ROOT/config/lowva-helper-entitlements.plist"; then
+  echo "Low-VA helper entitlements contain obsolete device-wide privileges." >&2
+  exit 1
+fi
+# The Wine tracer/loader requires PT_TRACE_ME on iOS.  Keep only the narrowly
+# verified get-task entitlement, never the old cross-process task-port grants.
+grep -q 'get-task-allow' "$ROOT/config/child-entitlements.plist"
+grep -q 'get-task-allow' "$ROOT/config/cli-allow-jit-entitlements.plist"
+grep -q 'com.apple.private.security.storage.AppDataContainers' \
+  "$ROOT/config/app-entitlements.plist"
+grep -q 'com.apple.private.security.storage.AppDataContainers' \
+  "$ROOT/config/child-entitlements.plist"
+grep -q 'com.apple.private.security.storage.AppDataContainers' \
+  "$ROOT/config/cli-allow-jit-entitlements.plist"
+if grep -Eq 'task_for_pid|system-task-ports|IOSurfaceRootUserClient' \
+  "$ROOT/config/child-entitlements.plist" \
+  "$ROOT/config/cli-allow-jit-entitlements.plist"; then
+  echo "Wine child entitlements contain obsolete device-wide privileges." >&2
+  exit 1
+fi
 grep -q 'bundle libraries path=' "$ROOT/launcher/grape-trace-parent.c"
 grep -q 'PWD="$PEBUILD"' "$ROOT/scripts/build-wine-device.sh"
 grep -q 'with-mingw="$PE_CLANG"' "$ROOT/scripts/configure-wine-pe-device.sh"

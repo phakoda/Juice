@@ -37,6 +37,63 @@ WINE_DECLARE_DEBUG_CHANNEL(timestamp);
 
 struct _KUSER_SHARED_DATA *user_shared_data = (void *)0x17ffe0000;
 
+#if defined(JUICE_IOS_PE) && (defined(__aarch64__) || defined(__arm64ec__))
+/*
+ * The ARM64EC indirect-call gate also needs this native accessor when Darwin
+ * clears x18.  Keep the pointer process-global (the accessor itself returns
+ * the calling thread's TEB from pthread TLS) and give the assembly gate a
+ * link-visible symbol.  It remains internal to ntdll.
+ */
+void *juice_teb_accessor;
+extern NTSTATUS WINAPI NtWineGetCurrentTebAccessor( void **accessor );
+
+/*
+ * ARM64EC normally sends every indirect branch through
+ * __os_arm64x_check_call.  The accessor returned by the Unix half of ntdll is
+ * already native AArch64 code, not an ARM64EC or x86-64 PE entrypoint.  Letting
+ * the call checker inspect it can therefore redirect the pointer back through
+ * the Wine syscall dispatcher.  A direct tail branch retains the caller's LR
+ * and gives the compiler a normal direct-call boundary (and its normal ABI
+ * clobbers) without translating the native accessor.
+ */
+static TEB * __attribute__((naked, noinline)) juice_call_native_teb_accessor( void *accessor )
+{
+    __asm__ volatile( "br x0" );
+}
+
+/***********************************************************************
+ *              NtWineRestoreCurrentTeb  (NTDLL.@)
+ *
+ * Restore the Windows ARM64 TEB register without using x18 to find it.
+ * The Unix-side accessor obtains the authoritative TEB from pthread TLS.
+ * Cache only the code pointer: the returned TEB remains per-thread.
+ */
+TEB * WINAPI NtWineRestoreCurrentTeb(void)
+{
+    void *accessor = __atomic_load_n( &juice_teb_accessor, __ATOMIC_ACQUIRE );
+    TEB *teb = NULL;
+
+    if (!accessor)
+    {
+        void *candidate = NULL;
+
+        if (!NtWineGetCurrentTebAccessor( &candidate ) && candidate)
+        {
+            __atomic_store_n( &juice_teb_accessor, candidate, __ATOMIC_RELEASE );
+            accessor = candidate;
+        }
+    }
+    if (accessor) teb = juice_call_native_teb_accessor( accessor );
+    if (teb) __asm__ volatile( "mov x18, %0" : : "r" (teb) : "memory" );
+    return teb;
+}
+#else
+TEB * WINAPI NtWineRestoreCurrentTeb(void)
+{
+    return NtCurrentTeb();
+}
+#endif
+
 struct debug_info
 {
     unsigned int str_pos;       /* current position in strings buffer */

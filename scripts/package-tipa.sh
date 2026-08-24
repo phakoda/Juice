@@ -28,6 +28,7 @@ for entitlements in "$APP_ENTITLEMENTS" "$CHILD_ENTITLEMENTS" "$X64_LOADER_ENTIT
 done
 if test -n "$X64_RUNTIME"; then
   test -d "$X64_RUNTIME" || { echo "Experimental runtime not found: $X64_RUNTIME" >&2; exit 2; }
+  bash "$ROOT/scripts/verify-translation-runtime-safety.sh" "$X64_RUNTIME"
 fi
 case "$OUTPUT" in
   "$ROOT"/dist/*.tipa) ;;

@@ -1,6 +1,7 @@
 # package|version|Procursus repository filename|sha256
 # Suite 1800, architecture iphoneos-arm64. This is the complete recursive
 # runtime closure declared by libgnutls30, plus the GnuTLS development headers.
+ca-certificates|20240604|pool/main/iphoneos-arm64-rootless/1900/cacerts/ca-certificates_20240604_all.deb|03835a9bbf25478e4d9255fe1497030fe4a340310948fb31e5c41fd863f66e16
 libgnutls30-dev|3.8.5|pool/main/iphoneos-arm64-rootless/1800/gnutls/libgnutls30-dev_3.8.5_iphoneos-arm64.deb|41cee8fb614e93906f5efc5ad157cca7b8d3dda729337e8fc775a99163ffa842
 libgnutls30|3.8.5|pool/main/iphoneos-arm64-rootless/1800/gnutls/libgnutls30_3.8.5_iphoneos-arm64.deb|02fb05b9b34bc3ee933309829b31880de3feef698b4fc90c2425637162df72d3
 libiosexec1|1.3.1|pool/main/iphoneos-arm64-rootless/1800/libiosexec/libiosexec1_1.3.1_iphoneos-arm64.deb|91f1b16dc69121ebca9bef020c91fcca8be6b9c7f9f2652b378530ecb0ea2fa6

@@ -1,0 +1,126 @@
+{"app_name":"wine","timestamp":"2026-08-21 20:29:28.00 +0800","app_version":"","slice_uuid":"dcf7acab-6601-3f43-9f96-aaaebbc3ee41","build_version":"","platform":2,"share_with_app_devs":0,"is_first_party":1,"bug_type":"309","os_version":"iPhone OS 16.6 (20G75)","roots_installed":0,"incident_id":"2E6F4A4C-443C-452D-BE8D-B1E2F0E09A7E","name":"wine"}
+{
+  "uptime" : 4300,
+  "procRole" : "Unspecified",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "iPad12,1",
+  "coalitionID" : 885,
+  "osVersion" : {
+    "isEmbedded" : true,
+    "train" : "iPhone OS 16.6",
+    "releaseType" : "User",
+    "build" : "20G75"
+  },
+  "captureTime" : "2026-08-21 20:29:28.1590 +0800",
+  "incident" : "2E6F4A4C-443C-452D-BE8D-B1E2F0E09A7E",
+  "pid" : 3469,
+  "cpuType" : "ARM-64",
+  "roots_installed" : 0,
+  "bug_type" : "309",
+  "procLaunch" : "2026-08-21 20:29:28.1436 +0800",
+  "procStartAbsTime" : 104470781936,
+  "procExitAbsTime" : 104471146583,
+  "procName" : "wine",
+  "procPath" : "\/private\/var\/containers\/Bundle\/Application\/F3BC928B-CF6E-41E9-AA5B-114329A364D0\/Juice.app\/Grape-X64\/build\/wine-ios\/loader\/wine",
+  "parentProc" : "Exited process",
+  "parentPid" : 3468,
+  "coalitionName" : "com.exocore.Juice",
+  "crashReporterKey" : "062987173bc21e81fc70960fc85ba1eacfd43ea1",
+  "wasUnlockedSinceBoot" : 1,
+  "isLocked" : 0,
+  "codeSigningID" : "com.exocore.Juice",
+  "codeSigningTeamID" : "T8ALTGMVXN",
+  "codeSigningFlags" : 587227909,
+  "codeSigningValidationCategory" : 4,
+  "codeSigningTrustLevel" : 0,
+  "vmRegionInfo" : "0x104400000 is in 0x104400000-0x10449c000;  bytes after start: 0  bytes before end: 638975\n      REGION TYPE                 START - END      [ VSIZE] PRT\/MAX SHRMOD  REGION DETAIL\n      __LINKEDIT               1043b4000-104400000 [  304K] r--\/r-- SM=COW  ...ebin\/gen\/dyld\n--->  mapped file              104400000-10449c000 [  624K] r--\/rw- SM=COW  ...t_id=f12db91d\n      GAP OF 0x17864000 BYTES\n      MALLOC_TINY              11bd00000-11be00000 [ 1024K] rw-\/rwx SM=PRV  ",
+  "exception" : {"codes":"0x0000000000000032, 0x0000000104400000","rawCodes":[50,4366270464],"type":"EXC_BAD_ACCESS","signal":"SIGKILL - CODESIGNING","subtype":"UNKNOWN_0x32 at 0x0000000104400000"},
+  "termination" : {"flags":0,"code":2,"namespace":"CODESIGNING","indicator":"Invalid Page"},
+  "ktriageinfo" : "VM - (arg = 0x0) pmap_enter retried due to resource shortage\nVM - (arg = 0x0) pmap_enter retried due to resource shortage\nVM - (arg = 0x0) pmap_enter retried due to resource shortage\n",
+  "vmregioninfo" : "0x104400000 is in 0x104400000-0x10449c000;  bytes after start: 0  bytes before end: 638975\n      REGION TYPE                 START - END      [ VSIZE] PRT\/MAX SHRMOD  REGION DETAIL\n      __LINKEDIT               1043b4000-104400000 [  304K] r--\/r-- SM=COW  ...ebin\/gen\/dyld\n--->  mapped file              104400000-10449c000 [  624K] r--\/rw- SM=COW  ...t_id=f12db91d\n      GAP OF 0x17864000 BYTES\n      MALLOC_TINY              11bd00000-11be00000 [ 1024K] rw-\/rwx SM=PRV  ",
+  "faultingThread" : 0,
+  "threads" : [{"triggered":true,"id":41066,"threadState":{"x":[{"value":6102981760},{"value":4366270464},{"value":629939},{"value":4762648832},{"value":2},{"value":0},{"value":4365764768,"symbolLocation":0,"symbol":"dyld3::GradedArchs::arm64e_keysoff"},{"value":2784},{"value":5571125372058337394},{"value":4365462176,"symbolLocation":0,"symbol":"invocation function for block in dyld4::JustInTimeLoader::makeJustInTimeLoaderDisk(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&, bool, unsigned int, mach_o::Layout const*)"},{"value":16777220},{"value":1},{"value":4762648834},{"value":0},{"value":9215295522},{"value":32768},{"value":6},{"value":4365730804,"symbolLocation":56,"symbol":"fcntl"},{"value":0},{"value":6102981760},{"value":4366270464},{"value":4762648832},{"value":2},{"value":4365764768,"symbolLocation":0,"symbol":"dyld3::GradedArchs::arm64e_keysoff"},{"value":0},{"value":629939},{"value":6102981616},{"value":1},{"value":4364016688}],"flavor":"ARM_THREAD_STATE64","lr":{"value":540286824115055356},"cpsr":{"value":1073741824},"fp":{"value":6102980080},"sp":{"value":6102979408},"esr":{"value":2449473543,"description":"(Data Abort) byte read Translation fault"},"pc":{"value":4365323764,"matchesCrashFrame":1},"far":{"value":4366270464}},"queue":"com.apple.main-thread","frames":[{"imageOffset":69108,"symbol":"dyld3::MachOFile::compatibleSlice(Diagnostics&, void const*, unsigned long, char const*, dyld3::Platform, bool, dyld3::GradedArchs const&)","symbolLocation":76,"imageIndex":0},{"imageOffset":207612,"symbol":"invocation function for block in dyld4::JustInTimeLoader::makeJustInTimeLoaderDisk(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&, bool, unsigned int, mach_o::Layout const*)","symbolLocation":92,"imageIndex":0},{"imageOffset":36588,"symbol":"dyld4::SyscallDelegate::withReadOnlyMappedFile(Diagnostics&, char const*, bool, void (void const*, unsigned long, bool, dyld4::FileID const&, char const*) block_pointer) const","symbolLocation":132,"imageIndex":0},{"imageOffset":207468,"symbol":"dyld4::JustInTimeLoader::makeJustInTimeLoaderDisk(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&, bool, unsigned int, mach_o::Layout const*)","symbolLocation":208,"imageIndex":0},{"imageOffset":71688,"symbol":"invocation function for block in dyld4::Loader::getLoader(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&)","symbolLocation":1680,"imageIndex":0},{"imageOffset":179264,"symbol":"dyld4::Loader::forEachResolvedAtPathVar(dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&, dyld4::ProcessConfig::PathOverrides::Type, bool&, void (char const*, dyld4::ProcessConfig::PathOverrides::Type, bool&) block_pointer)","symbolLocation":556,"imageIndex":0},{"imageOffset":131336,"symbol":"dyld4::ProcessConfig::PathOverrides::forEachPathVariant(char const*, dyld3::Platform, bool, bool, bool&, void (char const*, dyld4::ProcessConfig::PathOverrides::Type, bool&) block_pointer) const","symbolLocation":1116,"imageIndex":0},{"imageOffset":178672,"symbol":"dyld4::Loader::forEachPath(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&, void (char const*, dyld4::ProcessConfig::PathOverrides::Type, bool&) block_pointer)","symbolLocation":248,"imageIndex":0},{"imageOffset":72760,"symbol":"dyld4::Loader::getLoader(Diagnostics&, dyld4::RuntimeState&, char const*, dyld4::Loader::LoadOptions const&)","symbolLocation":616,"imageIndex":0},{"imageOffset":297056,"symbol":"dyld4::APIs::dlopen_from(char const*, int, void*)::$_1::operator()() const","symbolLocation":248,"imageIndex":0},{"imageOffset":49784,"symbol":"dyld4::APIs::dlopen_from(char const*, int, void*)","symbolLocation":948,"imageIndex":0},{"imageOffset":589956,"symbol":"MACHOMERGER_HOOK__ZN5dyld44APIs11dlopen_fromEPKciPv","symbolLocation":132,"imageIndex":0},{"imageOffset":29796,"symbol":"try_dlopen","symbolLocation":200,"imageIndex":1},{"imageOffset":29472,"symbol":"main","symbolLocation":200,"imageIndex":1},{"imageOffset":105964,"symbol":"start","symbolLocation":2220,"imageIndex":0}]}],
+  "usedImages" : [
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4365254656,
+    "size" : 606208,
+    "uuid" : "444f5041-332e-302e-3100-420ad442bf88",
+    "path" : "\/private\/preboot\/A378D58F40814C83B9C2713EC9F4F691FA534AF1D786F6D50F6F891C61E4E9207B58ABCD9DEA3DE857FEA90F628BC674\/dopamine-XSQVDA\/procursus\/basebin\/gen\/dyld",
+    "name" : "dyld"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64",
+    "base" : 4363894784,
+    "size" : 32768,
+    "uuid" : "dcf7acab-6601-3f43-9f96-aaaebbc3ee41",
+    "path" : "\/private\/var\/containers\/Bundle\/Application\/F3BC928B-CF6E-41E9-AA5B-114329A364D0\/Juice.app\/Grape-X64\/build\/wine-ios\/loader\/wine",
+    "name" : "wine"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4364550144,
+    "size" : 49152,
+    "uuid" : "b56ba1bf-b4a4-3c47-b5f6-3c01f0080f17",
+    "path" : "\/private\/preboot\/A378D58F40814C83B9C2713EC9F4F691FA534AF1D786F6D50F6F891C61E4E9207B58ABCD9DEA3DE857FEA90F628BC674\/dopamine-XSQVDA\/procursus\/basebin\/systemhook.dylib",
+    "name" : "systemhook.dylib"
+  },
+  {
+    "source" : "P",
+    "arch" : "arm64e",
+    "base" : 4364730368,
+    "size" : 32768,
+    "uuid" : "d90c4e6c-f8fb-3bdc-88fb-66e083633fa2",
+    "path" : "\/private\/preboot\/A378D58F40814C83B9C2713EC9F4F691FA534AF1D786F6D50F6F891C61E4E9207B58ABCD9DEA3DE857FEA90F628BC674\/dopamine-XSQVDA\/procursus\/basebin\/forkfix.dylib",
+    "name" : "forkfix.dylib"
+  },
+  {
+    "size" : 0,
+    "source" : "A",
+    "base" : 0,
+    "uuid" : "00000000-0000-0000-0000-000000000000"
+  }
+],
+  "sharedCache" : {
+  "base" : 6587891712,
+  "size" : 2954362880,
+  "uuid" : "446cf75d-836a-33d3-9182-80ba7ad2a83a"
+},
+  "vmSummary" : "ReadOnly portion of Libraries: Total=317.3M resident=0K(0%) swapped_out_or_unallocated=317.3M(100%)\nWritable regions: Total=19.4M written=0K(0%) resident=0K(0%) swapped_out=0K(0%) unallocated=19.4M(100%)\n\n                                VIRTUAL   REGION \nREGION TYPE                        SIZE    COUNT (non-coalesced) \n===========                     =======  ======= \nKernel Alloc Once                   32K        1 \nMALLOC                            18.1M        9 \nMALLOC guard page                   64K        4 \nSTACK GUARD                         16K        1 \nStack                             1008K        1 \nVM_ALLOCATE                         16K        1 \n__AUTH                              46K        9 \n__AUTH_CONST                        57K       36 \n__DATA                             178K       37 \n__DATA_CONST                       247K       40 \n__DATA_DIRTY                        66K       32 \n__LINKEDIT                       312.2M        5 \n__OBJC_RO                         79.3M        1 \n__OBJC_RW                         2432K        1 \n__TEXT                            5240K       46 \ndyld private memory                272K        1 \nmapped file                        624K        1 \nshared memory                       16K        1 \n===========                     =======  ======= \nTOTAL                            419.7M      227 \n",
+  "legacyInfo" : {
+  "threadTriggered" : {
+    "queue" : "com.apple.main-thread"
+  }
+},
+  "logWritingSignature" : "d08f6a3ae1c25d33d6e1dd47d8c071a28fc55121",
+  "trialInfo" : {
+  "rollouts" : [
+    {
+      "rolloutId" : "62fe74515312cd4599bd3c80",
+      "factorPackIds" : {
+        "MYRIAD_BOOSTS" : "62fe74805312cd4599bd3c81"
+      },
+      "deploymentId" : 240000006
+    },
+    {
+      "rolloutId" : "62c751b6bcb0435c2153fe92",
+      "factorPackIds" : {
+        "SIRI_UNDERSTANDING_ATTENTION_ASSETS" : "64e5119bb0748b27b1b5e8a3",
+        "SIRI_UNDERSTANDING_ASR_ASSISTANT" : "6552bff94a6560536bdb1cfb",
+        "SIRI_UNDERSTANDING_NL" : "6523f7ba1bce5442b8d751b5",
+        "SIRI_EXPERIENCE_CAM" : "64e5119b4e666d798a8ffbda",
+        "SIRI_UNDERSTANDING_MORPHUN" : "64e514ddc83b9a3d50649ddc"
+      },
+      "deploymentId" : 240000366
+    }
+  ],
+  "experiments" : [
+
+  ]
+}
+}

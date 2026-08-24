@@ -19,6 +19,7 @@ manifest_hash="$(sha256sum "$MANIFEST" "$ROOT/config/network-build.env" "$0" | s
 if test -f "$SYSROOT/usr/include/gnutls/gnutls.h" && \
    test -e "$SYSROOT/usr/lib/libgnutls.dylib" && \
    test -e "$SYSROOT/usr/lib/$JUICE_GNUTLS_SONAME" && \
+   test -s "$SYSROOT/etc/ssl/certs/cacert.pem" && \
    test -s "$SYSROOT/.juice-network-libraries" && \
    test "$(cat "$MARKER" 2>/dev/null || true)" = "$manifest_hash" && \
    test "${JUICE_REFRESH_DEPS:-0}" != 1; then
@@ -68,6 +69,7 @@ test "$package_count" -ge 10 || { echo "Network package manifest is unexpectedly
 test -f "$source_root/usr/include/gnutls/gnutls.h" || { echo "GnuTLS headers were missing after extraction." >&2; exit 4; }
 test -e "$source_root/usr/lib/libgnutls.dylib" || { echo "libgnutls.dylib was missing after extraction." >&2; exit 4; }
 test -e "$source_root/usr/lib/$JUICE_GNUTLS_SONAME" || { echo "Configured GnuTLS soname was missing after extraction: $JUICE_GNUTLS_SONAME" >&2; exit 4; }
+test -s "$source_root/etc/ssl/certs/cacert.pem" || { echo "CA certificate bundle was missing after extraction." >&2; exit 4; }
 
 # Merge after the FreeType fetcher: it owns sysroot creation, while this script
 # adds the HTTPS closure without removing the already-pinned font libraries.

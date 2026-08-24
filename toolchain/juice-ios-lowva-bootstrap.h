@@ -162,9 +162,9 @@ static inline int juice_lowva_probe(void)
 {
     const uintptr_t address = 0x20000ull;
     size_t size = 0x4000;
-    void *mapped;
+    void *mapped, *restored;
 
-    mapped = mmap((void *)address, size, PROT_NONE,
+    mapped = mmap((void *)address, size, PROT_READ | PROT_WRITE,
                   MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
     if (mapped == MAP_FAILED)
     {
@@ -182,10 +182,66 @@ static inline int juice_lowva_probe(void)
         return -1;
     }
 
-    munmap(mapped, size);
+    /* Keep the probe inside Wine's no-access reservation. Unmapping it would
+       briefly expose a low hole where Darwin's native malloc could place
+       metadata before ntdll takes control of the Win32 address space. */
+    restored = mmap((void *)address, size, PROT_NONE,
+                    MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+    if (restored == MAP_FAILED || (uintptr_t)restored != address)
+    {
+        fprintf(stderr,
+                "JUICE_LOWVA_KERNEL_PROBE_RESTORE_FAILED address=0x%llx size=0x%zx errno=%d\n",
+                (unsigned long long)address, size, errno);
+        return -1;
+    }
     fprintf(stderr,
             "JUICE_LOWVA_KERNEL_PROBE_OK address=0x%llx size=0x%zx\n",
             (unsigned long long)address, size);
+    return 0;
+}
+
+/*
+ * Lowering vm_map::min_offset and reserving Win32's low address space must be
+ * treated as one bootstrap operation. Darwin's native malloc begins using
+ * the newly exposed addresses immediately; if ntdll later reserves the whole
+ * range with MAP_FIXED, it can overwrite malloc zone metadata and SIGBUS in
+ * CoreFoundation before any Windows code runs.
+ *
+ * The helper changes the kernel field while this single-threaded loader is
+ * blocked in waitpid(). Reserve Wine's complete low range as the very first
+ * userspace operation after the successful wait, before logging, setenv(), or
+ * calling into CoreFoundation. ntdll can subsequently replace this PROT_NONE
+ * mapping with its own reservations without exposing a native-allocation
+ * window.
+ */
+static inline int juice_lowva_reserve_win32_space(void)
+{
+    const uintptr_t start = 0x10000ull;
+    /* Wine's 32-bit system DLL layout reaches into 0x7axx0000.  Protecting
+       only Wine's initial 0x68000000 reservation leaves a native-allocation
+       window below the 2 GiB WoW64 ceiling while wineboot starts services.
+       Reserve the complete non-large-address-aware Win32 range atomically;
+       ntdll replaces individual pages with MAP_FIXED as Windows mappings are
+       created. */
+    const uintptr_t end = 0x80000000ull;
+    const size_t size = end - start;
+    void *mapped;
+
+    mapped = mmap((void *)start, size, PROT_NONE,
+                  MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
+    if (mapped == MAP_FAILED || (uintptr_t)mapped != start)
+    {
+        fprintf(stderr,
+                "JUICE_LOWVA_ATOMIC_RESERVE_FAILED start=0x%llx end=0x%llx size=0x%zx errno=%d\n",
+                (unsigned long long)start, (unsigned long long)end, size, errno);
+        return -1;
+    }
+    fprintf(stderr,
+            "JUICE_LOWVA_ATOMIC_RESERVE_OK start=0x%llx end=0x%llx size=0x%zx\n",
+            (unsigned long long)start, (unsigned long long)end, size);
+    fprintf(stderr,
+            "JUICE_LOWVA_WIN32_2G_RESERVE_OK start=0x%llx end=0x%llx\n",
+            (unsigned long long)start, (unsigned long long)end);
     return 0;
 }
 
@@ -250,6 +306,15 @@ static inline void juice_ios_lowva_bootstrap(void)
                 "JUICE_LOWVA_FATAL reason=helper-failed status=0x%x exited=%d code=%d signal=%d\n",
                 status, WIFEXITED(status), WIFEXITED(status) ? WEXITSTATUS(status) : -1,
                 WIFSIGNALED(status) ? WTERMSIG(status) : 0);
+        _exit(78);
+    }
+
+    /* Do not insert allocation-capable work between the helper result check
+       and this reservation. See juice_lowva_reserve_win32_space(). */
+    if (juice_lowva_reserve_win32_space() != 0)
+    {
+        fprintf(stderr,
+                "JUICE_LOWVA_FATAL reason=unable-to-atomically-reserve-win32-space\n");
         _exit(78);
     }
 

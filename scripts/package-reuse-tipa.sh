@@ -115,6 +115,7 @@ valid_libraries()
   test -d "$path" || return 1
   if test "${JUICE_WITHOUT_GNUTLS:-0}" != 1; then
     test -f "$path/$JUICE_GNUTLS_SONAME" || return 1
+    test -s "$path/$JUICE_CA_BUNDLE_NAME" || return 1
   fi
 }
 
@@ -166,6 +167,7 @@ fi
 echo "JUICE_REUSE_DISCOVERY native=$RUNTIME"
 if test -n "$X64_RUNTIME"; then
   echo "JUICE_REUSE_DISCOVERY x64=$X64_RUNTIME win32=$WIN32"
+  bash "$ROOT/scripts/verify-translation-runtime-safety.sh" "$X64_RUNTIME"
 else
   echo "JUICE_REUSE_DISCOVERY x64=disabled win32=0"
 fi
@@ -260,6 +262,10 @@ if test "${JUICE_WITHOUT_GNUTLS:-0}" != 1 || \
       echo "Reusable package is missing bundled GnuTLS: $JUICE_GNUTLS_SONAME" >&2
       exit 4
     }
+    test -s "$APP/Libraries/$JUICE_CA_BUNDLE_NAME" || {
+      echo "Reusable package is missing bundled CA roots: $JUICE_CA_BUNDLE_NAME" >&2
+      exit 4
+    }
   fi
   runtime_roots+=("$APP/Libraries")
 fi
@@ -291,11 +297,11 @@ if test -n "$LDID_BIN" && test -x "$LDID_BIN"; then
     if test -f "$lowva_helper" && file "$lowva_helper" | grep -q 'Mach-O'; then
       "$LDID_BIN" -S"$ROOT/config/lowva-helper-entitlements.plist" -Cadhoc "$lowva_helper"
       helper_entitlements="$("$LDID_BIN" -e "$lowva_helper" 2>/dev/null || true)"
-      printf '%s' "$helper_entitlements" | grep -q 'IOSurfaceRootUserClient' || {
-        echo "Packaged low-VA helper is missing IOSurfaceRootUserClient: $lowva_helper" >&2
+      printf '%s' "$helper_entitlements" | grep -q 'platform-application' || {
+        echo "Packaged low-VA helper is missing its minimal platform entitlement: $lowva_helper" >&2
         exit 5
       }
-      echo "JUICE_LOWVA_HELPER_SIGNED path=$lowva_helper iosurface_entitlement=1"
+      echo "JUICE_LOWVA_HELPER_SIGNED path=$lowva_helper entitlements=minimal-platform"
     fi
   done
 

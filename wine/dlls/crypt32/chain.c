@@ -125,7 +125,24 @@ HCERTCHAINENGINE CRYPT_CreateChainEngine(HCERTSTORE root, DWORD system_store, co
         else if (config->hRestrictedRoot)
             root = CertDuplicateStore(config->hRestrictedRoot);
         else
-            root = CertOpenStore(CERT_STORE_PROV_SYSTEM_W, 0, 0, system_store, L"Root");
+        {
+            HCERTSTORE system_root, host_root;
+
+            host_root = CRYPT_DuplicateHostRootStore();
+            system_root = CertOpenStore(CERT_STORE_PROV_SYSTEM_W, 0, 0, system_store, L"Root");
+            if (host_root && system_root &&
+                (root = CertOpenStore(CERT_STORE_PROV_COLLECTION, 0, 0,
+                                      CERT_STORE_CREATE_NEW_FLAG, NULL)))
+            {
+                CertAddStoreToCollection(root, host_root, 0, 1);
+                CertAddStoreToCollection(root, system_root, 0, 0);
+            }
+            else
+                root = system_root ? CertDuplicateStore(system_root) :
+                       host_root ? CertDuplicateStore(host_root) : NULL;
+            CertCloseStore(system_root, 0);
+            CertCloseStore(host_root, 0);
+        }
     }
 
     if(!root)
@@ -526,6 +543,30 @@ static void CRYPT_CheckRootCert(HCERTSTORE hRoot,
  PCERT_CHAIN_ELEMENT rootElement)
 {
     PCCERT_CONTEXT root = rootElement->pCertContext;
+    PCCERT_CONTEXT trusted = CRYPT_FindCertInStore(hRoot, root);
+
+    /* Cross-signed and self-signed forms of a trust anchor have different
+     * certificate hashes but intentionally share the subject and public key.
+     * Treat that cryptographic identity as the same anchor.  A name-only
+     * match is never sufficient. */
+    if (!trusted)
+        while ((trusted = CertFindCertificateInStore(hRoot,
+                root->dwCertEncodingType, 0, CERT_FIND_SUBJECT_NAME,
+                &root->pCertInfo->Subject, trusted)))
+            if (CertComparePublicKeyInfo(root->dwCertEncodingType,
+                                        &trusted->pCertInfo->SubjectPublicKeyInfo,
+                                        &root->pCertInfo->SubjectPublicKeyInfo))
+                break;
+
+    /* Trust in an anchor comes from its presence in the trusted-root store,
+     * not from its informational self-signature.  In particular, requiring
+     * that signature makes otherwise valid RSA roots unusable when the host
+     * crypto provider cannot verify the root's legacy signature algorithm. */
+    if (trusted)
+    {
+        CertFreeCertificateContext(trusted);
+        return;
+    }
 
     if (!CryptVerifyCertificateSignatureEx(0, root->dwCertEncodingType,
      CRYPT_VERIFY_CERT_SIGN_SUBJECT_CERT, (void *)root,
@@ -2018,7 +2059,27 @@ static PCCERT_CONTEXT CRYPT_FindIssuer(const CertificateChainEngine *engine, con
     DWORD size;
     BOOL res;
 
-    issuer = CertFindCertificateInStore(store, cert->dwCertEncodingType, 0, type, para, prev_issuer);
+    /* Prefer a matching trust anchor over an equivalent cross-signed
+     * certificate supplied by the peer.  This lets a chain terminate at the
+     * locally trusted self-signed form instead of unnecessarily following a
+     * cross-signature to an older root.  Signature checking of every child
+     * certificate remains unchanged. */
+    if (!prev_issuer)
+        issuer = CertFindCertificateInStore(engine->hRoot, cert->dwCertEncodingType, 0, type, para, NULL);
+    else
+        issuer = NULL;
+    /* A number of cross-signed chains carry an authority key identifier that
+     * Wine cannot resolve against the self-signed form in the host store even
+     * though both use the same subject and key.  Prefer the host-designated
+     * anchor by issuer name in that case; the normal chain pass still verifies
+     * that this candidate actually signed the child. */
+    if (!issuer && !prev_issuer && type != CERT_FIND_SUBJECT_NAME)
+        issuer = CertFindCertificateInStore(engine->hRoot, cert->dwCertEncodingType, 0,
+                                            CERT_FIND_SUBJECT_NAME, &cert->pCertInfo->Issuer, NULL);
+    if (issuer)
+        TRACE("Found in trusted root store %p\n", issuer);
+    else
+        issuer = CertFindCertificateInStore(store, cert->dwCertEncodingType, 0, type, para, prev_issuer);
     if(issuer) {
         TRACE("Found in store %p\n", issuer);
         return issuer;

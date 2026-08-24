@@ -1,0 +1,379 @@
+JUICE_WIN32_RUNTIME_LINKS count=86 syswow64=/var/mobile/Documents/JuiceData/GrapePrefix-x86_64/drive_c/windows/syswow64
+[JuiceWine parent] bundle libraries path=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Libraries:/var/jb/usr/lib
+[JuiceWine parent] launching /var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/loader/wine
+[JuiceWine parent] child PID=5554
+[JuiceWine] iOS low-VA release start=0x10000 end=0x100000000 status=0 OK
+JUICE_LOWVA_HOLELIST_OK old_reuse=0 new_reuse=1 allocator=entry-list
+JUICE_LOWVA_HELPER_BEGIN path=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/tools/juice-lowva-helper target_pid=5554 root_persona=1
+JUICE_LOWVA_KERNEL_MIN_OK pid=5554 task=0xffffffde2112ac80 map=0xffffffdcec8df640 old=0x104e44000 new=0x10000 max=0x2d8000000 already=0
+JUICE_LOWVA_HELPER_OK target_pid=5554
+JUICE_LOWVA_KERNEL_PROBE_OK address=0x20000 size=0x4000
+JUICE_LOWVA_READY target_pid=5554
+[JuiceLowVA] MAP_FIXED enabled start=0x10000 size=0x67ff0000 prot=0 failures=0
+[JuiceWine] PT_TRACE_ME succeeded; csflags=0x3280780d CS_DEBUGGED=YES
+[JuiceWine] requesting controlled tracer detach
+[JuiceWine parent] child stopped pid=5554 signal=17 (Suspended (signal): 17)
+[JuiceWine parent] PT_DETACH pid=5554 result=0
+[JuiceWine parent] child now running untraced
+[JuiceWine] resumed after tracer detach; csflags=0x3280780d CS_DEBUGGED=YES
+0024:trace:ntdll:NtQueryInformationToken (0xfffffffffffffffa,TokenUser,0x16b0ce9f0,80,0x16b0ce9ec)
+0024:trace:ntdll:NtQueryInformationToken (0xfffffffffffffffa,TokenUser,0x16b0ce410,80,0x16b0ce40c)
+0024:trace:ntdll:NtQueryInformationToken (0xfffffffffffffffa,TokenUser,0x16b0ce410,80,0x16b0ce40c)
+[JuiceStage] wineboot disabled by JUICE_SKIP_WINEBOOT=1
+0024:trace:ntdll:NtQueryInformationToken (0xfffffffffffffffa,TokenUser,0x16b0ce410,80,0x16b0ce40c)
+0024:trace:ntdll:NtQueryInformationToken (0xfffffffffffffffa,TokenUser,0x16b0ce410,80,0x16b0ce40c)
+0024:trace:ntdll:NtQueryInformationToken (0xfffffffffffffffa,TokenUser,0x16b0ce340,80,0x16b0ce33c)
+0024:trace:module:get_load_order got main exe default n,b for L"\\??\\Z:\\var\\containers\\Bundle\\Application\\F3BC928B-CF6E-41E9-AA5B-114329A364D0\\Juice.app\\Grape-X64\\tests\\x86-smoke.exe"
+0024:trace:module:get_load_order got main exe default n,b for L"\\??\\Z:\\var\\containers\\Bundle\\Application\\F3BC928B-CF6E-41E9-AA5B-114329A364D0\\Juice.app\\Grape-X64\\tests\\x86-smoke.exe"
+0024:trace:module:map_image_into_view mapping PE file L"\\??\\Z:\\var\\containers\\Bundle\\Application\\F3BC928B-CF6E-41E9-AA5B-114329A364D0\\Juice.app\\Grape-X64\\tests\\x86-smoke.exe" at 0x400000-0x405000
+0024:trace:module:map_image_into_view mapping L"\\??\\Z:\\var\\containers\\Bundle\\Application\\F3BC928B-CF6E-41E9-AA5B-114329A364D0\\Juice.app\\Grape-X64\\tests\\x86-smoke.exe" section .text at 0x401000 off 400 size 200 virt 10a flags 60000020
+0024:trace:module:map_image_into_view clearing 0x401200 - 0x402000
+0024:trace:module:map_image_into_view mapping L"\\??\\Z:\\var\\containers\\Bundle\\Application\\F3BC928B-CF6E-41E9-AA5B-114329A364D0\\Juice.app\\Grape-X64\\tests\\x86-smoke.exe" section .rdata at 0x402000 off 600 size 400 virt 2cf flags 40000040
+0024:trace:module:map_image_into_view clearing 0x402400 - 0x403000
+0024:trace:module:map_image_into_view mapping L"\\??\\Z:\\var\\containers\\Bundle\\Application\\F3BC928B-CF6E-41E9-AA5B-114329A364D0\\Juice.app\\Grape-X64\\tests\\x86-smoke.exe" section .buildid at 0x403000 off a00 size 200 virt 35 flags 40000040
+0024:trace:module:map_image_into_view clearing 0x403200 - 0x404000
+0024:trace:module:map_image_into_view mapping L"\\??\\Z:\\var\\containers\\Bundle\\Application\\F3BC928B-CF6E-41E9-AA5B-114329A364D0\\Juice.app\\Grape-X64\\tests\\x86-smoke.exe" section .reloc at 0x404000 off c00 size 200 virt 38 flags 42000040
+0024:trace:module:map_image_into_view clearing 0x404200 - 0x405000
+[JuiceWine] host-page expanding executable section .text: section=0x401000 mapping=0x400000 size=16384
+[JuiceWine] anonymous PE executable section .text at 0x400000 size=16384
+0024:trace:ntdll:NtQueryInformationToken (0xfffffffffffffffa,TokenUser,0x16b0cea50,80,0x16b0cea4c)
+[JuiceStage] loading Windows ntdll; transfer=0x401000 teb=0x7ffe8000 peb=0x7ffec000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/aarch64-windows/ntdll.dll machine=aa64 status=00000000
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ff960000-0x3ffff0000, unix_prot 0x7.
+0024:trace:module:map_image_into_view mapping PE file L"\\??\\C:\\windows\\system32\\ntdll.dll" at 0x17f950000-0x17ffe0000
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section .text at 0x17f960000 off 10000 size f0000 virt e1185 flags 60000020
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section .hexpthk at 0x17fa50000 off 100000 size 10000 virt 3b10 flags 60000020
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section .rdata at 0x17fa60000 off 110000 size 50000 virt 4ed34 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section .data at 0x17fab0000 off 160000 size 10000 virt 88f8 flags c0000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section .pdata at 0x17fac0000 off 170000 size 10000 virt 9ad0 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section .a64xrm at 0x17fad0000 off 180000 size 10000 virt 25e0 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section .rsrc at 0x17fae0000 off 190000 size 10000 virt 3c8 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section .reloc at 0x17faf0000 off 1a0000 size 10000 virt 888 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section /4 at 0x17fb00000 off 1b0000 size 20000 virt 155f0 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section /18 at 0x17fb20000 off 1d0000 size 10000 virt 60 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section /58 at 0x17fb30000 off 1e0000 size 160000 virt 158277 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section /70 at 0x17fc90000 off 340000 size 90000 virt 8358a flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section /82 at 0x17fd20000 off 3d0000 size 1a0000 virt 194468 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section /33 at 0x17fec0000 off 570000 size 40000 virt 3a520 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\ntdll.dll" section /47 at 0x17ff00000 off 5b0000 size e0000 virt d20f2 flags 42000040
+0024:trace:module:map_image_into_view relocating L"\\??\\C:\\windows\\system32\\ntdll.dll" dynamic base 180000000 -> 1bf960000 mapped at 0x17f950000
+[JuiceWine] anonymous PE executable section .text at 0x17f960000 size=983040
+[JuiceWine] anonymous PE executable section .hexpthk at 0x17fa50000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/aarch64-windows/ntdll.dll status=40000003 module=0x17f950000 size=690000
+[JuiceStage] load_ntdll returned; transfer=0x401000
+0024:trace:module:find_builtin_dll looking for "ntdll.dll" for file L"\\??\\C:\\windows\\syswow64\\ntdll.dll"
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/i386-windows/ntdll.dll machine=0000 status=00000000
+0024:trace:module:map_image_into_view mapping PE file L"\\??\\C:\\windows\\syswow64\\ntdll.dll" at 0x7bd90000-0x7bfe1000
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section .text at 0x7bd91000 off 1000 size 6b000 virt 6a1b5 flags 60000020
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section .rdata at 0x7bdfc000 off 6c000 size 22000 virt 2102b flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section .data at 0x7be1e000 off 8e000 size 1000 virt 2fa4 flags c0000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section .eh_fram at 0x7be21000 off 8f000 size b000 virt a5c0 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section .rsrc at 0x7be2c000 off 9a000 size 1000 virt 3c8 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section .reloc at 0x7be2d000 off 9b000 size 6000 virt 5414 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section /4 at 0x7be33000 off a1000 size b000 virt ab0e flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section /18 at 0x7be3e000 off ac000 size 1000 virt 20 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section /58 at 0x7be3f000 off ad000 size 96000 virt 957f2 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section /70 at 0x7bed5000 off 143000 size 40000 virt 3f951 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section /82 at 0x7bf15000 off 183000 size 65000 virt 64ce0 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section /33 at 0x7bf7a000 off 1e8000 size 9000 virt 84d0 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\syswow64\\ntdll.dll" section /47 at 0x7bf83000 off 1f1000 size 5e000 virt 5de6f flags 42000040
+0024:trace:module:map_image_into_view relocating L"\\??\\C:\\windows\\syswow64\\ntdll.dll" dynamic base 7bc00000 -> 7bd90000 mapped at 0x7bd90000
+[JuiceWine] host-page expanding executable section .text: section=0x7bd91000 mapping=0x7bd90000 size=442368
+[JuiceWine] anonymous PE executable section .text at 0x7bd90000 size=442368
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/i386-windows/ntdll.dll status=00000000 module=0x7bd90000 size=251000
+0024:trace:module:load_wow64_ntdll loaded L"\\??\\C:\\windows\\syswow64\\ntdll.dll" at 0x7bd90000
+[JuiceStage] load_wow64_ntdll returned
+[JuiceStage] calling load_apiset_dll
+0024:err:module:load_apiset_dll failed to load apiset: c000000f
+[JuiceStage] load_apiset_dll returned; stack_base=0x10020fd20 stack_limit=0x100118000
+[JuiceStage] calling server_init_process_done
+[JuiceStage] server_init_process_done entered
+[JuiceStage] calling signal_init_process; teb=0x7ffe8000
+[JuiceStage] signal_init_process returned
+[JuiceStage] init_teb_data returned; syscall_frame=0x10010fcd0 stack_base=0x10020fd20 stack_limit=0x100118000
+[JuiceStage] init_process_done server call returned; status=00000000 suspend=0 transfer=0x401000 teb=0x7ffe8000 peb=0x7ffec000
+[JuiceStage] calling signal_start_thread
+[JuiceStage] init_syscall_frame entered; entry=0x401000 arg=0x7ffec000 teb=0x7ffe8000 data=0x100000000 frame=0x10010fcd0 stack_base=0x10020fd20 stack_limit=0x100118000
+[JuiceStage] calling signal_set_full_context; ctx=0x10020f990 target_pc=0x17f9b75a0 target_sp=0x10020fd20 target_x18=0x7ffe8000 LdrInitializeThunk=0x17f9b75c0 RtlUserThreadStart=0x17f9b75a0
+[JuiceStage] signal_set_full_context returned; status=00000000 frame_pc=0x17f9b75a0 frame_sp=0x10020fd20 frame_x18=0x7ffe8000 restore=00400007
+[JuiceStage] init_syscall_frame complete; dispatcher_pc=0x17f9b75c0 user_sp=0x10020f990 x16=0x17f9b75c0 x17=0x10020f990 x18=0x7ffe8000 restore=00400007
+[JuiceX18] broad #1 pc=0x17f994344 fault=0x17ee instr=796fde48 x8=0x0 x16=0x17f9b75c0 x17=0x10020f990 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #2 pc=0x17f9bc3cc fault=0x48 instr=b9404a48 x8=0x17fab02a0 x16=0x17f994344 x17=0x10020f990 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #3 pc=0x17f9bdf3c fault=0x60 instr=f940324c x8=0x0 x16=0x17f9bc3cc x17=0x10020f990 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #4 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x18 x16=0x10514dc10 x17=0x10020f990 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #5 pc=0x17f9be9a4 fault=0x60 instr=f9403248 x8=0x100210090 x16=0x17f9b54a4 x17=0x10020f760 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #6 pc=0x17f9bdfd0 fault=0x3004 instr=b9700648 x8=0x1f x16=0x17f9b54a4 x17=0x10020f790 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #7 pc=0x17f9be24c fault=0x3004 instr=b9300640 x8=0x20 x16=0x17f9bdfd0 x17=0x10020f990 x18=0x0 teb=0x7ffe8000
+0024:trace:ntdll:RtlInitializeBitMap (000000017FAB3000,000000007FFEC080,64)
+0024:trace:ntdll:RtlInitializeBitMap (000000017FAB3010,000000007FFEC240,1024)
+0024:trace:ntdll:RtlSetBits (000000017FAB3000,0,19)
+0024:trace:ntdll:RtlSetBits (000000017FAB3000,16,1)
+[JuiceX18] broad #8 pc=0x17f9877ec fault=0x60 instr=f9403248 x8=0x17fab3030 x16=0x10020f350 x17=0x17f9be38c x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #9 pc=0x17f9bdea4 fault=0x3000 instr=b9700248 x8=0x1e x16=0x5c5c x17=0x10020f0f0 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #10 pc=0x17f9bdea4 fault=0x3000 instr=b9700248 x8=0x9 x16=0x5c5c x17=0x10020f3bb x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #11 pc=0x17f986c98 fault=0x60 instr=f9403248 x8=0xffffffe3 x16=0x5c5c x17=0x10020f3cc x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #12 pc=0x17f986d00 fault=0x60 instr=f9403248 x8=0x100213134 x16=0x17f986c98 x17=0x10020f990 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #13 pc=0x17f986d00 fault=0x60 instr=f9403248 x8=0x100215d80 x16=0x17f986d00 x17=0x10020f990 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #14 pc=0x17f9c7524 fault=0x60 instr=f9403248 x8=0x105198330 x16=0x17f9b5384 x17=0x10020f800 x18=0x0 teb=0x7ffe8000
+0024:trace:ntdll:NtQuerySystemInformation (0x000003e8,0x17fab4d60,0x00000100,0x0)
+0024:trace:ntdll:NtQueryInformationToken (0xfffffffffffffffa,TokenUser,0x10020f398,88,0x10020f40c)
+[JuiceX18] broad #15 pc=0x17f9bdfd0 fault=0x3004 instr=b9700648 x8=0x1f x16=0x17f9b5ca4 x17=0x10020f800 x18=0x0 teb=0x7ffe8000
+0024:trace:ntdll:RtlRbInsertNodeEx tree 000000017FAB2FC8, parent 0000000000000000, right 0, node 0000000100213D18.
+0024:trace:ntdll:RtlRbInsertNodeEx tree 000000017FAB2FC8, parent 0000000100213D18, right 1, node 0000000100213FA8.
+[JuiceX18] broad #16 pc=0x17f9bdea4 fault=0x3000 instr=b9700248 x8=0x24 x16=0x5c5c x17=0x10020f646 x18=0x0 teb=0x7ffe8000
+0024:trace:loaddll:build_ntdll_module Loaded L"C:\\windows\\system32\\ntdll.dll" at 000000017F950000: builtin
+0024:trace:module:load_dll looking for L"C:\\windows\\system32\\wow64.dll" in (null)
+0024:trace:module:get_load_order got hardcoded default for L"\\??\\C:\\windows\\system32\\wow64.dll"
+0024:trace:module:find_builtin_dll looking for "wow64.dll" for file L"\\??\\C:\\windows\\system32\\wow64.dll"
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/dlls/wow64/aarch64-windows/wow64.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/programs/wow64.dll/aarch64-windows/wow64.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/wow64.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wow64.dll machine=0000 status=00000000
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffed0000-0x3ffff0000, unix_prot 0x7.
+0024:trace:module:map_image_into_view mapping PE file L"\\??\\C:\\windows\\system32\\wow64.dll" at 0x17f830000-0x17f950000
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section .text at 0x17f840000 off 10000 size 20000 virt 13390 flags 60000020
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section .rdata at 0x17f860000 off 30000 size 10000 virt 58cc flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section .data at 0x17f870000 off 40000 size 10000 virt 440 flags c0000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section .pdata at 0x17f880000 off 50000 size 10000 virt 818 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section .reloc at 0x17f890000 off 60000 size 10000 virt 248 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section /4 at 0x17f8a0000 off 70000 size 10000 virt 2141 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section /43 at 0x17f8b0000 off 80000 size 30000 virt 2c5df flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section /55 at 0x17f8e0000 off b0000 size 10000 virt f3bb flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section /67 at 0x17f8f0000 off c0000 size 30000 virt 2c4e1 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section /18 at 0x17f920000 off f0000 size 10000 virt 6680 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64.dll" section /32 at 0x17f930000 off 100000 size 20000 virt 1d07a flags 42000040
+0024:trace:module:map_image_into_view relocating L"\\??\\C:\\windows\\system32\\wow64.dll" dynamic base 180000000 -> 1bf830000 mapped at 0x17f830000
+[JuiceWine] anonymous PE executable section .text at 0x17f840000 size=131072
+[JuiceHybrid] map name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wow64.dll status=40000003 module=0x17f830000 size=120000
+0024:trace:module:perform_relocations relocating from 00000001BF830000-00000001BF950000 to 000000017F830000-000000017F950000
+[JuiceX18] broad #17 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x50 x16=0x10514dc10 x17=0x17f9be38c x18=0x0 teb=0x7ffe8000
+0024:trace:ntdll:RtlRbInsertNodeEx tree 000000017FAB2FC8, parent 0000000100213FA8, right 0, node 0000000100214148.
+[JuiceX18] broad #18 pc=0x17f996e74 fault=0x60 instr=f9403248 x8=0x17f8623d0 x16=0x10020f020 x17=0x17f9be38c x18=0x0 teb=0x7ffe8000
+0024:trace:module:load_dll looking for L"ntdll.dll" in (null)
+[JuiceX18] broad #19 pc=0x17f9bdea4 fault=0x3000 instr=b9700248 x8=0xd x16=0x5c5c x17=0x10020edaf x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #20 pc=0x17f9784b0 fault=0x2c8 instr=f9416648 x8=0x10020f308 x16=0x17f9bdea4 x17=0x10020f990 x18=0x0 teb=0x7ffe8000
+0024:trace:module:load_dll Found L"C:\\windows\\system32\\ntdll.dll" for L"ntdll.dll" at 000000017F950000, count=2
+[JuiceX18] broad #21 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x50 x16=0x10514dc10 x17=0x10020f210 x18=0x0 teb=0x7ffe8000
+0024:trace:module:build_module loaded L"\\??\\C:\\windows\\system32\\wow64.dll" 0000000100214080 000000017F830000
+0024:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\wow64.dll" at 000000017F830000: builtin
+0024:trace:module:load_dll Loaded module L"\\??\\C:\\windows\\system32\\wow64.dll" at 000000017F830000
+[JuiceX18] broad #22 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0xd1 x16=0x10514dc10 x17=0x10020f640 x18=0x0 teb=0x7ffe8000
+0024:trace:ntdll:NtQuerySystemInformationEx (0x000000b5,0x10020f3b8,8,0x10020f380,32,0x0) stub
+0024:trace:ntdll:create_logical_proc_info 6 logical CPUs from 6 physical cores across 1 packages
+0024:trace:ntdll:NtQuerySystemInformation (0x0000003e,0x10020f6a0,0x00000040,0x0)
+0024:trace:process:NtQueryInformationProcess (0xffffffffffffffff,0x0000001a,0x10020f6f8,0x00000008,0x0)
+0024:trace:module:LdrGetDllHandleEx flags 0x1, load_path 0000000000000000, dll_characteristics 0000000000000000, name 000000010020F6E0, base 000000010020F6F0.
+0024:trace:module:LdrGetDllHandleEx L"ntdll.dll" -> 000000017F950000 (load path (null))
+0024:trace:module:load_dll looking for L"\\??\\C:\\windows\\system32\\libwow64fex.dll" in L"\\??\\C:\\windows\\system32"
+0024:trace:module:get_load_order got hardcoded default for L"\\??\\C:\\windows\\system32\\libwow64fex.dll"
+0024:trace:module:find_builtin_dll looking for "libwow64fex.dll" for file L"\\??\\C:\\windows\\system32\\libwow64fex.dll"
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/dlls/libwow64fex/aarch64-windows/libwow64fex.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/programs/libwow64fex.dll/aarch64-windows/libwow64fex.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/libwow64fex.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/libwow64fex.dll machine=0000 status=00000000
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffc70000-0x3ffff0000, unix_prot 0x7.
+0024:trace:module:map_image_into_view mapping PE file L"\\??\\C:\\windows\\system32\\libwow64fex.dll" at 0x17f4b0000-0x17f82d000
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\libwow64fex.dll" section .text at 0x17f4b1000 off 1000 size 1d0000 virt 1cfd50 flags 60000020
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\libwow64fex.dll" section .rdata at 0x17f681000 off 1d1000 size 194000 virt 193278 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\libwow64fex.dll" section .buildid at 0x17f815000 off 365000 size 1000 virt 35 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\libwow64fex.dll" section .data at 0x17f816000 off 366000 size 2000 virt 33a8 flags c0000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\libwow64fex.dll" section .pdata at 0x17f81a000 off 368000 size 8000 virt 78a8 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\libwow64fex.dll" section .tls at 0x17f822000 off 370000 size 1000 virt 10 flags c0000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\libwow64fex.dll" section .reloc at 0x17f823000 off 371000 size a000 virt 9840 flags 42000040
+0024:trace:module:map_image_into_view relocating L"\\??\\C:\\windows\\system32\\libwow64fex.dll" dynamic base 180000000 -> 1bf4a0000 mapped at 0x17f4b0000
+[JuiceWine] host-page expanding executable section .text: section=0x17f4b1000 mapping=0x17f4b0000 size=1916928
+[JuiceWine] anonymous PE executable section .text at 0x17f4b0000 size=1916928
+[JuiceHybrid] map name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/libwow64fex.dll status=40000003 module=0x17f4b0000 size=37d000
+0024:trace:module:perform_relocations relocating from 00000001BF4A0000-00000001BF81D000 to 000000017F4B0000-000000017F82D000
+[JuiceX18] broad #23 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x50 x16=0x10514dc10 x17=0x17f9be38c x18=0x0 teb=0x7ffe8000
+0024:trace:ntdll:RtlRbInsertNodeEx tree 000000017FAB2FC8, parent 0000000100213D18, right 1, node 00000001002142E8.
+0024:trace:module:load_dll looking for L"wow64.dll" in L"\\??\\C:\\windows\\system32"
+0024:trace:module:load_dll Found L"C:\\windows\\system32\\wow64.dll" for L"wow64.dll" at 000000017F830000, count=2
+[JuiceX18] broad #24 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x50 x16=0x10514dc10 x17=0x10020eb70 x18=0x0 teb=0x7ffe8000
+0024:trace:module:load_dll looking for L"ntdll.dll" in L"\\??\\C:\\windows\\system32"
+0024:trace:module:load_dll Found L"C:\\windows\\system32\\ntdll.dll" for L"ntdll.dll" at 000000017F950000, count=3
+[JuiceX18] broad #25 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x50 x16=0x10514dc10 x17=0x10020eb70 x18=0x0 teb=0x7ffe8000
+0024:trace:module:build_module loaded L"\\??\\C:\\windows\\system32\\libwow64fex.dll" 0000000100214220 000000017F4B0000
+0024:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\libwow64fex.dll" at 000000017F4B0000: builtin
+0024:trace:module:load_dll Loaded module L"\\??\\C:\\windows\\system32\\libwow64fex.dll" at 000000017F4B0000
+0024:trace:module:process_attach (L"libwow64fex.dll",0000000000000000) - START
+0024:trace:module:process_attach (L"wow64.dll",0000000000000000) - START
+0024:trace:module:MODULE_InitDLL (000000017F830000 L"wow64.dll",PROCESS_ATTACH,0000000000000000) - CALL
+[JuiceX18] broad #26 pc=0x17f9bc3ac fault=0x48 instr=b9404a49 x8=0x24 x16=0x10020eae0 x17=0x17f9be38c x18=0x0 teb=0x7ffe8000
+0024:trace:module:MODULE_InitDLL (000000017F830000,PROCESS_ATTACH,0000000000000000) - RETURN 1
+0024:trace:module:process_attach (L"wow64.dll",0000000000000000) - END
+0024:trace:module:MODULE_InitDLL (000000017F4B0000 L"libwow64fex.dll",PROCESS_ATTACH,0000000000000000) - CALL
+[JuiceX18] broad #27 pc=0x17f9bc3ac fault=0x48 instr=b9404a49 x8=0x24 x16=0x17f9900b8 x17=0x17f9be38c x18=0x0 teb=0x7ffe8000
+0024:trace:module:MODULE_InitDLL (000000017F4B0000,PROCESS_ATTACH,0000000000000000) - RETURN 1
+0024:trace:module:process_attach (L"libwow64fex.dll",0000000000000000) - END
+0024:trace:module:load_dll looking for L"\\??\\C:\\windows\\system32\\wow64win.dll" in L"\\??\\C:\\windows\\system32"
+0024:trace:module:get_load_order got hardcoded default for L"\\??\\C:\\windows\\system32\\wow64win.dll"
+0024:trace:module:find_builtin_dll looking for "wow64win.dll" for file L"\\??\\C:\\windows\\system32\\wow64win.dll"
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/dlls/wow64win/aarch64-windows/wow64win.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/programs/wow64win.dll/aarch64-windows/wow64win.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/wow64win.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wow64win.dll machine=0000 status=00000000
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffec0000-0x3ffff0000, unix_prot 0x7.
+0024:trace:module:map_image_into_view mapping PE file L"\\??\\C:\\windows\\system32\\wow64win.dll" at 0x17f380000-0x17f4b0000
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section .text at 0x17f390000 off 10000 size 10000 virt f5d0 flags 60000020
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section .rdata at 0x17f3a0000 off 20000 size 20000 virt 12f74 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section .data at 0x17f3c0000 off 40000 size 10000 virt e20 flags c0000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section .pdata at 0x17f3d0000 off 50000 size 10000 virt 27e0 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section .reloc at 0x17f3e0000 off 60000 size 10000 virt c68 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section /4 at 0x17f3f0000 off 70000 size 10000 virt a97 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section /43 at 0x17f400000 off 80000 size 40000 virt 30dde flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section /55 at 0x17f440000 off c0000 size 10000 virt fcd2 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section /67 at 0x17f450000 off d0000 size 30000 virt 266fc flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section /18 at 0x17f480000 off 100000 size 10000 virt 96c0 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\wow64win.dll" section /32 at 0x17f490000 off 110000 size 20000 virt 1bac7 flags 42000040
+0024:trace:module:map_image_into_view relocating L"\\??\\C:\\windows\\system32\\wow64win.dll" dynamic base 180000000 -> 1bf360000 mapped at 0x17f380000
+[JuiceWine] anonymous PE executable section .text at 0x17f390000 size=65536
+[JuiceHybrid] map name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wow64win.dll status=40000003 module=0x17f380000 size=130000
+0024:trace:module:perform_relocations relocating from 00000001BF360000-00000001BF490000 to 000000017F380000-000000017F4B0000
+[JuiceX18] broad #28 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x50 x16=0x10514dc10 x17=0x17f9be38c x18=0x0 teb=0x7ffe8000
+0024:trace:ntdll:RtlRbInsertNodeEx tree 000000017FAB2FC8, parent 00000001002142E8, right 0, node 0000000100214508.
+[JuiceX18] broad #29 pc=0x17f996e74 fault=0x60 instr=f9403248 x8=0x17f3ab960 x16=0x10020e980 x17=0x17f9be38c x18=0x0 teb=0x7ffe8000
+0024:trace:module:load_dll looking for L"wow64.dll" in L"\\??\\C:\\windows\\system32"
+0024:trace:module:load_dll Found L"C:\\windows\\system32\\wow64.dll" for L"wow64.dll" at 000000017F830000, count=3
+[JuiceX18] broad #30 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x50 x16=0x10514dc10 x17=0x10020eb70 x18=0x0 teb=0x7ffe8000
+0024:trace:module:load_dll looking for L"win32u.dll" in L"\\??\\C:\\windows\\system32"
+0024:trace:module:get_load_order got hardcoded default for L"\\??\\C:\\windows\\system32\\win32u.dll"
+0024:trace:module:find_builtin_dll looking for "win32u.dll" for file L"\\??\\C:\\windows\\system32\\win32u.dll"
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/dlls/win32u/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/build/wine-ios/programs/win32u.dll/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/win32u.dll machine=0000 status=00000000
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffec0000-0x3ffff0000, unix_prot 0x7.
+0024:trace:module:map_image_into_view mapping PE file L"\\??\\C:\\windows\\system32\\win32u.dll" at 0x17f250000-0x17f380000
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section .text at 0x17f260000 off 10000 size 40000 virt 3f036 flags 60000020
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section .hexpthk at 0x17f2a0000 off 50000 size 10000 virt 6050 flags 60000020
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section .rdata at 0x17f2b0000 off 60000 size 30000 virt 2d028 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section .data at 0x17f2e0000 off 90000 size 10000 virt f8 flags c0000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section .pdata at 0x17f2f0000 off a0000 size 10000 virt c220 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section .a64xrm at 0x17f300000 off b0000 size 10000 virt 3030 flags 40000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section .reloc at 0x17f310000 off c0000 size 10000 virt d34 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section /4 at 0x17f320000 off d0000 size 10000 virt 869 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section /43 at 0x17f330000 off e0000 size 10000 virt ba40 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section /55 at 0x17f340000 off f0000 size 10000 virt 951a flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section /67 at 0x17f350000 off 100000 size 10000 virt cd7 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section /18 at 0x17f360000 off 110000 size 10000 virt 6140 flags 42000040
+0024:trace:module:map_image_into_view mapping L"\\??\\C:\\windows\\system32\\win32u.dll" section /32 at 0x17f370000 off 120000 size 10000 virt dc9c flags 42000040
+0024:trace:module:map_image_into_view relocating L"\\??\\C:\\windows\\system32\\win32u.dll" dynamic base 180000000 -> 1bf220000 mapped at 0x17f250000
+[JuiceWine] anonymous PE executable section .text at 0x17f260000 size=262144
+[JuiceWine] anonymous PE executable section .hexpthk at 0x17f2a0000 size=65536
+[JuiceHybrid] map name=/var/containers/Bundle/Application/F3BC928B-CF6E-41E9-AA5B-114329A364D0/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/win32u.dll status=40000003 module=0x17f250000 size=130000
+0024:trace:module:perform_relocations relocating from 00000001BF220000-00000001BF350000 to 000000017F250000-000000017F380000
+[JuiceX18] broad #31 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x50 x16=0x10514dc10 x17=0x17f9be38c x18=0x0 teb=0x7ffe8000
+0024:trace:ntdll:RtlRbInsertNodeEx tree 000000017FAB2FC8, parent 0000000100213D18, right 1, node 00000001002147C8.
+0024:trace:module:load_dll looking for L"ntdll.dll" in L"\\??\\C:\\windows\\system32"
+0024:trace:module:load_dll Found L"C:\\windows\\system32\\ntdll.dll" for L"ntdll.dll" at 000000017F950000, count=4
+[JuiceX18] broad #32 pc=0x10514dc14 fault=0x378 instr=f941be4a x8=0x50 x16=0x10514dc10 x17=0x10020e5c0 x18=0x0 teb=0x7ffe8000
+0024:trace:module:build_module loaded L"\\??\\C:\\windows\\system32\\win32u.dll" 0000000100214700 000000017F250000
+0024:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\win32u.dll" at 000000017F250000: builtin
+0024:trace:module:load_dll Loaded module L"\\??\\C:\\windows\\system32\\win32u.dll" at 000000017F250000
+0024:trace:module:load_dll looking for L"ntdll.dll" in L"\\??\\C:\\windows\\system32"
+0024:trace:module:load_dll Found L"C:\\windows\\system32\\ntdll.dll" for L"ntdll.dll" at 000000017F950000, count=5
+0024:trace:module:build_module loaded L"\\??\\C:\\windows\\system32\\wow64win.dll" 0000000100214440 000000017F380000
+0024:trace:loaddll:build_module Loaded L"C:\\windows\\system32\\wow64win.dll" at 000000017F380000: builtin
+0024:trace:module:load_dll Loaded module L"\\??\\C:\\windows\\system32\\wow64win.dll" at 000000017F380000
+0024:trace:module:process_attach (L"wow64win.dll",0000000000000000) - START
+0024:trace:module:process_attach (L"win32u.dll",0000000000000000) - START
+0024:trace:module:MODULE_InitDLL (000000017F250000 L"win32u.dll",PROCESS_ATTACH,0000000000000000) - CALL
+0024:trace:module:LdrGetDllHandleEx flags 0x1, load_path 0000000000000000, dll_characteristics 0000000000000000, name 000000010020EF10, base 000000010020EF28.
+0024:trace:module:LdrGetDllHandleEx L"ntdll.dll" -> 000000017F950000 (load path (null))
+0024:trace:ntdll:NtQuerySystemInformation (0x0000003e,0x10010e370,0x00000040,0x0)
+0024:trace:module:MODULE_InitDLL (000000017F250000,PROCESS_ATTACH,0000000000000000) - RETURN 1
+0024:trace:module:process_attach (L"win32u.dll",0000000000000000) - END
+0024:trace:module:MODULE_InitDLL (000000017F380000 L"wow64win.dll",PROCESS_ATTACH,0000000000000000) - CALL
+0024:trace:module:MODULE_InitDLL (000000017F380000,PROCESS_ATTACH,0000000000000000) - RETURN 1
+0024:trace:module:process_attach (L"wow64win.dll",0000000000000000) - END
+0024:trace:ntdll:NtQuerySystemInformation (0x00000000,0x10020f210,0x00000040,0x0)
+0024:trace:ntdll:RtlFindClearBitsAndSet (000000017FAB3000,1,1)
+0024:trace:ntdll:RtlFindClearBits (000000017FAB3000,1,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,1,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,2,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,3,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,4,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,5,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,6,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,7,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,8,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,9,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,10,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,11,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,12,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,13,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,14,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,15,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,16,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,17,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,18,1)
+0024:trace:ntdll:RtlAreBitsClear (000000017FAB3000,19,1)
+0024:trace:ntdll:RtlSetBits (000000017FAB3000,19,1)
+0024:trace:ntdll:NtQuerySystemInformation (0x0000003e,0x17f818278,0x00000040,0x0)
+0024:trace:module:LdrGetDllHandleEx flags 0x1, load_path 0000000000000000, dll_characteristics 0000000000000000, name 000000010020F260, base 000000010020F258.
+0024:trace:module:find_dll_file Skipping file search for L"kernel32.dll".
+0024:trace:module:LdrGetDllHandleEx L"kernel32.dll" -> 0000000000000000 (load path (null))
+0024:trace:module:LdrGetDllFullName module 0000000000000000, name 000000010020F078.
+starting FEX based libwow64fex.dll
+0024:trace:module:LdrGetDllHandleEx flags 0x1, load_path 0000000000000000, dll_characteristics 0000000000000000, name 000000010020F280, base 000000010020F278.
+0024:trace:module:LdrGetDllHandleEx L"ntdll.dll" -> 000000017F950000 (load path (null))
+0024:trace:ntdll:NtQuerySystemInformation (0x00000000,0x10020f240,0x00000040,0x0)
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffe0000-0x3fffe4000, unix_prot 0x3.
+0024:fixme:process:NtSetInformationProcess (0xffffffffffffffff,0x000007d0,0x10020f2a0,0x00000004) stub
+0024:fixme:process:NtSetInformationProcess (0xffffffffffffffff,0x000007d1,0x10020f2c8,0x00000008) stub
+0024:warn:module:LdrGetProcedureAddress "__wine_set_unix_env" (ordinal 0) not found in L"C:\\windows\\system32\\ntdll.dll"
+0024:fixme:process:NtSetInformationProcess (0xffffffffffffffff,0x000007d0,0x10020f2e0,0x00000004) stub
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3f67f0000-0x3ffff0000, unix_prot 0x3.
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3feff0000-0x3ffff0000, unix_prot 0x3.
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffe0000-0x3fffe4000, unix_prot 0x3.
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ffbd0000-0x3ffff0000, unix_prot 0.
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3feff0000-0x3ffff0000, unix_prot 0x3.
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3ff7f0000-0x3ffff0000, unix_prot 0x3.
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffe0000-0x3fffe4000, unix_prot 0x3.
+0024:err:virtual:try_map_free_area mmap() error Cannot allocate memory, range 0x3fffc0000-0x3fffe4000, unix_prot 0x3.
+[JuiceStage] native segv #1; signal=11 code=2 pc=0x17f4b5458 instruction=885f7f08 lr=0x17f4b1fa8 sp=0x10020f0f0 x8=0x1508 x16=0x17f4b5458 x17=0x10020f990 x18=0x7ffe8000 addr=0x1508 esr=0000000092000007 ec=24 teb=0x7ffe8000 frame=0x10010fcd0
+[JuiceStage] native regs x0=0x140001140 x1=0x10020f160 x2=0x17f4b5418 x3=0x10020f400 x4=0x17f4b3500 x5=0x12f7cf x6=0x3c x7=0x3 x9=0x10002 x10=0x7ffea000 x11=0x12f7cf x12=0x0 x13=0x10002 x14=0x0 x15=0x120020d00
+[JuiceStage] native code -20=aa0003f3 -1c=aa1803f6 -18=b84046d5 -14=eb09011f -10=54000341 -0c=5282a108 -08=91005317 -04=8b080258 +00=885f7f08 +04=121f7908 +08=88097f08 +0c=35ffffa9
+0024:trace:ntdll:RtlInitializeBitMap (7BE1FDFC,7FFED044,64)
+code=c0000005 (EXCEPTION_ACCESS_VIOLATION) flags=0 addr=000000017F4B5458
+0024:trace:seh:dispatch_exception  info[0]=0000000000000000
+0024:trace:seh:dispatch_exception  info[1]=0000000000001508
+0024:trace:seh:dispatch_exception  pc=000000017f4b5458  sp=000000010020f0f0  lr=000000017f4b1fa8  fp=0000000000000000
+0024:trace:seh:dispatch_exception  x0=0000000140001140  x1=000000010020f160  x2=000000017f4b5418  x3=000000010020f400
+0024:trace:seh:dispatch_exception  x4=000000017f4b3500  x5=000000000012f7cf  x6=000000000000003c  x7=0000000000000003
+0024:trace:seh:dispatch_exception  x8=0000000000001508  x9=0000000000010002 x10=000000007ffea000 x11=000000000012f7cf
+0024:trace:seh:dispatch_exception x12=0000000000000000 x13=0000000000010002 x14=0000000000000000 x15=0000000120020d00
+0024:trace:seh:dispatch_exception x16=000000017f4b5458 x17=000000010020f990 x18=000000007ffe8000 x19=0000000140001140
+0024:trace:seh:dispatch_exception x20=0000000000010002 x21=000000007bde45cc x22=000000000012f77c x23=000000000012f78c
+0024:trace:seh:dispatch_exception x24=0000000000001508 x25=000000017471ff80 x26=000000000000003c x27=0000000000000032
+0024:trace:seh:dispatch_exception x28=0000000140001140 cpsr=60000000 fpcr=00000000 fpsr=00000010
+0024:trace:seh:call_seh_handlers calling handler 000000017F84BE60 (rec=000000010020F040, frame=10020f7b0 context=000000010020EC90, dispatch=000000010020E8C8)
+0024:trace:seh:RtlGetExtendedContextLength2 context_flags 0x1003f, length 000000010020E154, compaction_mask ffffffffffffffff.
+0024:trace:seh:RtlInitializeExtendedContext2 context 000000000012F490, context_flags 0x1003f, context_ex 000000010020E158, compaction_mask ffffffffffffffff.
+0024:trace:wow:call_user_exception_dispatcher exception c0000005 dispatcher 7bdddb58 stack 0012f438 eip 00010002
+0024:trace:seh:RtlUnwindEx code=c0000005 flags=2 end_frame=000000010020F7B0 target_ip=000000017F84BE44
+0024:trace:seh:RtlUnwindEx  info[0]=0000000000000000
+0024:trace:seh:RtlUnwindEx  info[1]=0000000000001508
+0024:trace:seh:RtlUnwindEx  pc=000000017f9b7f3c  sp=000000010020db80  lr=0000000000000000  fp=0000000000000000
+0024:trace:seh:RtlUnwindEx  x0=0000000000000000  x1=000000017f84be44  x2=000000010020f040  x3=000000010020db18
+0024:trace:seh:RtlUnwindEx  x4=000000010020e130  x5=0000000000000000  x6=000000000012f438  x7=0000000000010002
+0024:trace:seh:RtlUnwindEx  x8=0000000000000000  x9=0000000060000000 x10=000000010010fcd0 x11=000000000000000a
+0024:trace:seh:RtlUnwindEx x12=0000000000000031 x13=0000000000000000 x14=000000010020dd36 x15=0000000000000030
+0024:trace:seh:RtlUnwindEx x16=000000017f9c6824 x17=000000017f9be38c x18=000000007ffe8000 x19=000000010020f040
+0024:trace:seh:RtlUnwindEx x20=000000010020e130 x21=000000017f84be44 x22=000000007ffea000 x23=000000010020f7b0
+0024:trace:seh:RtlUnwindEx x24=000000007ffea000 x25=000000010020f040 x26=000000017fab0160 x27=000000010020e8c8
+0024:trace:seh:RtlUnwindEx x28=000000017fab0000 cpsr=40000000 fpcr=00000000 fpsr=00000010
+0024:trace:seh:RtlUnwindEx calling handler 000000017F9B77F8 (rec=000000010020F040, frame=10020e510 context=000000010020E130, dispatch=000000010020DF48)
+0024:trace:seh:RtlUnwindEx handler 000000017F9B77F8 returned 1
+0024:trace:seh:RtlUnwindEx calling handler 000000017F84BE60 (rec=000000010020F040, frame=10020f7b0 context=000000010020E130, dispatch=000000010020DF48)
+0024:trace:seh:RtlUnwindEx handler 000000017F84BE60 returned 1
+0024:trace:seh:RtlRestoreContext returning to 17f84be44 stack 10020f7a0
+0024:trace:seh:dispatch_exception code=c0000005 (EXCEPTION_ACCESS_VIOLATION) flags=0 addr=7F4B5458
+0024:trace:seh:dispatch_exception  info[0]=00000000
+0024:trace:seh:dispatch_exception  info[1]=00001508
+0024:trace:seh:dispatch_exception eip=00010002 esp=0012f778 ebp=0012f7ac eflags=00000206
+0024:trace:seh:dispatch_exception eax=0012f794 ebx=0000003c ecx=00000003 edx=0012f7cf
+0024:trace:seh:dispatch_exception esi=7ffea000 edi=0012f7cf cs=0023 ds=002b es=002b fs=0053 gs=002b ss=002b
+0024:err:seh:NtRaiseException Unhandled exception code c0000005 flags 0 addr 0x7f4b5458
+[JuiceWine parent] child exited with 5

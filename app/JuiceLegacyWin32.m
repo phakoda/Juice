@@ -274,6 +274,12 @@ static void JuiceInstallLegacyWin32Hooks(void)
 {
     Class cls=NSClassFromString(@"JuiceController");
     if(!cls)return;
+    /* New controllers implement i386 routing directly.  Do not wrap those
+     * methods a second time: the compatibility shim historically converted
+     * 0x014c into 0x8664, which made an integrated controller misreport the
+     * architecture and select the wrong HODLL.  Keep this file only as a
+     * backwards-compatible shim for older host sources. */
+    if (class_getInstanceVariable( cls, "_usingWin32" )) return;
     InstallHook(cls,NSSelectorFromString(@"rebuildExperimentalMenu"),(IMP)LegacyRebuildExperimentalMenu,&OriginalRebuildExperimentalMenu);
     InstallHook(cls,NSSelectorFromString(@"machineForExecutableAtPath:"),(IMP)LegacyMachineForExecutable,&OriginalMachineForExecutable);
     InstallHook(cls,NSSelectorFromString(@"nameForMachine:"),(IMP)LegacyNameForMachine,&OriginalNameForMachine);

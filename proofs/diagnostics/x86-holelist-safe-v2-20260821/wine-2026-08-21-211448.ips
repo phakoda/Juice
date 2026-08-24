@@ -1,0 +1,91 @@
+{"app_name":"wine","timestamp":"2026-08-21 21:14:48.00 +0800","app_version":"","slice_uuid":"e8fa237c-9393-30a9-b9f5-fbf09c2e2b3a","build_version":"","platform":0,"share_with_app_devs":0,"is_first_party":1,"bug_type":"309","os_version":"iPhone OS 16.6 (20G75)","roots_installed":0,"incident_id":"A1D7B0F1-638B-4752-8255-16FDE242E111","name":"wine"}
+{
+  "uptime" : 1600,
+  "procRole" : "Unspecified",
+  "version" : 2,
+  "userID" : 501,
+  "deployVersion" : 210,
+  "modelCode" : "iPad12,1",
+  "coalitionID" : 1679,
+  "osVersion" : {
+    "isEmbedded" : true,
+    "train" : "iPhone OS 16.6",
+    "releaseType" : "User",
+    "build" : "20G75"
+  },
+  "captureTime" : "2026-08-21 21:14:48.4403 +0800",
+  "incident" : "A1D7B0F1-638B-4752-8255-16FDE242E111",
+  "pid" : 3315,
+  "cpuType" : "ARM-64",
+  "roots_installed" : 0,
+  "bug_type" : "309",
+  "procLaunch" : "2026-08-21 21:14:48.2779 +0800",
+  "procStartAbsTime" : 39478291185,
+  "procExitAbsTime" : 39482181082,
+  "procName" : "wine",
+  "procPath" : "\/private\/var\/containers\/Bundle\/Application\/F3BC928B-CF6E-41E9-AA5B-114329A364D0\/Juice.app\/Grape-X64\/build\/wine-ios\/loader\/wine",
+  "parentProc" : "Exited process",
+  "parentPid" : 3314,
+  "coalitionName" : "com.openssh.sshd.CB398ABF-DB71-4660-A336-BAC5B964A53C",
+  "crashReporterKey" : "062987173bc21e81fc70960fc85ba1eacfd43ea1",
+  "wasUnlockedSinceBoot" : 1,
+  "isLocked" : 0,
+  "codeSigningID" : "com.jacksipad.juice.trust",
+  "codeSigningTeamID" : "T8ALTGMVXN",
+  "codeSigningFlags" : 578841357,
+  "codeSigningValidationCategory" : 4,
+  "codeSigningTrustLevel" : 0,
+  "vmRegionInfo" : "0xfc31c is in 0xb0000-0x128000;  bytes after start: 312092  bytes before end: 179427\n      REGION TYPE                 START - END      [ VSIZE] PRT\/MAX SHRMOD  REGION DETAIL\n      UNUSED SPACE AT START\n--->  mapped file                  b0000-128000    [  480K] ---\/--- SM=COW  ...t_id=6d2ae879\n      mapped file                 128000-12c000    [   16K] r--\/rw- SM=COW  ...t_id=6e0bff79",
+  "exception" : {"codes":"0x0000000000000002, 0x00000000000fc31c","rawCodes":[2,1032988],"type":"EXC_BAD_ACCESS","signal":"SIGBUS","subtype":"KERN_PROTECTION_FAILURE at 0x00000000000fc31c"},
+  "termination" : {"flags":0,"code":10,"namespace":"SIGNAL","indicator":"Bus error: 10","byProc":"exc handler","byPid":3315},
+  "ktriageinfo" : "VM - (arg = 0x0) pmap_enter retried due to resource shortage\nVM - (arg = 0x0) pmap_enter retried due to resource shortage\nVM - (arg = 0x0) pmap_enter retried due to resource shortage\nVM - (arg = 0x0) pmap_enter retried due to resource shortage\nVM - (arg = 0x0) pmap_enter retried due to resource shortage\n",
+  "vmregioninfo" : "0xfc31c is in 0xb0000-0x128000;  bytes after start: 312092  bytes before end: 179427\n      REGION TYPE                 START - END      [ VSIZE] PRT\/MAX SHRMOD  REGION DETAIL\n      UNUSED SPACE AT START\n--->  mapped file                  b0000-128000    [  480K] ---\/--- SM=COW  ...t_id=6d2ae879\n      mapped file                 128000-12c000    [   16K] r--\/rw- SM=COW  ...t_id=6e0bff79",
+  "usedImages" : [
+  {
+    "size" : 0,
+    "source" : "A",
+    "base" : 0,
+    "uuid" : "00000000-0000-0000-0000-000000000000"
+  }
+],
+  "sharedCache" : {
+  "base" : 7195082752,
+  "size" : 2954362880,
+  "uuid" : "446cf75d-836a-33d3-9182-80ba7ad2a83a"
+},
+  "legacyInfo" : {
+  "threadHighlighted" : 0
+},
+  "trialInfo" : {
+  "rollouts" : [
+    {
+      "rolloutId" : "62fe74515312cd4599bd3c80",
+      "factorPackIds" : {
+        "MYRIAD_BOOSTS" : "62fe74805312cd4599bd3c81"
+      },
+      "deploymentId" : 240000006
+    },
+    {
+      "rolloutId" : "62c751b6bcb0435c2153fe92",
+      "factorPackIds" : {
+        "SIRI_UNDERSTANDING_ATTENTION_ASSETS" : "64e5119bb0748b27b1b5e8a3",
+        "SIRI_UNDERSTANDING_ASR_ASSISTANT" : "6552bff94a6560536bdb1cfb",
+        "SIRI_UNDERSTANDING_NL" : "6523f7ba1bce5442b8d751b5",
+        "SIRI_EXPERIENCE_CAM" : "64e5119b4e666d798a8ffbda",
+        "SIRI_UNDERSTANDING_MORPHUN" : "64e514ddc83b9a3d50649ddc"
+      },
+      "deploymentId" : 240000366
+    }
+  ],
+  "experiments" : [
+
+  ]
+},
+  "reportNotes" : [
+  "_dyld_process_info_create failed with 2",
+  "Failed to create CSSymbolicatorRef - corpse still valid ¯\\_(ツ)_\/¯",
+  "thread_get_state(PAGEIN) returned 0x10000003: (ipc\/send) invalid destination port",
+  "thread_get_state(EXCEPTION) returned 0x10000003: (ipc\/send) invalid destination port",
+  "thread_get_state(FLAVOR) returned 0x10000003: (ipc\/send) invalid destination port"
+]
+}

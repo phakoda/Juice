@@ -2598,6 +2598,9 @@ static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
 }
 #elif (defined(__aarch64__) || defined(__arm64ec__)) && (defined(__GNUC__) || defined(JUICE_IOS_PE))
 register struct _TEB *__wine_current_teb __asm__("x18");
+#ifdef JUICE_IOS_PE
+NTSYSAPI struct _TEB * WINAPI NtWineRestoreCurrentTeb(void);
+#endif
 static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
 {
 #ifdef JUICE_IOS_PE
@@ -2605,21 +2608,16 @@ static FORCEINLINE struct _TEB * WINAPI NtCurrentTeb(void)
 
     /*
      * Darwin can clear physical x18 while Wine's ARM64 PE code is running.
-     * Returning that zero value lets a bare TEB field offset survive across
-     * function calls, where the original x18 dependency can no longer be
-     * recovered safely.  Keep this sequence in inline assembly: optimizing C
-     * may treat a low TEB dereference as undefined and remove the guard.  The
-     * direct x18-relative load deliberately faults only for an implausibly-low
-     * value; the native signal bridge restores x18 and retries that load,
-     * yielding Tib.Self before callers can retain a stale pointer.  The normal
-     * path remains a move, one comparison and one branch.
+     * Recover from Wine's pthread TLS before a bare TEB field offset can
+     * survive across a function call.  Older Juice builds deliberately
+     * faulted through x18 here and repaired the register in SIGSEGV handling;
+     * that made ordinary loader, COM, networking, and graphics activity pay
+     * for repeated signal delivery.  The shared ntdll slow path restores x18
+     * directly and leaves signal recovery as a fallback for third-party PE
+     * code which accesses x18 without using this header.
      */
-    __asm__ volatile( "mov %0, x18\n\t"
-                      "cmp %0, #0x10, lsl #12\n\t"
-                      "b.hs 1f\n\t"
-                      "ldr %0, [x18, #0x30]\n"
-                      "1:"
-                      : "=&r" (teb) :: "cc", "memory" );
+    __asm__ volatile( "mov %0, x18" : "=r" (teb) );
+    if ((ULONG_PTR)teb < 0x10000) teb = NtWineRestoreCurrentTeb();
     return teb;
 #else
     return __wine_current_teb;

@@ -1,0 +1,1 @@
+JUICE_NETWORK_SMOKE_OK dns=1 tcp=1 http=200 http_bytes=512 https=200 https_bytes=512

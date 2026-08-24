@@ -63,16 +63,63 @@ static void zero_memory(void *pointer, unsigned int size)
 
 static DWORD fetch_url(const WCHAR *url, DWORD flags, DWORD *bytes_read)
 {
-    HINTERNET session, request;
+    HINTERNET session, connection = NULL, request;
     DWORD status = 0, status_size = sizeof(status), read = 0;
     char data[512];
 
     session = InternetOpenW(L"JuiceNetworkSmoke/1.0",
                             INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!session) fail("internet-open", GetLastError());
-    request = InternetOpenUrlW(session, url, NULL, 0,
-                               INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE |
-                               INTERNET_FLAG_NO_UI | flags, 0);
+    if (flags & INTERNET_FLAG_SECURE)
+    {
+        DWORD security_flags = SECURITY_FLAG_IGNORE_REVOCATION;
+
+        /* InternetOpenUrl sends immediately, before a request-level security
+           policy can be installed. Use the explicit WinINet request sequence
+           for HTTPS so only unavailable revocation status is ignored. */
+        connection = InternetConnectW(session, L"example.com",
+                                      INTERNET_DEFAULT_HTTPS_PORT, NULL, NULL,
+                                      INTERNET_SERVICE_HTTP, 0, 0);
+        if (!connection)
+        {
+            DWORD error = GetLastError();
+            InternetCloseHandle(session);
+            fail("https-connect", error);
+        }
+        request = HttpOpenRequestW(connection, L"GET", L"/", NULL, NULL, NULL,
+                                   INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE |
+                                   INTERNET_FLAG_NO_UI | INTERNET_FLAG_SECURE, 0);
+        if (!request)
+        {
+            DWORD error = GetLastError();
+            InternetCloseHandle(connection);
+            InternetCloseHandle(session);
+            fail("https-request", error);
+        }
+        if (!InternetSetOptionW(request, INTERNET_OPTION_SECURITY_FLAGS,
+                                &security_flags, sizeof(security_flags)))
+        {
+            DWORD error = GetLastError();
+            InternetCloseHandle(request);
+            InternetCloseHandle(connection);
+            InternetCloseHandle(session);
+            fail("https-security-policy", error);
+        }
+        if (!HttpSendRequestW(request, NULL, 0, NULL, 0))
+        {
+            DWORD error = GetLastError();
+            InternetCloseHandle(request);
+            InternetCloseHandle(connection);
+            InternetCloseHandle(session);
+            fail("https-send", error);
+        }
+    }
+    else
+    {
+        request = InternetOpenUrlW(session, url, NULL, 0,
+                                   INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE |
+                                   INTERNET_FLAG_NO_UI, 0);
+    }
     if (!request)
     {
         DWORD error = GetLastError();
@@ -95,6 +142,7 @@ static DWORD fetch_url(const WCHAR *url, DWORD flags, DWORD *bytes_read)
         fail(flags & INTERNET_FLAG_SECURE ? "https-read" : "http-read", error);
     }
     InternetCloseHandle(request);
+    if (connection) InternetCloseHandle(connection);
     InternetCloseHandle(session);
     if (status < 200 || status >= 400 || !read)
         fail(flags & INTERNET_FLAG_SECURE ? "https-response" : "http-response", status);
@@ -143,6 +191,11 @@ __declspec(noreturn) void mainCRTStartup(void)
     closesocket(socket_handle);
 
     http_status = fetch_url(L"http://example.com/", 0, &http_bytes);
+    /* iOS does not provide Wine with the Windows background revocation
+       service, so a valid public chain can report that its revocation state
+       is unavailable. fetch_url ignores only that unavailable-status
+       condition; Wine still rejects revoked, untrusted, expired, or
+       hostname-mismatched certificates. */
     https_status = fetch_url(L"https://example.com/", INTERNET_FLAG_SECURE, &https_bytes);
 
     report_length = 0;

@@ -1,0 +1,1471 @@
+JUICE_TRANSLATION_RUNTIME_SAFETY_OK runtime=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64 protocol=holes-disabled-v4-teb-tls-recovery
+JUICE_WIN32_RUNTIME_LINKS count=103 syswow64=/private/var/mobile/Containers/Data/Application/2A4FE42F-DA40-4530-B5B1-96F7C5C63DEB/Documents/JuiceData/GrapePrefix-network-x86/drive_c/windows/syswow64
+[JuiceWine parent] bundle libraries path=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Libraries:/var/jb/usr/lib
+[JuiceWine parent] launching /private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/loader/wine
+[JuiceWine parent] child PID=85821
+[JuiceWine] iOS low-VA release start=0x10000 end=0x100000000 status=0 OK
+JUICE_LOWVA_HOLELIST_OK old_reuse=0 new_reuse=1 allocator=entry-list
+JUICE_LOWVA_HELPER_BEGIN path=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/tools/juice-lowva-helper target_pid=85821 root_persona=1
+JUICE_LOWVA_KERNEL_MIN_OK pid=85821 task=0xffffffdff2780f18 map=0xffffffdc0a91d900 old=0x102f08000 new=0x10000 max=0x2d8000000 already=0
+Failed to initialize IOSurface primitives, add "IOSurfaceRootUserClient" to the "com.apple.security.exception.iokit-user-client-class" dictionary of the entitlements from "/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/tools/juice-lowva-helper" to fix this. Due to this, the kalloc, kmap and kcall primitives will not work.
+JUICE_LOWVA_ATOMIC_RESERVE_OK start=0x10000 end=0x80000000 size=0x7fff0000
+JUICE_LOWVA_WIN32_2G_RESERVE_OK start=0x10000 end=0x80000000
+JUICE_LOWVA_HELPER_OK target_pid=85821
+JUICE_LOWVA_KERNEL_PROBE_OK address=0x20000 size=0x4000
+JUICE_LOWVA_READY target_pid=85821
+[JuiceLowVA] MAP_FIXED enabled start=0x10000 size=0x67ff0000 prot=0 failures=0
+[JuiceWine] PT_TRACE_ME succeeded; csflags=0x3280780d CS_DEBUGGED=YES
+[JuiceWine] requesting controlled tracer detach
+[JuiceWine parent] child stopped pid=85821 signal=17 (Suspended (signal): 17)
+[JuiceWine parent] PT_DETACH pid=85821 result=0
+[JuiceWine parent] child now running untraced
+[JuiceWine] resumed after tracer detach; csflags=0x3280780d CS_DEBUGGED=YES
+[JuiceStage] wineboot disabled by JUICE_SKIP_WINEBOOT=1
+[JuiceWine] host-page expanding executable section .text: section=0x401000 mapping=0x400000 size=16384
+[JuiceWine] anonymous PE executable section .text at 0x400000 size=16384
+[JuiceStage] loading Windows ntdll; transfer=0x401000 teb=0x7ffe8000 peb=0x7ffec000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/aarch64-windows/ntdll.dll machine=aa64 status=00000000
+[JuiceWine] anonymous PE executable section .text at 0x2d7960000 size=983040
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d7a50000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/aarch64-windows/ntdll.dll status=40000003 module=0x2d7950000 size=6b0000
+[JuiceStage] load_ntdll returned; transfer=0x401000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/i386-windows/ntdll.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7bd91000 mapping=0x7bd90000 size=442368
+[JuiceWine] anonymous PE executable section .text at 0x7bd90000 size=442368
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/i386-windows/ntdll.dll status=00000000 module=0x7bd90000 size=252000
+[JuiceStage] load_wow64_ntdll returned
+[JuiceStage] calling load_apiset_dll
+[JuiceStage] load_apiset_dll returned; stack_base=0x10020fd20 stack_limit=0x100118000
+[JuiceStage] calling server_init_process_done
+[JuiceStage] server_init_process_done entered
+[JuiceStage] calling signal_init_process; teb=0x7ffe8000
+[JuiceStage] signal_init_process returned
+[JuiceStage] init_teb_data returned; syscall_frame=0x10010fcd0 stack_base=0x10020fd20 stack_limit=0x100118000
+[JuiceStage] init_process_done server call returned; status=00000000 suspend=0 transfer=0x401000 teb=0x7ffe8000 peb=0x7ffec000
+[JuiceStage] calling signal_start_thread
+[JuiceStage] init_syscall_frame entered; entry=0x401000 arg=0x7ffec000 teb=0x7ffe8000 data=0x100000000 frame=0x10010fcd0 stack_base=0x10020fd20 stack_limit=0x100118000
+[JuiceStage] calling signal_set_full_context; ctx=0x10020f990 target_pc=0x2d79b92a0 target_sp=0x10020fd20 target_x18=0x7ffe8000 LdrInitializeThunk=0x2d79b92c0 RtlUserThreadStart=0x2d79b92a0
+[JuiceStage] signal_set_full_context returned; status=00000000 frame_pc=0x2d79b92a0 frame_sp=0x10020fd20 frame_x18=0x7ffe8000 restore=00400007
+[JuiceStage] init_syscall_frame complete; dispatcher_pc=0x2d79b92c0 user_sp=0x10020f990 x16=0x2d79b92c0 x17=0x10020f990 x18=0x7ffe8000 restore=00400007
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/wow64/aarch64-windows/wow64.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/wow64.dll/aarch64-windows/wow64.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wow64.dll machine=0000 status=00000000
+[JuiceWine] anonymous PE executable section .text at 0x2d7840000 size=131072
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wow64.dll status=40000003 module=0x2d7830000 size=120000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/libwow64fex/aarch64-windows/libwow64fex.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/libwow64fex.dll/aarch64-windows/libwow64fex.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/libwow64fex.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x2d74b1000 mapping=0x2d74b0000 size=1916928
+[JuiceWine] anonymous PE executable section .text at 0x2d74b0000 size=1916928
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/libwow64fex.dll status=40000003 module=0x2d74b0000 size=37e000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/wow64win/aarch64-windows/wow64win.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/wow64win.dll/aarch64-windows/wow64win.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wow64win.dll machine=0000 status=00000000
+[JuiceWine] anonymous PE executable section .text at 0x2d7390000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/wow64win.dll status=40000003 module=0x2d7380000 size=130000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/win32u/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/win32u.dll/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/win32u.dll machine=0000 status=00000000
+[JuiceWine] anonymous PE executable section .text at 0x2d7260000 size=262144
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d72a0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/win32u.dll status=40000003 module=0x2d7250000 size=130000
+0024:warn:file:NtQueryAttributesFile L"\\??\\Z:\\var\\jb\\var\\mobile\\.fex-emu\\" not found (c0000034)
+0024:warn:file:NtQueryAttributesFile L"\\??\\Z:\\var\\jb\\var\\mobile\\.fex-emu\\" not found (c0000034)
+0024:warn:file:NtQueryAttributesFile L"\\??\\Z:\\var\\jb\\var\\mobile\\.fex-emu\\" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\unix\\usr\\local\\share\\fex-emu\\AppConfig\\network-smoke-i386.exe.json" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\unix\\usr\\local\\share\\fex-emu\\AppConfig" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\Z:\\usr\\local\\share\\fex-emu\\AppConfig\\network-smoke-i386.exe.json" not found (c000003a)
+0024:warn:file:NtCreateFile L"\\??\\Z:\\var\\jb\\var\\mobile\\.config\\fex-emu\\AppConfig\\network-smoke-i386.exe.json" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\unix\\usr\\local\\share\\fex-emu\\Config.json" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\unix\\usr\\local\\share\\fex-emu" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\Z:\\usr\\local\\share\\fex-emu\\Config.json" not found (c000003a)
+0024:warn:file:NtCreateFile L"\\??\\Z:\\var\\jb\\var\\mobile\\.config\\fex-emu\\Config.json" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\unix\\usr\\local\\share\\fex-emu\\AppConfig\\network-smoke-i386.exe.json" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\unix\\usr\\local\\share\\fex-emu\\AppConfig" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\Z:\\usr\\local\\share\\fex-emu\\AppConfig\\network-smoke-i386.exe.json" not found (c000003a)
+0024:warn:file:NtCreateFile L"\\??\\Z:\\var\\jb\\var\\mobile\\.config\\fex-emu\\AppConfig\\network-smoke-i386.exe.json" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\unix\\run\\host\\container-manager" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\unix\\run\\host" not found (c0000034)
+0024:warn:file:NtQueryAttributesFile L"\\??\\Z:\\run\\host\\container-manager" not found (c000003a)
+starting FEX based libwow64fex.dll
+0024:fixme:process:NtSetInformationProcess (0xffffffffffffffff,0x000007d0,0x10020f290,0x00000004) stub
+0024:fixme:process:NtSetInformationProcess (0xffffffffffffffff,0x000007d1,0x10020f2b8,0x00000008) stub
+0024:warn:module:LdrGetProcedureAddress "__wine_set_unix_env" (ordinal 0) not found in L"C:\\windows\\system32\\ntdll.dll"
+0024:fixme:process:NtSetInformationProcess (0xffffffffffffffff,0x000007d0,0x10020f2d0,0x00000004) stub
+[JuiceX18] broad #1 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020ef80 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #2 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020efa0 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #3 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x50 x16=0x1030b5850 x17=0x10020ed40 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #4 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x8 x18=0x0 teb=0x7ffe8000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\kernel32.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/kernel32/i386-windows/kernel32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/kernel32.dll/i386-windows/kernel32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/kernel32.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7bc61000 mapping=0x7bc60000 size=180224
+[JuiceWine] anonymous PE executable section .text at 0x7bc60000 size=180224
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/kernel32.dll status=00000000 module=0x7bc60000 size=115000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\kernelbase.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/kernelbase/i386-windows/kernelbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/kernelbase.dll/i386-windows/kernelbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/kernelbase.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7b991000 mapping=0x7b990000 size=442368
+[JuiceWine] anonymous PE executable section .text at 0x7b990000 size=442368
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/kernelbase.dll status=00000000 module=0x7b990000 size=2b2000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\network-smoke-i386.exe.manifest" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\WININET.DLL" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/wininet/i386-windows/wininet.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/wininet.dll/i386-windows/wininet.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/wininet.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7b881000 mapping=0x7b880000 size=229376
+[JuiceWine] anonymous PE executable section .text at 0x7b880000 size=229376
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/wininet.dll status=00000000 module=0x7b880000 size=fc000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\mpr.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/mpr/i386-windows/mpr.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/mpr.dll/i386-windows/mpr.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/mpr.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7b841000 mapping=0x7b840000 size=49152
+[JuiceWine] anonymous PE executable section .text at 0x7b840000 size=49152
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/mpr.dll status=00000000 module=0x7b840000 size=2f000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\user32.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/user32/i386-windows/user32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/user32.dll/i386-windows/user32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/user32.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7b461000 mapping=0x7b460000 size=540672
+[JuiceWine] anonymous PE executable section .text at 0x7b460000 size=540672
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/user32.dll status=00000000 module=0x7b460000 size=3c2000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\gdi32.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/gdi32/i386-windows/gdi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/gdi32.dll/i386-windows/gdi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/gdi32.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7b2e1000 mapping=0x7b2e0000 size=294912
+[JuiceWine] anonymous PE executable section .text at 0x7b2e0000 size=294912
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/gdi32.dll status=00000000 module=0x7b2e0000 size=167000
+[JuiceX18] broad #5 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x5a x16=0x1030b5850 x17=0x10020f1f0 x18=0x0 teb=0x7ffe8000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\advapi32.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/advapi32/i386-windows/advapi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/advapi32.dll/i386-windows/advapi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/advapi32.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7b221000 mapping=0x7b220000 size=131072
+[JuiceWine] anonymous PE executable section .text at 0x7b220000 size=131072
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/advapi32.dll status=00000000 module=0x7b220000 size=a8000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\sechost.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/sechost/i386-windows/sechost.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/sechost.dll/i386-windows/sechost.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/sechost.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7b1c1000 mapping=0x7b1c0000 size=65536
+[JuiceWine] anonymous PE executable section .text at 0x7b1c0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/sechost.dll status=00000000 module=0x7b1c0000 size=4f000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\ucrtbase.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ucrtbase/i386-windows/ucrtbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/ucrtbase.dll/i386-windows/ucrtbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/ucrtbase.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7af31000 mapping=0x7af30000 size=622592
+[JuiceWine] anonymous PE executable section .text at 0x7af30000 size=622592
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/ucrtbase.dll status=00000000 module=0x7af30000 size=27c000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\msvcrt.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/msvcrt/i386-windows/msvcrt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/msvcrt.dll/i386-windows/msvcrt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/msvcrt.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7ad21000 mapping=0x7ad20000 size=491520
+[JuiceWine] anonymous PE executable section .text at 0x7ad20000 size=491520
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/msvcrt.dll status=00000000 module=0x7ad20000 size=1fe000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\win32u.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/win32u/i386-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/win32u.dll/i386-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/win32u.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7acd1000 mapping=0x7acd0000 size=81920
+[JuiceWine] anonymous PE executable section .text at 0x7acd0000 size=81920
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/win32u.dll status=00000000 module=0x7acd0000 size=39000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\shlwapi.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/shlwapi/i386-windows/shlwapi.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/shlwapi.dll/i386-windows/shlwapi.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/shlwapi.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7ac11000 mapping=0x7ac10000 size=114688
+[JuiceWine] anonymous PE executable section .text at 0x7ac10000 size=114688
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/shlwapi.dll status=00000000 module=0x7ac10000 size=a7000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\shcore.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/shcore/i386-windows/shcore.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/shcore.dll/i386-windows/shcore.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/shcore.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7abd1000 mapping=0x7abd0000 size=49152
+[JuiceWine] anonymous PE executable section .text at 0x7abd0000 size=49152
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/shcore.dll status=00000000 module=0x7abd0000 size=2f000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\shell32.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/shell32/i386-windows/shell32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/shell32.dll/i386-windows/shell32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/shell32.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7a0d1000 mapping=0x7a0d0000 size=475136
+[JuiceWine] anonymous PE executable section .text at 0x7a0d0000 size=475136
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/shell32.dll status=00000000 module=0x7a0d0000 size=ae2000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\ws2_32.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ws2_32/i386-windows/ws2_32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/ws2_32.dll/i386-windows/ws2_32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/ws2_32.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x7a051000 mapping=0x7a050000 size=81920
+[JuiceWine] anonymous PE executable section .text at 0x7a050000 size=81920
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/ws2_32.dll status=00000000 module=0x7a050000 size=63000
+[JuiceX18] broad #6 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020f0f0 x18=0x0 teb=0x7ffe8000
+0024:warn:file:server_ioctl_file Unsupported ioctl 504000 (device=50 access=1 func=0 method=0)
+[JuiceWine parent] bundle libraries path=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Libraries:/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Libraries:/var/jb/usr/lib
+[JuiceWine parent] launching /private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/loader/wine
+[JuiceWine parent] child PID=85829
+[JuiceWine] iOS low-VA release start=0x10000 end=0x100000000 status=0 OK
+JUICE_LOWVA_HOLELIST_OK old_reuse=0 new_reuse=1 allocator=entry-list
+JUICE_LOWVA_HELPER_BEGIN path=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/tools/juice-lowva-helper target_pid=85829 root_persona=1
+JUICE_LOWVA_KERNEL_MIN_OK pid=85829 task=0xffffffdff0e14478 map=0xffffffdc0a91db40 old=0x1002d0000 new=0x10000 max=0x2d8000000 already=0
+JUICE_LOWVA_ATOMIC_RESERVE_OK start=0x10000 end=0x80000000 size=0x7fff0000
+JUICE_LOWVA_WIN32_2G_RESERVE_OK start=0x10000 end=0x80000000
+JUICE_LOWVA_HELPER_OK target_pid=85829
+JUICE_LOWVA_KERNEL_PROBE_OK address=0x20000 size=0x4000
+JUICE_LOWVA_READY target_pid=85829
+[JuiceLowVA] MAP_FIXED enabled start=0x10000 size=0x67ff0000 prot=0 failures=0
+[JuiceWine] PT_TRACE_ME succeeded; csflags=0x3280780d CS_DEBUGGED=YES
+[JuiceWine] requesting controlled tracer detach
+[JuiceWine parent] child stopped pid=85829 signal=17 (Suspended (signal): 17)
+[JuiceWine parent] PT_DETACH pid=85829 result=0
+[JuiceWine parent] child now running untraced
+[JuiceWine] resumed after tracer detach; csflags=0x3280780d CS_DEBUGGED=YES
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/conhost.exe/aarch64-windows/conhost.exe machine=aa64 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/conhost/aarch64-windows/conhost.exe machine=aa64 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/conhost.exe machine=aa64 status=00000000
+[JuiceWine] anonymous PE executable section .text at 0x140010000 size=131072
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/conhost.exe status=00000000 module=0x140000000 size=110000
+[JuiceStage] loading Windows ntdll; transfer=0x14001fe54 teb=0x7ffe8000 peb=0x7ffec000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/aarch64-windows/ntdll.dll machine=aa64 status=00000000
+[JuiceWine] anonymous PE executable section .text at 0x2d7960000 size=983040
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d7a50000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ntdll/aarch64-windows/ntdll.dll status=40000003 module=0x2d7950000 size=6b0000
+[JuiceStage] load_ntdll returned; transfer=0x14001fe54
+[JuiceStage] load_wow64_ntdll returned
+[JuiceStage] calling load_apiset_dll
+[JuiceStage] load_apiset_dll returned; stack_base=0x120000 stack_limit=0x28000
+[JuiceStage] calling server_init_process_done
+[JuiceStage] server_init_process_done entered
+[JuiceStage] calling signal_init_process; teb=0x7ffe8000
+[JuiceStage] signal_init_process returned
+[JuiceStage] init_teb_data returned; syscall_frame=0x10010fcd0 stack_base=0x120000 stack_limit=0x28000
+[JuiceStage] init_process_done server call returned; status=00000000 suspend=1 transfer=0x14001fe54 teb=0x7ffe8000 peb=0x7ffec000
+[JuiceStage] calling signal_start_thread
+[JuiceStage] init_syscall_frame entered; entry=0x14001fe54 arg=0x7ffec000 teb=0x7ffe8000 data=0x100000000 frame=0x10010fcd0 stack_base=0x120000 stack_limit=0x28000
+[JuiceStage] calling signal_set_full_context; ctx=0x11fc70 target_pc=0x2d79b92a0 target_sp=0x120000 target_x18=0x7ffe8000 LdrInitializeThunk=0x2d79b92c0 RtlUserThreadStart=0x2d79b92a0
+[JuiceStage] signal_set_full_context returned; status=00000000 frame_pc=0x2d79b92a0 frame_sp=0x120000 frame_x18=0x7ffe8000 restore=00400007
+[JuiceStage] init_syscall_frame complete; dispatcher_pc=0x2d79b92c0 user_sp=0x11fc70 x16=0x2d79b92c0 x17=0x11fc70 x18=0x7ffe8000 restore=00400007
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/kernel32/aarch64-windows/kernel32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/kernel32.dll/aarch64-windows/kernel32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/kernel32.dll machine=0000 status=00000000
+[JuiceX18] broad #7 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020efd0 x18=0x0 teb=0x7ffe8000
+0024:warn:globalmem:KernelBaseGetGlobalData semi-stub!
+[JuiceX18] broad #8 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x99 x16=0x1030b5850 x17=0x10020ee60 x18=0x0 teb=0x7ffe8000
+[JuiceWine] anonymous PE executable section .text at 0x2d7610000 size=393216
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d7670000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/kernel32.dll status=40000003 module=0x2d7600000 size=350000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/kernelbase/aarch64-windows/kernelbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/kernelbase.dll/aarch64-windows/kernelbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/kernelbase.dll machine=0000 status=00000000
+[JuiceX18] broad #9 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020f0c0 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #10 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x50 x16=0x1030b5850 x17=0xb80 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #11 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x13d80 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #12 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x5a x16=0x1030b5850 x17=0x1043b1220 x18=0x0 teb=0x7ffe8000
+0024:warn:file:NtCreateFile L"\\??\\C:\\windows\\fonts" not found (c0000034)
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\build\\wine-ios\\fonts" not found (c0000034)
+0024:warn:font:opentype_get_ttc_sfnt_v1 unsupported sfnt font: embedded bitmap data.
+0024:warn:font:unix_face_create unable to parse font, falling back to FreeType
+[JuiceWine] anonymous PE executable section .text at 0x2d6ee0000 size=983040
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d6fd0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/kernelbase.dll status=40000003 module=0x2d6ed0000 size=730000
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\winsxs\\manifests" not found (c000003a)
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\Microsoft.Windows.Common-Controls.dll" not found (c0000034)
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\Microsoft.Windows.Common-Controls.manifest" not found (c0000034)
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\Microsoft.Windows.Common-Controls\\Microsoft.Windows.Common-Controls.dll" not found (c000003a)
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\Microsoft.Windows.Common-Controls\\Microsoft.Windows.Common-Controls.manifest" not found (c000003a)
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\Microsoft.Windows.Common-Controls.dll" not found (c0000034)
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\Microsoft.Windows.Common-Controls.manifest" not found (c0000034)
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\Microsoft.Windows.Common-Controls\\Microsoft.Windows.Common-Controls.dll" not found (c000003a)
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\system32\\Microsoft.Windows.Common-Controls\\Microsoft.Windows.Common-Controls.manifest" not found (c000003a)
+002c:fixme:actctx:parse_depend_manifests Could not find dependent assembly L"Microsoft.Windows.Common-Controls" (6.0.0.0)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/user32/aarch64-windows/user32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/user32.dll/aarch64-windows/user32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/user32.dll machine=0000 status=00000000
+0024:warn:font:opentype_get_ttc_sfnt_v1 unsupported sfnt font: embedded bitmap data.
+0024:warn:font:unix_face_create unable to parse font, falling back to FreeType
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\imm32.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/imm32/i386-windows/imm32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/imm32.dll/i386-windows/imm32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/imm32.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x79ff1000 mapping=0x79ff0000 size=65536
+[JuiceWine] anonymous PE executable section .text at 0x79ff0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/imm32.dll status=00000000 module=0x79ff0000 size=4d000
+[JuiceX18] broad #13 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x99 x16=0x1030b5850 x17=0x10020ee30 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #14 pc=0x1030b5b84 fault=0x378 instr=f941be4a x8=0x1030b5b80 x16=0x1fb31ee74 x17=0x10020f130 x18=0x0 teb=0x7ffe8000
+0024:trace:wininet:DllMain 7B880000,1,0012FD24
+[JuiceX18] broad #15 pc=0x1030b59f8 fault=0x370 instr=f941bb10 x8=0x50 x16=0x1030b5850 x17=0xce0 x18=0x0 teb=0x7ffe8000
+[JuiceStage] native segv #1; signal=11 code=2 pc=0x1030b59f8 lr=0x2d79b78a4 sp=0x10010fcd0 x8=0x50 x16=0x1030b59f8 x17=0x10020f990 x18=0x7ffe8000 addr=0x370 esr=0000000092000007 ec=24 teb=0x7ffe8000 frame=0x10010fcd0
+[JuiceStage] native regs x0=0xffffffffffffffff x1=0x10020ee40 x2=0x10020ee38 x3=0x4 x4=0x10020f080 x5=0x0 x6=0x0 x7=0x0 x9=0x10 x10=0x10010fcd0 x11=0x4000 x12=0xc0 x13=0xe0 x14=0x104320080 x15=0x3b4
+[JuiceX18] broad #16 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020f130 x18=0x0 teb=0x7ffe8000
+0024:trace:winsock:WSAStartup version 0x202
+0024:trace:winsock:WSAStartup increasing startup count to 1
+0024:trace:winsock:getaddrinfo node "example.com", service "80", hints 0012FD94
+0024:trace:winsock:inet_ntop family 2, addr 002A12D4, buffer 0012FCBA, len 16
+0024:trace:winsock:getaddrinfo => 002A12B0, flags 0, family 2, type 1, protocol 6, len 16, name (null), addr { family AF_INET, address 104.20.23.154, port 80 }
+0024:trace:winsock:inet_ntop family 2, addr 002A1304, buffer 0012FCBA, len 16
+0024:trace:winsock:getaddrinfo => 002A12E0, flags 0, family 2, type 1, protocol 6, len 16, name (null), addr { family AF_INET, address 172.66.147.243, port 80 }
+0024:trace:winsock:socket af=AF_INET type=SOCK_STREAM protocol=IPPROTO_TCP
+0024:trace:winsock:WSASocketW family AF_INET, type SOCK_STREAM, protocol IPPROTO_TCP, info 00000000, group 0, flags 0x1
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x120320, in_buffer 0x12fd1c, in_size 16, out_buffer 0x0, out_size 0
+0024:trace:winsock:WSASocketW created 0xa0
+0024:trace:winsock:inet_ntop family 2, addr 002A12D4, buffer 0012FCDA, len 16
+0024:trace:winsock:connect socket 0xa0, addr { family AF_INET, address 104.20.23.154, port 80 }, len 16
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x12032c, in_buffer 0x2a01d0, in_size 24, out_buffer 0x0, out_size 0
+[JuiceWine] anonymous PE executable section .text at 0x2d65e0000 size=1179648
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d6700000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/user32.dll status=40000003 module=0x2d65d0000 size=900000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/gdi32/aarch64-windows/gdi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/gdi32.dll/aarch64-windows/gdi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/gdi32.dll machine=0000 status=00000000
+[JuiceX18] broad #17 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020efd0 x18=0x0 teb=0x7ffe8000
+0024:trace:winsock:freeaddrinfo 002A12B0
+0024:trace:winsock:closesocket 0xa0
+0024:trace:wininet:InternetOpenW (L"JuiceNetworkSmoke/1.0", 1, (null), (null), 0)
+0024:trace:wininet:InternetOpenW   access type : INTERNET_OPEN_TYPE_DIRECT
+0024:trace:wininet:InternetOpenW   flags       :
+0024:trace:wininet:InternetOpenW returning 002A26E8
+0024:trace:wininet:InternetOpenUrlW (00000001, L"http://example.com/", (null), 00000000, 84000200, 00000000)
+0024:trace:wininet:InternetOpenUrlW   flags : INTERNET_FLAG_RELOAD INTERNET_FLAG_NO_CACHE_WRITE INTERNET_FLAG_NO_UI
+0024:trace:wininet:WININET_AddRef 002A26E8 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 1 -> 002A26E8
+0024:trace:wininet:INTERNET_InternetOpenUrlW (002A26E8, L"http://example.com/", (null), 00000000, 84000200, 00000000)
+0024:trace:wininet:InternetCrackUrlW (L"http://example.com/" 19 0 0012FAA0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:GetInternetSchemeW L"http" 4
+0024:trace:wininet:set_url_component L"http" (4)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component L"example.com" (11)
+0024:trace:wininet:set_url_component L"/" (1)
+0024:trace:wininet:InternetCrackUrlW L"http://example.com/": scheme((null)) host(L"example.com") path(L"/") extra((null))
+0024:trace:wininet:HTTP_Connect -->
+0024:trace:wininet:WININET_AddRef 002A26E8 -> refcount = 3
+0024:trace:wininet:HTTP_Connect 002A26E8 --> 002A2788
+0024:trace:wininet:HttpOpenRequestW (00000002, (null), L"/", (null), (null), 0012FA98, 84000200, 00000000)
+0024:trace:wininet:HttpOpenRequestW 	accept type: L"*/*"
+0024:trace:wininet:WININET_AddRef 002A2788 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 2 -> 002A2788
+0024:trace:wininet:HTTP_HttpOpenRequestW -->
+0024:trace:wininet:WININET_AddRef 002A2788 -> refcount = 3
+[JuiceX18] broad #18 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x6964 x18=0x0 teb=0x7ffe8000
+[JuiceWine] anonymous PE executable section .text at 0x2d6150000 size=655360
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d61f0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/gdi32.dll status=40000003 module=0x2d6140000 size=490000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/advapi32/aarch64-windows/advapi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/advapi32.dll/aarch64-windows/advapi32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/advapi32.dll machine=0000 status=00000000
+[JuiceX18] broad #19 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x2a44 x18=0x0 teb=0x7ffe8000
+0024:trace:wininet:HTTP_ProcessHeader --> L"Accept": L"*/*" - 0xe2000000
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Accept", 0, 1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+[JuiceX18] broad #20 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x8 x18=0x0 teb=0x7ffe8000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Accept": L"*/*"
+0024:trace:wininet:HTTP_HttpOpenRequestW <-- (002A2808)
+0024:trace:wininet:WININET_Release object 002A2788 refcount = 2
+0024:trace:wininet:HttpOpenRequestW returning 00000003
+0024:trace:wininet:HttpAddRequestHeadersW 00000003, (null), 0, 20000000
+0024:trace:wininet:HttpSendRequestW 00000003, (null), 0, 00000000, 0)
+0024:trace:wininet:WININET_AddRef 002A2808 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 3 -> 002A2808
+0024:trace:wininet:HTTP_HttpSendRequestW --> 002A2808
+0024:trace:wininet:HTTP_ProcessHeader --> L"Host": L"example.com" - 0x12000000
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Host", 0, 1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Host": L"example.com"
+0024:trace:wininet:HTTP_HttpAddRequestHeadersW copying header: L"User-Agent: JuiceNetworkSmoke/1.0\r\n"
+0024:trace:wininet:HTTP_HttpAddRequestHeadersW interpreting header L"User-Agent: JuiceNetworkSmoke/1.0"
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"User-Agent") Value(L"JuiceNetworkSmoke/1.0")
+0024:trace:wininet:HTTP_ProcessHeader --> L"User-Agent": L"JuiceNetworkSmoke/1.0" - 0x12000000
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"User-Agent", 0, 1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"User-Agent": L"JuiceNetworkSmoke/1.0"
+0024:trace:wininet:HTTP_HttpAddRequestHeadersW interpreting header L""
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Host", 0, 1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 1
+0024:trace:wininet:create_request Going to url L"example.com" L"/"
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Host", 0, 1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 1
+0024:trace:wininet:retrieve_cached_basic_authorization Looking for authorization for L"example.com":(null)
+0024:trace:wininet:RetrieveUrlCacheEntryStreamW (L"Cookie:mobile@example.com/", 00000000, 0012E954, 0, 0x00000000)
+0024:trace:wininet:urlcache_encode_url L"Cookie:mobile@example.com/"
+0024:trace:wininet:InternetCrackUrlW (L"Cookie:mobile@example.com/" 0 0 0012E8A4)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:GetInternetSchemeW L"Cookie" 6
+0024:trace:wininet:set_url_component L"Cookie" (6)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component L"mobile@example.com/" (19)
+0024:trace:wininet:InternetCrackUrlW L"Cookie:mobile@example.com/": scheme((null)) host((null)) path((null)) extra((null))
+0024:trace:wininet:urlcache_encode_url L"Cookie:mobile@example.com/"
+0024:trace:wininet:InternetCrackUrlW (L"Cookie:mobile@example.com/" 0 0 0012E8A4)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:GetInternetSchemeW L"Cookie" 6
+0024:trace:wininet:set_url_component L"Cookie" (6)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component L"mobile@example.com/" (19)
+0024:trace:wininet:InternetCrackUrlW L"Cookie:mobile@example.com/": scheme((null)) host((null)) path((null)) extra((null))
+0024:trace:wininet:urlcache_encode_url L"Cookie:mobile@example.com/"
+0024:trace:wininet:InternetCrackUrlW (L"Cookie:mobile@example.com/" 0 0 0012E8A4)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:GetInternetSchemeW L"Cookie" 6
+0024:trace:wininet:set_url_component L"Cookie" (6)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component L"mobile@example.com/" (19)
+0024:trace:wininet:InternetCrackUrlW L"Cookie:mobile@example.com/": scheme((null)) host((null)) path((null)) extra((null))
+0024:trace:wininet:urlcache_entry_get_file ("Cookie:mobile@example.com/", 00000000, 0012E954, 1)
+0024:trace:wininet:cache_containers_find searching for prefix for URL: "Cookie:mobile@example.com/"
+0024:trace:wininet:cache_containers_find found container with prefix "Cookie:"
+0024:trace:wininet:cache_container_lock_index Signature: WINE URLCache Ver 0.2012001, file size: 32768 bytes
+0024:trace:wininet:urlcache_entry_get_file entry "Cookie:mobile@example.com/" not found!
+0024:trace:wininet:GetAddress L"example.com"
+0024:trace:winsock:GetAddrInfoW nodename L"example.com", servname (null), hints 0012E9B0, result 0012E9D8
+0024:trace:winsock:getaddrinfo node "example.com", service (null), hints 002A0B60
+0024:trace:winsock:inet_ntop family 2, addr 002A5BE4, buffer 0012E882, len 16
+[JuiceX18] broad #21 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x5a x16=0x1030b5850 x17=0x10020f130 x18=0x0 teb=0x7ffe8000
+0024:trace:winsock:getaddrinfo => 002A5BC0, flags 0, family 2, type 1, protocol 0, len 16, name (null), addr { family AF_INET, address 104.20.23.154, port 0 }
+0024:trace:winsock:inet_ntop family 2, addr 002A5C14, buffer 0012E882, len 16
+0024:trace:winsock:getaddrinfo => 002A5BF0, flags 0, family 2, type 1, protocol 0, len 16, name (null), addr { family AF_INET, address 172.66.147.243, port 0 }
+0024:trace:winsock:freeaddrinfo 002A5BC0
+0024:trace:winsock:freeaddrinfo 002A0B60
+0024:trace:winsock:inet_ntop family 2, addr 002A5FDC, buffer 002A605C, len 65
+0024:trace:winsock:inet_ntop family 2, addr 002A60AC, buffer 002A612C, len 65
+0024:trace:wininet:HTTP_ResolveName resolved L"example.com" to 104.20.23.154
+0024:trace:wininet:open_http_connection connecting to L"example.com", proxy (null)
+0024:trace:winsock:WSAStartup version 0x101
+0024:trace:winsock:WSAStartup increasing startup count to 2
+0024:trace:winsock:socket af=AF_INET type=SOCK_STREAM protocol=IPPROTO_IP
+0024:trace:winsock:WSASocketW family AF_INET, type SOCK_STREAM, protocol IPPROTO_IP, info 00000000, group 0, flags 0x1
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x120320, in_buffer 0x12e7dc, in_size 16, out_buffer 0x0, out_size 0
+0024:trace:winsock:WSASocketW created 0xa0
+0024:trace:winsock:WSAIoctl socket 0xa0, FIONBIO, in_buff 0012E850, in_size 0x4, out_buff 0012E850, out_size 0x4, ret_size 0012E830, overlapped 00000000, completion 00000000
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x120344, in_buffer 0x12e850, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_ioctl_sock status 0.
+0024:trace:winsock:inet_ntop family 2, addr 002A5FDC, buffer 0012E79A, len 16
+0024:trace:winsock:connect socket 0xa0, addr { family AF_INET, address 104.20.23.154, port 80 }, len 16
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x12032c, in_buffer 0x2a0530, in_size 24, out_buffer 0x0, out_size 0
+0024:trace:winsock:WSAIoctl socket 0xa0, FIONBIO, in_buff 0012E850, in_size 0x4, out_buff 0012E850, out_size 0x4, ret_size 0012E830, overlapped 00000000, completion 00000000
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x120344, in_buffer 0x12e850, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_ioctl_sock status 0.
+0024:trace:winsock:setsockopt socket 0xa0, level IPPROTO_TCP, name TCP_NODELAY, optval 0012E9B0 (1), optlen 4
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x120474, in_buffer 0x12e984, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_setsockopt status 0.
+0024:trace:wininet:open_http_connection Created connection to L"example.com": 002A6190
+0024:trace:wininet:build_request_header Adding custom header L"Accept" (L"*/*")
+0024:trace:wininet:build_request_header Adding custom header L"Host" (L"example.com")
+0024:trace:wininet:build_request_header Adding custom header L"User-Agent" (L"JuiceNetworkSmoke/1.0")
+0024:trace:wininet:create_request Request header -> L"GET / HTTP/1.1\r\nAccept: */*\r\nHost: example.com\r\nUser-Agent: JuiceNetworkSmoke/1.0\r\n\r\n"
+0024:trace:wininet:create_request full request -> "GET / HTTP/1.1\r\nAccept: */*\r\nHost: example.com\r\nUser-Agent: JuiceNetworkSmoke/1.0\r\n\r\n"
+0024:trace:winsock:setsockopt socket 0xa0, level SOL_SOCKET, name SO_SNDTIMEO, optval 0012E9F8 (60000), optlen 4
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x1203b8, in_buffer 0x12e9f8, in_size 4, out_buffer 0x0, out_size 0
+[JuiceWine] anonymous PE executable section .text at 0x2d5ee0000 size=327680
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d5f30000 size=65536
+0024:trace:winsock:server_setsockopt status 0.
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/advapi32.dll status=40000003 module=0x2d5ed0000 size=270000
+0024:trace:winsock:WSAIoctl socket 0xa0, FIONBIO, in_buff 0012E988, in_size 0x4, out_buff 0012E988, out_size 0x4, ret_size 0012E970, overlapped 00000000, completion 00000000
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x120344, in_buffer 0x12e988, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_ioctl_sock status 0.
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/sechost/aarch64-windows/sechost.dll machine=0000 status=c0000135
+0024:trace:winsock:WS2_sendto socket 0xa0, buffers 0012E960, buffer_count 1, flags 0, addr 00000000, addr_len 0, overlapped 00000000, completion 00000000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/sechost.dll/aarch64-windows/sechost.dll machine=0000 status=c0000135
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x120338, in_buffer 0x12e900, in_size 32, out_buffer 0x0, out_size 0
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/sechost.dll machine=0000 status=00000000
+0024:trace:winsock:WS2_sendto status 0.
+0024:trace:wininet:HTTP_GetResponseHeaders -->
+0024:trace:winsock:setsockopt socket 0xa0, level SOL_SOCKET, name SO_RCVTIMEO, optval 0012B9C4 (60000), optlen 4
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x12039c, in_buffer 0x12b9c4, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_setsockopt status 0.
+[JuiceX18] broad #22 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x99 x16=0x1030b5850 x17=0x10020ee30 x18=0x0 teb=0x7ffe8000
+0024:trace:winsock:WS2_recv_base socket 0xa0, buffers 0012B8E0, buffer_count 1, flags 0, addr 00000000, addr_len -1, overlapped 00000000, completion 00000000, control 00000000
+0024:trace:winsock:sock_ioctl handle 0xa0, code 0x120334, in_buffer 0x12b870, in_size 48, out_buffer 0x0, out_size 0
+0024:trace:winsock:async_recv_proc 0x101
+0024:trace:winsock:async_recv_proc got status 0, 0x36a bytes read
+0024:trace:winsock:WS2_recv_base status 0.
+0024:trace:wininet:read_line returning "HTTP/1.1 200 OK"
+0024:trace:wininet:HTTP_GetResponseHeaders version [L"HTTP/1.1"] status code [L"200"] status text [L"OK"]
+0024:trace:wininet:HTTP_ProcessHeader --> L"Status": L"200" - 0xa0000000
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Status", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Status": L"200"
+0024:trace:wininet:read_line returning "Date: Mon, 24 Aug 2026 07:31:24 GMT"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Date: Mon, 24 Aug 2026 07:31:24 GMT", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Date") Value(L"Mon, 24 Aug 2026 07:31:24 GMT")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Date": L"Mon, 24 Aug 2026 07:31:24 GMT" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Date": L"Mon, 24 Aug 2026 07:31:24 GMT"
+0024:trace:wininet:read_line returning "Content-Type: text/html"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Content-Type: text/html", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Content-Type") Value(L"text/html")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Content-Type": L"text/html" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Content-Type": L"text/html"
+0024:trace:wininet:read_line returning "Transfer-Encoding: chunked"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Transfer-Encoding: chunked", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Transfer-Encoding") Value(L"chunked")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Transfer-Encoding": L"chunked" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Transfer-Encoding": L"chunked"
+0024:trace:wininet:read_line returning "Connection: keep-alive"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Connection: keep-alive", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Connection") Value(L"keep-alive")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Connection": L"keep-alive" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Connection": L"keep-alive"
+0024:trace:wininet:read_line returning "Server: cloudflare"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Server: cloudflare", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Server") Value(L"cloudflare")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Server": L"cloudflare" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Server": L"cloudflare"
+0024:trace:wininet:read_line returning "Last-Modified: Wed, 12 Aug 2026 20:17:18 GMT"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Last-Modified: Wed, 12 Aug 2026 20:17:18 GMT", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Last-Modified") Value(L"Wed, 12 Aug 2026 20:17:18 GMT")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Last-Modified": L"Wed, 12 Aug 2026 20:17:18 GMT" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Last-Modified": L"Wed, 12 Aug 2026 20:17:18 GMT"
+0024:trace:wininet:read_line returning "Allow: GET, HEAD"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Allow: GET, HEAD", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Allow") Value(L"GET, HEAD")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Allow": L"GET, HEAD" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Allow": L"GET, HEAD"
+0024:trace:wininet:read_line returning "Accept-Ranges: bytes"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Accept-Ranges: bytes", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Accept-Ranges") Value(L"bytes")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Accept-Ranges": L"bytes" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Accept-Ranges": L"bytes"
+0024:trace:wininet:read_line returning "Age: 14037"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Age: 14037", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Age") Value(L"14037")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Age": L"14037" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Age": L"14037"
+0024:trace:wininet:read_line returning "cf-cache-status: HIT"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "cf-cache-status: HIT", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"cf-cache-status") Value(L"HIT")
+0024:trace:wininet:HTTP_ProcessHeader --> L"cf-cache-status": L"HIT" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"cf-cache-status": L"HIT"
+0024:trace:wininet:read_line returning "CF-RAY: a300a83eddd887c4-PER"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "CF-RAY: a300a83eddd887c4-PER", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"CF-RAY") Value(L"a300a83eddd887c4-PER")
+0024:trace:wininet:HTTP_ProcessHeader --> L"CF-RAY": L"a300a83eddd887c4-PER" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"CF-RAY": L"a300a83eddd887c4-PER"
+0024:trace:wininet:read_line returning ""
+0024:trace:wininet:HTTP_GetResponseHeaders got line "", now interpreting
+0024:trace:wininet:HTTP_GetResponseHeaders <--
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Connection", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 7
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Set-Cookie", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Cache-Control", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Expires", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Last-Modified", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 9
+[JuiceX18] broad #23 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x5a x16=0x1030b5850 x17=0x10020f0c0 x18=0x0 teb=0x7ffe8000
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Content-Length", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Transfer-Encoding", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 6
+0024:trace:wininet:HTTP_HttpQueryInfoW ! returning string: L"chunked"
+0024:trace:wininet:HTTP_HttpSendRequestW <--
+0024:trace:wininet:WININET_Release object 002A2808 refcount = 1
+0024:trace:wininet:INTERNET_InternetOpenUrlW  00000003 <--
+0024:trace:wininet:WININET_Release object 002A26E8 refcount = 2
+0024:trace:wininet:InternetOpenUrlW  00000003 <--
+0024:trace:wininet:HttpQueryInfoW (00000003, 0x20000013)--> 19
+0024:trace:wininet:HttpQueryInfoW   Attribute: HTTP_QUERY_STATUS_CODE Modifier: HTTP_QUERY_FLAG_NUMBER
+0024:trace:wininet:WININET_AddRef 002A2808 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 3 -> 002A2808
+0024:trace:wininet:WININET_Release object 002A2808 refcount = 1
+0024:trace:wininet:HttpQueryInfoW 0 <--
+0024:trace:wininet:InternetReadFile 00000003 0012FB70 512 0012FB64
+0024:trace:wininet:WININET_AddRef 002A2808 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 3 -> 002A2808
+0024:trace:wininet:HTTPREQ_ReadFile (002A2808 0012FB70 512 0)
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read reading 559 byte chunk
+0024:trace:wininet:chunked_read state 1
+0024:trace:wininet:chunked_read state 1
+0024:trace:wininet:chunked_read state 2
+0024:trace:wininet:chunked_read state 2
+0024:trace:wininet:chunked_read read 512 bytes
+0024:trace:wininet:HTTPREQ_Read retrieved 512 bytes (res 0)
+0024:trace:wininet:WININET_Release object 002A2808 refcount = 1
+0024:trace:wininet:InternetReadFile -- TRUE (0) (bytes read: 512)
+0024:trace:wininet:InternetCloseHandle 00000003
+0024:trace:wininet:WININET_AddRef 002A2808 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 3 -> 002A2808
+0024:trace:wininet:WININET_Release object 002A2808 refcount = 1
+0024:trace:wininet:WININET_Release object 002A2808 refcount = 0
+0024:trace:wininet:WININET_Release closing connection 002A2808
+0024:trace:wininet:drain_content 002A6190
+0024:trace:wininet:chunked_read state 2
+0024:trace:wininet:chunked_read state 3
+0024:trace:wininet:chunked_read state 3
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read reading 0 byte chunk
+0024:trace:wininet:chunked_read state 1
+0024:trace:wininet:chunked_read state 1
+0024:trace:wininet:chunked_read state 4
+0024:trace:wininet:chunked_read state 4
+0024:trace:wininet:chunked_read state 5
+0024:trace:wininet:chunked_read read 47 bytes
+0024:trace:wininet:http_release_netconn 002A2808 002A6190 1
+[JuiceWine] redirected KUSER_SHARED_DATA fault addr=0x7ffe0324 pc=0x2cd988028 to 0x17ffe0000
+[JuiceWine] redirected KUSER_SHARED_DATA fault addr=0x7ffe0320 pc=0x2cd988048 to 0x17ffe0000
+[JuiceWine] redirected KUSER_SHARED_DATA fault addr=0x7ffe0328 pc=0x2cd988068 to 0x17ffe0000
+[JuiceStage] init_syscall_frame entered; entry=0x7b894160 arg=0x0 teb=0x7ffe4000 data=0x100340000 frame=0x10044fb00 stack_base=0x10054fd20 stack_limit=0x100458000
+0024:trace:wininet:WININET_Release destroying object 002A2808
+[JuiceStage] calling signal_set_full_context; ctx=0x10054f990 target_pc=0x2d79b92a0 target_sp=0x10054fd20 target_x18=0x7ffe4000 LdrInitializeThunk=0x2d79b92c0 RtlUserThreadStart=0x2d79b92a0
+[JuiceStage] signal_set_full_context returned; status=00000000 frame_pc=0x2d79b92a0 frame_sp=0x10054fd20 frame_x18=0x7ffe4000 restore=00400007
+[JuiceStage] init_syscall_frame complete; dispatcher_pc=0x2d79b92c0 user_sp=0x10054f990 x16=0x2d79b92c0 x17=0x10054f990 x18=0x7ffe4000 restore=00400007
+[JuiceWine] anonymous PE executable section .text at 0x2d5d90000 size=131072
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d5db0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/sechost.dll status=40000003 module=0x2d5d80000 size=150000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ucrtbase/aarch64-windows/ucrtbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/ucrtbase.dll/aarch64-windows/ucrtbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/ucrtbase.dll machine=0000 status=00000000
+0024:trace:wininet:HTTPREQ_Destroy 
+0024:trace:wininet:WININET_Release object 002A2788 refcount = 1
+0024:trace:wininet:InternetCloseHandle 00000001
+0024:trace:wininet:WININET_AddRef 002A26E8 -> refcount = 3
+0024:trace:wininet:get_handle_object handle 1 -> 002A26E8
+0024:trace:wininet:invalidate_handle invalidating child handle 00000002 for parent 002A26E8
+0024:trace:wininet:WININET_Release object 002A2788 refcount = 0
+0024:trace:wininet:WININET_Release destroying object 002A2788
+[JuiceWine] anonymous PE executable section .text at 0x2d56e0000 size=1245184
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d5810000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/ucrtbase.dll status=40000003 module=0x2d56d0000 size=6b0000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/msvcrt/aarch64-windows/msvcrt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/msvcrt.dll/aarch64-windows/msvcrt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/msvcrt.dll machine=0000 status=00000000
+0024:trace:wininet:HTTPSESSION_Destroy 002A2788
+0024:trace:wininet:WININET_Release object 002A26E8 refcount = 2
+0024:trace:wininet:WININET_Release object 002A26E8 refcount = 1
+0024:trace:wininet:WININET_Release object 002A26E8 refcount = 0
+0024:trace:wininet:WININET_Release destroying object 002A26E8
+0024:trace:wininet:APPINFO_Destroy 002A26E8
+0024:trace:wininet:InternetOpenW (L"JuiceNetworkSmoke/1.0", 1, (null), (null), 0)
+0024:trace:wininet:InternetOpenW   access type : INTERNET_OPEN_TYPE_DIRECT
+0024:trace:wininet:InternetOpenW   flags       :
+0024:trace:wininet:InternetOpenW returning 002A8F78
+0030:trace:wininet:DllMain 7B880000,2,00000000
+[JuiceWine] anonymous PE executable section .text at 0x2d5120000 size=983040
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d5210000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/msvcrt.dll status=40000003 module=0x2d5110000 size=5c0000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/win32u/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/win32u.dll/aarch64-windows/win32u.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/win32u.dll machine=0000 status=00000000
+0024:trace:wininet:InternetConnectW (00000001, L"example.com", 443, (null), 00000000, 3, 0, 0)
+0024:trace:wininet:WININET_AddRef 002A8F78 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 1 -> 002A8F78
+0024:trace:wininet:HTTP_Connect -->
+0024:trace:wininet:WININET_AddRef 002A8F78 -> refcount = 3
+0024:trace:wininet:HTTP_Connect 002A8F78 --> 002A9878
+0024:trace:wininet:WININET_Release object 002A8F78 refcount = 2
+0024:trace:wininet:InternetConnectW returning 00000002
+0024:trace:wininet:HttpOpenRequestW (00000002, L"GET", L"/", (null), (null), 00000000, 84800200, 00000000)
+0024:trace:wininet:WININET_AddRef 002A9878 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 2 -> 002A9878
+0024:trace:wininet:HTTP_HttpOpenRequestW -->
+0024:trace:wininet:WININET_AddRef 002A9878 -> refcount = 3
+0024:trace:wininet:HTTP_HttpOpenRequestW <-- (002A98F8)
+0024:trace:wininet:WININET_Release object 002A9878 refcount = 2
+0024:trace:wininet:HttpOpenRequestW returning 00000003
+[JuiceWine] anonymous PE executable section .text at 0x2d4ff0000 size=262144
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d5030000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/win32u.dll status=40000003 module=0x2d4fe0000 size=130000
+002c:warn:globalmem:KernelBaseGetGlobalData semi-stub!
+002c:warn:file:NtCreateFile L"\\??\\C:\\windows\\fonts" not found (c0000034)
+002c:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\build\\wine-ios\\fonts" not found (c0000034)
+0024:trace:wininet:InternetSetOptionW (00000003 31 0012FB70 4)
+0024:trace:wininet:WININET_AddRef 002A98F8 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 3 -> 002A98F8
+0024:trace:wininet:HTTPREQ_SetOption INTERNET_OPTION_SECURITY_FLAGS 00000080
+0024:trace:wininet:WININET_Release object 002A98F8 refcount = 1
+0024:trace:wininet:HttpSendRequestW 00000003, (null), 0, 00000000, 0)
+0024:trace:wininet:WININET_AddRef 002A98F8 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 3 -> 002A98F8
+0024:trace:wininet:HTTP_HttpSendRequestW --> 002A98F8
+0024:trace:wininet:HTTP_ProcessHeader --> L"Host": L"example.com" - 0x12000000
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Host", 0, 1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Host": L"example.com"
+0030:warn:threadname:NtSetInformationThread Thread renamed to L"wine_wininet_collect_connections"
+0024:trace:wininet:HTTP_HttpAddRequestHeadersW copying header: L"User-Agent: JuiceNetworkSmoke/1.0\r\n"
+0024:trace:wininet:HTTP_HttpAddRequestHeadersW interpreting header L"User-Agent: JuiceNetworkSmoke/1.0"
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"User-Agent") Value(L"JuiceNetworkSmoke/1.0")
+0024:trace:wininet:HTTP_ProcessHeader --> L"User-Agent": L"JuiceNetworkSmoke/1.0" - 0x12000000
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"User-Agent", 0, 1
+[JuiceX18] broad #24 pc=0x1030b5b84 fault=0x378 instr=f941be4a x8=0x1030b5b80 x16=0x1fb31ee74 x17=0x10020f130 x18=0x0 teb=0x7ffe8000
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"User-Agent": L"JuiceNetworkSmoke/1.0"
+[JuiceX18] broad #25 pc=0x1030b5b84 fault=0x378 instr=f941be4a x8=0x1030b5b80 x16=0x1fb31ee74 x17=0x10020f130 x18=0x0 teb=0x7ffe8000
+0024:trace:wininet:HTTP_HttpAddRequestHeadersW interpreting header L""
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Host", 0, 1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 0
+0024:trace:wininet:create_request Going to url L"example.com" L"/"
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Host", 0, 1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 0
+0024:trace:wininet:retrieve_cached_basic_authorization Looking for authorization for L"example.com":(null)
+0024:trace:wininet:RetrieveUrlCacheEntryStreamW (L"Cookie:mobile@example.com/", 00000000, 0012EA1C, 0, 0x00000000)
+0024:trace:wininet:urlcache_encode_url L"Cookie:mobile@example.com/"
+0024:trace:wininet:InternetCrackUrlW (L"Cookie:mobile@example.com/" 0 0 0012E96C)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:GetInternetSchemeW L"Cookie" 6
+0024:trace:wininet:set_url_component L"Cookie" (6)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component L"mobile@example.com/" (19)
+0024:trace:wininet:InternetCrackUrlW L"Cookie:mobile@example.com/": scheme((null)) host((null)) path((null)) extra((null))
+0024:trace:wininet:urlcache_encode_url L"Cookie:mobile@example.com/"
+0024:trace:wininet:InternetCrackUrlW (L"Cookie:mobile@example.com/" 0 0 0012E96C)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:GetInternetSchemeW L"Cookie" 6
+0024:trace:wininet:set_url_component L"Cookie" (6)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component L"mobile@example.com/" (19)
+0024:trace:wininet:InternetCrackUrlW L"Cookie:mobile@example.com/": scheme((null)) host((null)) path((null)) extra((null))
+0024:trace:wininet:urlcache_encode_url L"Cookie:mobile@example.com/"
+0024:trace:wininet:InternetCrackUrlW (L"Cookie:mobile@example.com/" 0 0 0012E96C)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:GetInternetSchemeW L"Cookie" 6
+0024:trace:wininet:set_url_component L"Cookie" (6)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component (null) (0)
+0024:trace:wininet:set_url_component L"mobile@example.com/" (19)
+0024:trace:wininet:InternetCrackUrlW L"Cookie:mobile@example.com/": scheme((null)) host((null)) path((null)) extra((null))
+0024:trace:wininet:urlcache_entry_get_file ("Cookie:mobile@example.com/", 00000000, 0012EA1C, 1)
+0024:trace:wininet:cache_containers_find searching for prefix for URL: "Cookie:mobile@example.com/"
+0024:trace:wininet:cache_containers_find found container with prefix "Cookie:"
+[JuiceX18] broad #26 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x5a x16=0x1030b5850 x17=0x10020f130 x18=0x0 teb=0x7ffe8000
+0024:trace:wininet:cache_container_lock_index Signature: WINE URLCache Ver 0.2012001, file size: 32768 bytes
+0024:trace:wininet:urlcache_entry_get_file entry "Cookie:mobile@example.com/" not found!
+0024:trace:wininet:GetAddress L"example.com"
+0024:trace:winsock:GetAddrInfoW nodename L"example.com", servname (null), hints 0012EA78, result 0012EAA0
+[JuiceX18] broad #27 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x5a x16=0x1030b5850 x17=0x10020f130 x18=0x0 teb=0x7ffe8000
+0024:trace:winsock:getaddrinfo node "example.com", service (null), hints 002A0EE0
+0024:trace:winsock:inet_ntop family 2, addr 002ABA5C, buffer 0012E94A, len 16
+0024:trace:winsock:getaddrinfo => 002ABA38, flags 0, family 2, type 1, protocol 0, len 16, name (null), addr { family AF_INET, address 172.66.147.243, port 0 }
+0024:trace:winsock:inet_ntop family 2, addr 002ABA8C, buffer 0012E94A, len 16
+0024:trace:winsock:getaddrinfo => 002ABA68, flags 0, family 2, type 1, protocol 0, len 16, name (null), addr { family AF_INET, address 104.20.23.154, port 0 }
+0024:trace:winsock:freeaddrinfo 002ABA38
+0024:trace:winsock:freeaddrinfo 002A0EE0
+0024:trace:winsock:inet_ntop family 2, addr 002ABE54, buffer 002ABED4, len 65
+0024:trace:winsock:inet_ntop family 2, addr 002ABF24, buffer 002ABFA4, len 65
+0024:trace:wininet:HTTP_ResolveName resolved L"example.com" to 172.66.147.243
+0024:trace:wininet:open_http_connection connecting to L"example.com", proxy (null)
+0024:trace:winsock:socket af=AF_INET type=SOCK_STREAM protocol=IPPROTO_IP
+0024:trace:winsock:WSASocketW family AF_INET, type SOCK_STREAM, protocol IPPROTO_IP, info 00000000, group 0, flags 0x1
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120320, in_buffer 0x12e8a4, in_size 16, out_buffer 0x0, out_size 0
+0024:trace:winsock:WSASocketW created 0xac
+0024:trace:winsock:WSAIoctl socket 0xac, FIONBIO, in_buff 0012E918, in_size 0x4, out_buff 0012E918, out_size 0x4, ret_size 0012E8F8, overlapped 00000000, completion 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120344, in_buffer 0x12e918, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_ioctl_sock status 0.
+0024:trace:winsock:inet_ntop family 2, addr 002ABE54, buffer 0012E862, len 16
+0024:trace:winsock:connect socket 0xac, addr { family AF_INET, address 172.66.147.243, port 443 }, len 16
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x12032c, in_buffer 0x2a6c38, in_size 24, out_buffer 0x0, out_size 0
+002c:warn:font:opentype_get_ttc_sfnt_v1 unsupported sfnt font: embedded bitmap data.
+002c:warn:font:unix_face_create unable to parse font, falling back to FreeType
+002c:warn:font:opentype_get_ttc_sfnt_v1 unsupported sfnt font: embedded bitmap data.
+002c:warn:font:unix_face_create unable to parse font, falling back to FreeType
+0024:trace:winsock:WSAIoctl socket 0xac, FIONBIO, in_buff 0012E918, in_size 0x4, out_buff 0012E918, out_size 0x4, ret_size 0012E8F8, overlapped 00000000, completion 00000000
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/imm32/aarch64-windows/imm32.dll machine=0000 status=c0000135
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120344, in_buffer 0x12e918, in_size 4, out_buffer 0x0, out_size 0
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/imm32.dll/aarch64-windows/imm32.dll machine=0000 status=c0000135
+0024:trace:winsock:server_ioctl_sock status 0.
+0024:trace:winsock:setsockopt socket 0xac, level IPPROTO_TCP, name TCP_NODELAY, optval 0012EA78 (1), optlen 4
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120474, in_buffer 0x12ea4c, in_size 4, out_buffer 0x0, out_size 0
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/imm32.dll machine=0000 status=00000000
+0024:trace:winsock:server_setsockopt status 0.
+0024:trace:wininet:open_http_connection Created connection to L"example.com": 002AC008
+[JuiceX18] broad #28 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020f1f0 x18=0x0 teb=0x7ffe8000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\secur32.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/secur32/i386-windows/secur32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/secur32.dll/i386-windows/secur32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/secur32.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x79f71000 mapping=0x79f70000 size=81920
+[JuiceWine] anonymous PE executable section .text at 0x79f70000 size=81920
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/secur32.dll status=00000000 module=0x79f70000 size=6c000
+0024:trace:secur32:SECUR32_initializeProviders 
+0024:warn:secur32:process_attach Setting GNUTLS_SYSTEM_PRIORITY_FILE to "/dev/null".
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols client VERS-DTLS1.2 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols client VERS-DTLS1.0 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 16 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols client VERS-TLS1.3 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols client VERS-TLS1.2 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols client VERS-TLS1.1 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols client VERS-TLS1.0 is supported
+0024:trace:secur32:gnutls_log <2> added 6 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols client VERS-SSL3.0 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols server VERS-DTLS1.2 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols server VERS-DTLS1.0 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 16 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols server VERS-TLS1.3 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols server VERS-TLS1.2 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols server VERS-TLS1.1 is supported
+0024:trace:secur32:gnutls_log <2> added 5 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols server VERS-TLS1.0 is supported
+0024:trace:secur32:gnutls_log <2> added 6 protocols, 29 ciphersuites, 19 sig algos and 10 groups into priority list
+0024:trace:secur32:check_supported_protocols server VERS-SSL3.0 is supported
+[JuiceWine] anonymous PE executable section .text at 0x2d4e80000 size=196608
+[JuiceWine] anonymous PE executable section .hexpthk at 0x2d4eb0000 size=65536
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/aarch64-windows/imm32.dll status=40000003 module=0x2d4e70000 size=170000
+002c:warn:msvcrt:_configure_wide_argv (1) stub
+[JuiceX18] broad #1 pc=0x14001f2a8 fault=0x30 instr=f9401a48 x8=0x0 x16=0x5c5c x17=0x11fca8 x18=0x0 teb=0x7ffe8000
+[JuiceX18] broad #2 pc=0x14001f314 fault=0x30 instr=f9401a48 x8=0x0 x16=0x1fb31ee74 x17=0x120000 x18=0x0 teb=0x7ffe8000
+0024:trace:secur32:nego_SpLsaModeInitialize 0x10000, 0012E3F4, 0012E404, 0012E3F8
+0024:trace:secur32:lsa_AllocateLsaHeap 10
+0024:trace:secur32:lsa_AllocateLsaHeap 8
+[JuiceX18] broad #29 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020f0c0 x18=0x0 teb=0x7ffe8000
+0024:trace:secur32:initialize_package name "Negotiate", version 0x10000, api table 79F86070, table count 1
+0024:trace:secur32:nego_SpInitialize 0, 00000000, 00000000
+0024:trace:secur32:nego_SpUserModeInitialize 0x10000, 0012E3FC, 0012E408, 0012E400
+0024:trace:secur32:nego_SpInstanceInit 0x10000, 79F86054, 00000000
+0024:trace:secur32:AcquireCredentialsHandleW (null) L"Microsoft Unified Security Protocol Provider" 2 00000000 0012E8A0 00000000 00000000 7B8C5324 00000000
+[JuiceX18] broad #30 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x10020efa0 x18=0x0 teb=0x7ffe8000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\schannel.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/schannel/i386-windows/schannel.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/schannel.dll/i386-windows/schannel.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/schannel.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x79f41000 mapping=0x79f40000 size=16384
+[JuiceWine] anonymous PE executable section .text at 0x79f40000 size=16384
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/schannel.dll status=00000000 module=0x79f40000 size=16000
+0024:trace:secur32:schan_AcquireCredentialsHandleW ((null), L"Microsoft Unified Security Protocol Provider", 0x00000002, 00000000, 0012E8A0, 00000000, 00000000, 7B8C5324, 00000000)
+0024:trace:secur32:acquire_credentials_handle fCredentialUse 0x2, schanCred 0012E8A0, phCredential 7B8C5324, ptsExpiry 00000000
+0024:trace:secur32:get_cert dwVersion = 4
+0024:trace:secur32:get_cert cCreds = 0
+0024:trace:secur32:get_cert paCred = 00000000
+0024:trace:secur32:get_cert hRootStore = 00000000
+0024:trace:secur32:get_cert cMappers = 0
+0024:trace:secur32:get_cert cSupportedAlgs = 0:
+0024:trace:secur32:get_cert grbitEnabledProtocols = 00000000
+0024:trace:secur32:get_cert dwMinimumCipherStrength = 0
+0024:trace:secur32:get_cert dwMaximumCipherStrength = 0
+0024:trace:secur32:get_cert dwSessionLifespan = 0
+0024:trace:secur32:get_cert dwFlags = 00000000
+0024:trace:secur32:get_cert dwCredFormat = 0
+0024:trace:secur32:read_config enabled f0ff0, disabled by default f000c
+0024:trace:secur32:QueryCredentialsAttributesA 7B8C5324 88 0012E9F0
+0024:trace:secur32:schan_QueryCredentialsAttributesA (7B8C5324, 88, 0012E9F0)
+0024:trace:secur32:AcquireCredentialsHandleW (null) L"Microsoft Unified Security Protocol Provider" 2 00000000 0012E8A0 00000000 00000000 7B8C5330 00000000
+0024:trace:secur32:schan_AcquireCredentialsHandleW ((null), L"Microsoft Unified Security Protocol Provider", 0x00000002, 00000000, 0012E8A0, 00000000, 00000000, 7B8C5330, 00000000)
+0024:trace:secur32:acquire_credentials_handle fCredentialUse 0x2, schanCred 0012E8A0, phCredential 7B8C5330, ptsExpiry 00000000
+0024:trace:secur32:get_cert dwVersion = 4
+0024:trace:secur32:get_cert cCreds = 0
+0024:trace:secur32:get_cert paCred = 00000000
+0024:trace:secur32:get_cert hRootStore = 00000000
+0024:trace:secur32:get_cert cMappers = 0
+0024:trace:secur32:get_cert cSupportedAlgs = 0:
+0024:trace:secur32:get_cert grbitEnabledProtocols = 000000a0
+0024:trace:secur32:get_cert dwMinimumCipherStrength = 0
+0024:trace:secur32:get_cert dwMaximumCipherStrength = 0
+0024:trace:secur32:get_cert dwSessionLifespan = 0
+0024:trace:secur32:get_cert dwFlags = 00000000
+0024:trace:secur32:get_cert dwCredFormat = 0
+0024:trace:secur32:InitializeSecurityContextW 7B8C5324 00000000 L"example.com" 0x0008013c 0 0 00000000 0 0012EA3C 0012EA2C 0012EA60 00000000
+0024:trace:secur32:schan_InitializeSecurityContextW 7B8C5324 00000000 L"example.com" 0x0008013c 0 0 00000000 0 0012EA3C 0012EA2C 0012EA60 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA2C:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 0, BufferType 0x2 pvBuffer 00000000
+0024:trace:secur32:set_priority Using "NORMAL:%LATEST_RECORD_VERSION:-VERS-ALL:+VERS-TLS1.2:+VERS-TLS1.1:+VERS-TLS1.0:+VERS-SSL3.0" priority
+0024:trace:secur32:gnutls_log <2> added 3 protocols, 29 ciphersuites, 16 sig algos and 10 groups into priority list
+[JuiceX18] broad #31 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x31 x16=0x1030b5850 x17=0x8 x18=0x0 teb=0x7ffe8000
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: Adv. version: 3.3
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.2c (GNUTLS_ECDHE_ECDSA_AES_256_GCM_SHA384)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite cc.a9 (GNUTLS_ECDHE_ECDSA_CHACHA20_POLY1305)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.ad (GNUTLS_ECDHE_ECDSA_AES_256_CCM)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.0a (GNUTLS_ECDHE_ECDSA_AES_256_CBC_SHA1)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.2b (GNUTLS_ECDHE_ECDSA_AES_128_GCM_SHA256)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.ac (GNUTLS_ECDHE_ECDSA_AES_128_CCM)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.09 (GNUTLS_ECDHE_ECDSA_AES_128_CBC_SHA1)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.30 (GNUTLS_ECDHE_RSA_AES_256_GCM_SHA384)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite cc.a8 (GNUTLS_ECDHE_RSA_CHACHA20_POLY1305)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.14 (GNUTLS_ECDHE_RSA_AES_256_CBC_SHA1)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.2f (GNUTLS_ECDHE_RSA_AES_128_GCM_SHA256)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.13 (GNUTLS_ECDHE_RSA_AES_128_CBC_SHA1)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite 00.9d (GNUTLS_RSA_AES_256_GCM_SHA384)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.9d (GNUTLS_RSA_AES_256_CCM)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite 00.35 (GNUTLS_RSA_AES_256_CBC_SHA1)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite 00.9c (GNUTLS_RSA_AES_128_GCM_SHA256)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.9c (GNUTLS_RSA_AES_128_CCM)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite 00.2f (GNUTLS_RSA_AES_128_CBC_SHA1)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite 00.9f (GNUTLS_DHE_RSA_AES_256_GCM_SHA384)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite cc.aa (GNUTLS_DHE_RSA_CHACHA20_POLY1305)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.9f (GNUTLS_DHE_RSA_AES_256_CCM)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite 00.39 (GNUTLS_DHE_RSA_AES_256_CBC_SHA1)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite 00.9e (GNUTLS_DHE_RSA_AES_128_GCM_SHA256)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite c0.9e (GNUTLS_DHE_RSA_AES_128_CCM)
+0024:trace:secur32:gnutls_log <2> Keeping ciphersuite 00.33 (GNUTLS_DHE_RSA_AES_128_CBC_SHA1)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Early Data/42) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Compress Certificate/27) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Session Ticket/35) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension Session Ticket/35 (0 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (PSK Key Exchange Modes/45) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Signature Algorithms/13) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (4.1) RSA-SHA256
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (8.9) RSA-PSS-SHA256
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (8.4) RSA-PSS-RSAE-SHA256
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (4.3) ECDSA-SHA256
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (8.7) EdDSA-Ed25519
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (5.1) RSA-SHA384
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (8.10) RSA-PSS-SHA384
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (8.5) RSA-PSS-RSAE-SHA384
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (5.3) ECDSA-SHA384
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (8.8) EdDSA-Ed448
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (6.1) RSA-SHA512
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (8.11) RSA-PSS-SHA512
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (8.6) RSA-PSS-RSAE-SHA512
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (6.3) ECDSA-SHA512
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (2.1) RSA-SHA1
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: sent signature algo (2.3) ECDSA-SHA1
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension Signature Algorithms/13 (34 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (ALPN/16) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Safe Renegotiation/65281) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension Safe Renegotiation/65281 (1 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Supported Versions/43) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Server Name Indication/0) for 'client hello'
+0024:trace:secur32:gnutls_log <2> HSK[0x13c010e00]: sent server name: 'example.com'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension Server Name Indication/0 (16 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Extended Master Secret/23) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension Extended Master Secret/23 (0 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (OCSP Status Request/5) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension OCSP Status Request/5 (5 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Key Share/51) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Post Handshake Auth/49) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Client Certificate Type/19) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Encrypt-then-MAC/22) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension Encrypt-then-MAC/22 (0 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Maximum Record Size/1) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Supported Groups/10) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group SECP256R1 (0x17)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group SECP384R1 (0x18)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group SECP521R1 (0x19)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group X25519 (0x1d)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group X448 (0x1e)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group FFDHE2048 (0x100)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group FFDHE3072 (0x101)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group FFDHE4096 (0x102)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group FFDHE6144 (0x103)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sent group FFDHE8192 (0x104)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension Supported Groups/10 (22 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Supported EC Point Formats/11) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension Supported EC Point Formats/11 (2 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Record Size Limit/28) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Sending extension Record Size Limit/28 (2 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Cookie/44) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Server Certificate Type/20) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (SRTP/14) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (ClientHello Padding/21) for 'client hello'
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Preparing extension (Pre Shared Key/41) for 'client hello'
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: CLIENT HELLO was queued [217 bytes]
+0024:trace:secur32:push_adapter Push 222 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 65536, BufferType 0x2, pvBuffer 0x2ad248
+0024:trace:secur32:push_adapter Wrote 222 bytes
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer No desc
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[_gnutls_io_read_buffered]:568
+0024:trace:secur32:schan_handshake Continue...
+0024:trace:winsock:WSAIoctl socket 0xac, FIONBIO, in_buff 0012E8A0, in_size 0x4, out_buff 0012E8A0, out_size 0x4, ret_size 0012E888, overlapped 00000000, completion 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120344, in_buffer 0x12e8a0, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_ioctl_sock status 0.
+0024:trace:wininet:netcon_secure_connect_setup sending 222 bytes
+0024:trace:winsock:WS2_sendto socket 0xac, buffers 0012E878, buffer_count 1, flags 0, addr 00000000, addr_len 0, overlapped 00000000, completion 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120338, in_buffer 0x12e818, in_size 32, out_buffer 0x0, out_size 0
+0024:trace:winsock:WS2_sendto status 0.
+0024:trace:winsock:WS2_recv_base socket 0xac, buffers 0012E874, buffer_count 1, flags 0, addr 00000000, addr_len -1, overlapped 00000000, completion 00000000, control 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120334, in_buffer 0x12e808, in_size 48, out_buffer 0x0, out_size 0
+0024:trace:winsock:async_recv_proc 0x101
+0024:trace:winsock:async_recv_proc got status 0, 0x800 bytes read
+0024:trace:winsock:WS2_recv_base status 0.
+0024:trace:wininet:netcon_secure_connect_setup recv 2048 bytes
+0024:trace:secur32:InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:schan_InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA20:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 2048, BufferType 0x2 pvBuffer 002ACA30
+0024:trace:secur32:dump_buffer_desc 	buffer 1: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA2C:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 0, BufferType 0x2 pvBuffer 00000000
+0024:trace:secur32:establish_context Using expected_size 76.
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 2048, BufferType 0x2, pvBuffer 0x2aca30
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 71 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 2048, BufferType 0x2, pvBuffer 0x2aca30
+0024:trace:secur32:pull_adapter Read 71 bytes
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: SERVER HELLO (2) was received. Length 67[67], frag offset 0, frag length: 67, sequence: 0
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1131
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[_gnutls_handshake_io_recv_int]:1374
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: Server's version: 3.3
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: SessionID length: 0
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: SessionID: cc
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: Selected cipher suite: GNUTLS_ECDHE_ECDSA_CHACHA20_POLY1305
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Parsing extension 'Server Name Indication/0' (0 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Parsing extension 'Extended Master Secret/23' (0 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Parsing extension 'Safe Renegotiation/65281' (1 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Parsing extension 'Session Ticket/35' (0 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Parsing extension 'Supported EC Point Formats/11' (2 bytes)
+0024:trace:secur32:gnutls_log <4> EXT[0x13c010e00]: Parsing extension 'OCSP Status Request/5' (0 bytes)
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: Safe renegotiation succeeded
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 2048, BufferType 0x2, pvBuffer 0x2aca30
+0024:trace:secur32:get_buffer No next buffer
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[_gnutls_io_read_buffered]:568
+0024:trace:secur32:gnutls_log <3> ASSERT: kx.c[_gnutls_recv_server_certificate]:716
+0024:trace:secur32:schan_handshake Continue...
+0024:trace:wininet:netcon_secure_connect_setup InitializeSecurityContext ret 00090312
+0024:trace:winsock:WS2_recv_base socket 0xac, buffers 0012E874, buffer_count 1, flags 0, addr 00000000, addr_len -1, overlapped 00000000, completion 00000000, control 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120334, in_buffer 0x12e808, in_size 48, out_buffer 0x0, out_size 0
+0024:trace:winsock:WS2_recv_base status 0.
+0024:trace:wininet:netcon_secure_connect_setup recv 768 bytes
+0024:trace:secur32:InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:schan_InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA20:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 2740, BufferType 0x2 pvBuffer 002BD358
+0024:trace:secur32:dump_buffer_desc 	buffer 1: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA2C:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 0, BufferType 0x2 pvBuffer 00000000
+0024:trace:secur32:establish_context Expected at least 3682 bytes, but buffer only contains 2740 bytes.
+0024:trace:wininet:netcon_secure_connect_setup InitializeSecurityContext ret 80090318
+0024:trace:winsock:WS2_recv_base socket 0xac, buffers 0012E874, buffer_count 1, flags 0, addr 00000000, addr_len -1, overlapped 00000000, completion 00000000, control 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120334, in_buffer 0x12e808, in_size 48, out_buffer 0x0, out_size 0
+0024:trace:winsock:async_recv_proc 0x101
+0024:trace:winsock:async_recv_proc got status 0, 0x54c bytes read
+0024:trace:winsock:WS2_recv_base status 0.
+0024:trace:wininet:netcon_secure_connect_setup recv 1356 bytes
+0024:trace:secur32:InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:schan_InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA20:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 4096, BufferType 0x2 pvBuffer 002BD358
+0024:trace:secur32:dump_buffer_desc 	buffer 1: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA2C:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 0, BufferType 0x2 pvBuffer 00000000
+0024:trace:secur32:establish_context Using expected_size 4037.
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 4096, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 3677 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 4096, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 3677 bytes
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: CERTIFICATE (11) was received. Length 3673[3673], frag offset 0, frag length: 3673, sequence: 0
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 4096, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 350 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 4096, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 350 bytes
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: CERTIFICATE STATUS (22) was received. Length 346[346], frag offset 0, frag length: 346, sequence: 0
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 4096, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:get_buffer No next buffer
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[_gnutls_io_read_buffered]:568
+0024:trace:secur32:gnutls_log <3> ASSERT: kx.c[_gnutls_recv_server_kx_message]:559
+0024:trace:secur32:schan_handshake Continue...
+0024:trace:wininet:netcon_secure_connect_setup InitializeSecurityContext ret 00090312
+0024:trace:winsock:WS2_recv_base socket 0xac, buffers 0012E874, buffer_count 1, flags 0, addr 00000000, addr_len -1, overlapped 00000000, completion 00000000, control 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120334, in_buffer 0x12e808, in_size 48, out_buffer 0x0, out_size 0
+0024:trace:winsock:WS2_recv_base status 0.
+0024:trace:wininet:netcon_secure_connect_setup recv 70 bytes
+0024:trace:secur32:InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:schan_InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA20:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 129, BufferType 0x2 pvBuffer 002BD358
+0024:trace:secur32:dump_buffer_desc 	buffer 1: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA2C:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 0, BufferType 0x2 pvBuffer 00000000
+0024:trace:secur32:establish_context Using expected_size 129.
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 129, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 115 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 129, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 115 bytes
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: SERVER KEY EXCHANGE (12) was received. Length 111[111], frag offset 0, frag length: 111, sequence: 0
+0024:trace:secur32:gnutls_log <2> received curve X25519
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: Selected group X25519 (6)
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: verify TLS 1.2 handshake data: using ECDSA-SHA256
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 129, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 4 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 129, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 4 bytes
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: SERVER HELLO DONE (14) was received. Length 0[0], frag offset 0, frag length: 0, sequence: 0
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1131
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[_gnutls_handshake_io_recv_int]:1374
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: CLIENT KEY EXCHANGE was queued [37 bytes]
+0024:trace:secur32:gnutls_log <4> REC[0x13c010e00]: Sent ChangeCipherSpec
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: Cipher Suite: GNUTLS_ECDHE_ECDSA_CHACHA20_POLY1305
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: Initializing internal [write] cipher sessions
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: recording tls-unique CB (send)
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: FINISHED was queued [16 bytes]
+0024:trace:secur32:push_adapter Push 42 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 65536, BufferType 0x2, pvBuffer 0x2ce388
+0024:trace:secur32:push_adapter Wrote 42 bytes
+0024:trace:secur32:push_adapter Push 6 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 65536, BufferType 0x2, pvBuffer 0x2ce388
+0024:trace:secur32:push_adapter Wrote 6 bytes
+0024:trace:secur32:push_adapter Push 37 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 65536, BufferType 0x2, pvBuffer 0x2ce388
+0024:trace:secur32:push_adapter Wrote 37 bytes
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 129, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:get_buffer No next buffer
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[_gnutls_io_read_buffered]:568
+0024:trace:secur32:schan_handshake Continue...
+0024:trace:wininet:netcon_secure_connect_setup InitializeSecurityContext ret 00090312
+0024:trace:wininet:netcon_secure_connect_setup sending 85 bytes
+0024:trace:winsock:WS2_sendto socket 0xac, buffers 0012E878, buffer_count 1, flags 0, addr 00000000, addr_len 0, overlapped 00000000, completion 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120338, in_buffer 0x12e818, in_size 32, out_buffer 0x0, out_size 0
+0024:trace:winsock:WS2_sendto status 0.
+0024:trace:winsock:WS2_recv_base socket 0xac, buffers 0012E874, buffer_count 1, flags 0, addr 00000000, addr_len -1, overlapped 00000000, completion 00000000, control 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120334, in_buffer 0x12e808, in_size 48, out_buffer 0x0, out_size 0
+0024:trace:winsock:async_recv_proc 0x101
+0024:trace:winsock:async_recv_proc got status 0, 0xfa bytes read
+0024:trace:winsock:WS2_recv_base status 0.
+0024:trace:wininet:netcon_secure_connect_setup recv 250 bytes
+0024:trace:secur32:InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:schan_InitializeSecurityContextW 7B8C5324 0012EA3C L"example.com" 0x0008013c 0 0 0012EA20 0 00000000 0012EA2C 0012EA60 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA20:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 250, BufferType 0x2 pvBuffer 002BD358
+0024:trace:secur32:dump_buffer_desc 	buffer 1: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA2C:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 0, BufferType 0x2 pvBuffer 00000000
+0024:trace:secur32:establish_context Using expected_size 250.
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 250, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 202 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 250, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 202 bytes
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: NEW SESSION TICKET (4) was received. Length 198[198], frag offset 0, frag length: 198, sequence: 0
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: received session ticket
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 250, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 1 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 250, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 1 bytes
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: Cipher Suite: GNUTLS_ECDHE_ECDSA_CHACHA20_POLY1305
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[get_last_packet]:1139
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 250, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 32 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 250, BufferType 0x2, pvBuffer 0x2bd358
+0024:trace:secur32:pull_adapter Read 32 bytes
+0024:trace:secur32:gnutls_log <4> HSK[0x13c010e00]: FINISHED (20) was received. Length 12[12], frag offset 0, frag length: 12, sequence: 0
+0024:trace:secur32:schan_handshake Handshake completed
+0024:trace:wininet:netcon_secure_connect_setup InitializeSecurityContext ret 00000000
+0024:trace:secur32:QueryContextAttributesW 0012EA3C 4 002AC01C
+0024:trace:secur32:schan_QueryContextAttributesW context_handle 0012EA3C, attribute 0x4, buffer 002AC01C
+0024:fixme:secur32:get_cipher_algid unknown algorithm 23
+0024:fixme:secur32:get_mac_algid unknown algorithm 200, cipher 23
+0024:trace:secur32:schan_QueryContextAttributesW Using header size 5 mac bytes 0, message size 16384, block size 64
+0024:trace:secur32:QueryContextAttributesW 0012EA3C 83 0012EA7C
+0024:trace:secur32:schan_QueryContextAttributesW context_handle 0012EA3C, attribute 0x53, buffer 0012EA7C
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\crypt32.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/crypt32/i386-windows/crypt32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/crypt32.dll/i386-windows/crypt32.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/crypt32.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x79d41000 mapping=0x79d40000 size=360448
+[JuiceWine] anonymous PE executable section .text at 0x79d40000 size=360448
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/crypt32.dll status=00000000 module=0x79d40000 size=1ed000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\bcrypt.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/bcrypt/i386-windows/bcrypt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/bcrypt.dll/i386-windows/bcrypt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/bcrypt.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x79be1000 mapping=0x79be0000 size=278528
+[JuiceWine] anonymous PE executable section .text at 0x79be0000 size=278528
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/bcrypt.dll status=00000000 module=0x79be0000 size=14d000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\cryptbase.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/cryptbase/i386-windows/cryptbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/cryptbase.dll/i386-windows/cryptbase.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/cryptbase.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x79bb1000 mapping=0x79bb0000 size=16384
+[JuiceWine] anonymous PE executable section .text at 0x79bb0000 size=16384
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/cryptbase.dll status=00000000 module=0x79bb0000 size=18000
+0024:warn:file:NtCreateFile L"\\??\\Z:\\private\\var\\containers\\Bundle\\Application\\124F0A70-2EFF-40C7-B2F9-D71B571C9E11\\Juice.app\\Grape-X64\\tests\\ncrypt.dll" not found (c0000034)
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/dlls/ncrypt/i386-windows/ncrypt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/build/wine-ios/programs/ncrypt.dll/i386-windows/ncrypt.dll machine=0000 status=c0000135
+[JuiceHybrid] open name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/ncrypt.dll machine=0000 status=00000000
+[JuiceWine] host-page expanding executable section .text: section=0x79b81000 mapping=0x79b80000 size=32768
+[JuiceWine] anonymous PE executable section .text at 0x79b80000 size=32768
+[JuiceHybrid] map name=/private/var/containers/Bundle/Application/124F0A70-2EFF-40C7-B2F9-D71B571C9E11/Juice.app/Grape-X64/runtime/lib/wine/i386-windows/ncrypt.dll status=00000000 module=0x79b80000 size=1a000
+[JuiceWine] redirected KUSER_SHARED_DATA fault addr=0x7ffe03d8 pc=0x2bed0c044 to 0x17ffe0000
+[JuiceWine] redirected KUSER_SHARED_DATA fault addr=0x7ffe03dc pc=0x2bed0c060 to 0x17ffe0000
+0024:warn:crypt:process_attach GNUTLS_SYSTEM_PRIORITY_FILE is "/dev/null".
+[JuiceX18] broad #32 pc=0x1030b5964 fault=0x378 instr=f941be4a x8=0x99 x16=0x1030b5850 x17=0x10020ee60 x18=0x0 teb=0x7ffe8000
+0024:trace:wininet:netconn_verify_cert verifying L"example.com"
+0024:warn:chain:CRYPT_KeyUsageValid keyCertSign not asserted on a CA cert
+0024:warn:chain:CRYPT_KeyUsageValid keyCertSign not asserted on a CA cert
+0024:trace:wininet:netcon_secure_connect_setup established SSL connection
+0024:trace:secur32:QueryContextAttributesW 002AC014 90 0012E8A0
+0024:trace:secur32:schan_QueryContextAttributesW context_handle 002AC014, attribute 0x5a, buffer 0012E8A0
+0024:fixme:secur32:get_cipher_algid unknown algorithm 23
+0024:fixme:secur32:get_mac_algid unknown algorithm 200, cipher 23
+0024:trace:wininet:build_request_header Adding custom header L"Host" (L"example.com")
+0024:trace:wininet:build_request_header Adding custom header L"User-Agent" (L"JuiceNetworkSmoke/1.0")
+0024:trace:wininet:create_request Request header -> L"GET / HTTP/1.1\r\nHost: example.com\r\nUser-Agent: JuiceNetworkSmoke/1.0\r\n\r\n"
+0024:trace:wininet:create_request full request -> "GET / HTTP/1.1\r\nHost: example.com\r\nUser-Agent: JuiceNetworkSmoke/1.0\r\n\r\n"
+0024:trace:winsock:setsockopt socket 0xac, level SOL_SOCKET, name SO_SNDTIMEO, optval 0012EAC0 (60000), optlen 4
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x1203b8, in_buffer 0x12eac0, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_setsockopt status 0.
+0024:trace:secur32:EncryptMessage 002AC014 0 0012EA80 0
+0024:trace:secur32:schan_EncryptMessage context_handle 002AC014, quality 0, message 0012EA80, message_seq_no 0
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012EA80:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 5, BufferType 0x7 pvBuffer 0031DDF8
+0024:trace:secur32:dump_buffer_desc 	buffer 1: cbBuffer 72, BufferType 0x1 pvBuffer 0031DDFD
+0024:trace:secur32:dump_buffer_desc 	buffer 2: cbBuffer 256, BufferType 0x6 pvBuffer 0031DE45
+0024:trace:secur32:dump_buffer_desc 	buffer 3: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:push_adapter Push 93 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 5, BufferType 0x7, pvBuffer 0x31ddf8
+0024:trace:secur32:push_adapter Wrote 5 bytes
+0024:trace:secur32:push_adapter Push 88 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 5, BufferType 0x7, pvBuffer 0x31ddf8
+0024:trace:secur32:push_adapter Wrote 72 bytes
+0024:trace:secur32:push_adapter Push 16 bytes
+0024:trace:secur32:get_buffer Using buffer 1: cbBuffer 72, BufferType 0x1, pvBuffer 0x31ddfd
+0024:trace:secur32:push_adapter Wrote 16 bytes
+0024:trace:secur32:schan_send sent 72 now 72/72
+0024:trace:secur32:schan_EncryptMessage Returning 0.
+0024:trace:winsock:WS2_sendto socket 0xac, buffers 0012EA28, buffer_count 1, flags 0, addr 00000000, addr_len 0, overlapped 00000000, completion 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120338, in_buffer 0x12e9c8, in_size 32, out_buffer 0x0, out_size 0
+0024:trace:winsock:WS2_sendto status 0.
+0024:trace:wininet:HTTP_GetResponseHeaders -->
+0024:trace:winsock:setsockopt socket 0xac, level SOL_SOCKET, name SO_RCVTIMEO, optval 0012BA8C (60000), optlen 4
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x12039c, in_buffer 0x12ba8c, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_setsockopt status 0.
+0024:trace:winsock:WS2_recv_base socket 0xac, buffers 0012B9A8, buffer_count 1, flags 0, addr 00000000, addr_len -1, overlapped 00000000, completion 00000000, control 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120334, in_buffer 0x12b938, in_size 48, out_buffer 0x0, out_size 0
+0024:trace:winsock:async_recv_proc 0x101
+0024:trace:winsock:async_recv_proc got status 0, 0x394 bytes read
+0024:trace:winsock:WS2_recv_base status 0.
+0024:trace:secur32:DecryptMessage 002AC014 0012B9D4 0 00000000
+0024:trace:secur32:schan_DecryptMessage context_handle 002AC014, message 0012B9D4, message_seq_no 0, quality 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012B9D4:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 916, BufferType 0x1 pvBuffer 0031DDF8
+0024:trace:secur32:dump_buffer_desc 	buffer 1: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:dump_buffer_desc 	buffer 2: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:dump_buffer_desc 	buffer 3: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 916, BufferType 0x1, pvBuffer 0x31ddf8
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 885 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 916, BufferType 0x1, pvBuffer 0x31ddf8
+0024:trace:secur32:pull_adapter Read 885 bytes
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 916, BufferType 0x1, pvBuffer 0x31ddf8
+0024:trace:secur32:get_buffer No next buffer
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[_gnutls_io_read_buffered]:568
+0024:trace:secur32:gnutls_log <3> ASSERT: record.c[_gnutls_recv_int]:1759
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 916, BufferType 0x1, pvBuffer 0x31ddf8
+0024:trace:secur32:get_buffer No next buffer
+0024:trace:secur32:schan_DecryptMessage Received 869 bytes
+0024:trace:wininet:NETCON_recv received 869 bytes
+0024:trace:wininet:read_line returning "HTTP/1.1 200 OK"
+0024:trace:wininet:HTTP_GetResponseHeaders version [L"HTTP/1.1"] status code [L"200"] status text [L"OK"]
+0024:trace:wininet:HTTP_ProcessHeader --> L"Status": L"200" - 0xa0000000
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Status", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Status": L"200"
+0024:trace:wininet:read_line returning "Date: Mon, 24 Aug 2026 07:31:27 GMT"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Date: Mon, 24 Aug 2026 07:31:27 GMT", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Date") Value(L"Mon, 24 Aug 2026 07:31:27 GMT")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Date": L"Mon, 24 Aug 2026 07:31:27 GMT" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Date": L"Mon, 24 Aug 2026 07:31:27 GMT"
+0024:trace:wininet:read_line returning "Content-Type: text/html"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Content-Type: text/html", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Content-Type") Value(L"text/html")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Content-Type": L"text/html" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Content-Type": L"text/html"
+0024:trace:wininet:read_line returning "Transfer-Encoding: chunked"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Transfer-Encoding: chunked", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Transfer-Encoding") Value(L"chunked")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Transfer-Encoding": L"chunked" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Transfer-Encoding": L"chunked"
+0024:trace:wininet:read_line returning "Connection: keep-alive"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Connection: keep-alive", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Connection") Value(L"keep-alive")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Connection": L"keep-alive" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Connection": L"keep-alive"
+0024:trace:wininet:read_line returning "Server: cloudflare"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Server: cloudflare", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Server") Value(L"cloudflare")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Server": L"cloudflare" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Server": L"cloudflare"
+0024:trace:wininet:read_line returning "last-modified: Wed, 12 Aug 2026 20:17:18 GMT"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "last-modified: Wed, 12 Aug 2026 20:17:18 GMT", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"last-modified") Value(L"Wed, 12 Aug 2026 20:17:18 GMT")
+0024:trace:wininet:HTTP_ProcessHeader --> L"last-modified": L"Wed, 12 Aug 2026 20:17:18 GMT" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"last-modified": L"Wed, 12 Aug 2026 20:17:18 GMT"
+0024:trace:wininet:read_line returning "allow: GET, HEAD"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "allow: GET, HEAD", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"allow") Value(L"GET, HEAD")
+0024:trace:wininet:HTTP_ProcessHeader --> L"allow": L"GET, HEAD" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"allow": L"GET, HEAD"
+0024:trace:wininet:read_line returning "Accept-Ranges: bytes"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Accept-Ranges: bytes", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Accept-Ranges") Value(L"bytes")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Accept-Ranges": L"bytes" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Accept-Ranges": L"bytes"
+0024:trace:wininet:read_line returning "Age: 13907"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "Age: 13907", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"Age") Value(L"13907")
+0024:trace:wininet:HTTP_ProcessHeader --> L"Age": L"13907" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"Age": L"13907"
+0024:trace:wininet:read_line returning "cf-cache-status: HIT"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "cf-cache-status: HIT", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"cf-cache-status") Value(L"HIT")
+0024:trace:wininet:HTTP_ProcessHeader --> L"cf-cache-status": L"HIT" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"cf-cache-status": L"HIT"
+0024:trace:wininet:read_line returning "CF-RAY: a300a852788a120c-PER"
+0024:trace:wininet:HTTP_GetResponseHeaders got line "CF-RAY: a300a852788a120c-PER", now interpreting
+0024:trace:wininet:HTTP_InterpretHttpHeader field(L"CF-RAY") Value(L"a300a852788a120c-PER")
+0024:trace:wininet:HTTP_ProcessHeader --> L"CF-RAY": L"a300a852788a120c-PER" - 0x20000000
+0024:trace:wininet:HTTP_InsertCustomHeader --> L"CF-RAY": L"a300a852788a120c-PER"
+0024:trace:wininet:read_line returning ""
+0024:trace:wininet:HTTP_GetResponseHeaders got line "", now interpreting
+0024:trace:wininet:HTTP_GetResponseHeaders <--
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Connection", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 6
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Set-Cookie", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Cache-Control", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Expires", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Last-Modified", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 8
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Content-Length", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: -1
+0024:trace:wininet:HTTP_GetCustomHeaderIndex L"Transfer-Encoding", 0, 0
+0024:trace:wininet:HTTP_GetCustomHeaderIndex Return: 5
+0024:trace:wininet:HTTP_HttpQueryInfoW ! returning string: L"chunked"
+0024:trace:wininet:HTTP_HttpSendRequestW <--
+0024:trace:wininet:WININET_Release object 002A98F8 refcount = 1
+0024:trace:wininet:HttpQueryInfoW (00000003, 0x20000013)--> 19
+0024:trace:wininet:HttpQueryInfoW   Attribute: HTTP_QUERY_STATUS_CODE Modifier: HTTP_QUERY_FLAG_NUMBER
+0024:trace:wininet:WININET_AddRef 002A98F8 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 3 -> 002A98F8
+0024:trace:wininet:WININET_Release object 002A98F8 refcount = 1
+0024:trace:wininet:HttpQueryInfoW 0 <--
+0024:trace:wininet:InternetReadFile 00000003 0012FB70 512 0012FB64
+0024:trace:wininet:WININET_AddRef 002A98F8 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 3 -> 002A98F8
+0024:trace:wininet:HTTPREQ_ReadFile (002A98F8 0012FB70 512 0)
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read reading 559 byte chunk
+0024:trace:wininet:chunked_read state 1
+0024:trace:wininet:chunked_read state 1
+0024:trace:wininet:chunked_read state 2
+0024:trace:wininet:chunked_read state 2
+0024:trace:wininet:chunked_read read 512 bytes
+0024:trace:wininet:HTTPREQ_Read retrieved 512 bytes (res 0)
+0024:trace:wininet:WININET_Release object 002A98F8 refcount = 1
+0024:trace:wininet:InternetReadFile -- TRUE (0) (bytes read: 512)
+0024:trace:wininet:InternetCloseHandle 00000003
+0024:trace:wininet:WININET_AddRef 002A98F8 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 3 -> 002A98F8
+0024:trace:wininet:WININET_Release object 002A98F8 refcount = 1
+0024:trace:wininet:WININET_Release object 002A98F8 refcount = 0
+0024:trace:wininet:WININET_Release closing connection 002A98F8
+0024:trace:wininet:drain_content 002AC008
+0024:trace:wininet:chunked_read state 2
+0024:trace:wininet:chunked_read state 3
+0024:trace:wininet:chunked_read state 3
+0024:trace:wininet:chunked_read state 0
+0024:trace:winsock:WSAIoctl socket 0xac, FIONBIO, in_buff 0012F654, in_size 0x4, out_buff 0012F654, out_size 0x4, ret_size 0012F5F0, overlapped 00000000, completion 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120344, in_buffer 0x12f654, in_size 4, out_buffer 0x0, out_size 0
+0024:trace:winsock:server_ioctl_sock status 0.
+0024:trace:winsock:WS2_recv_base socket 0xac, buffers 0012F5DC, buffer_count 1, flags 0, addr 00000000, addr_len -1, overlapped 00000000, completion 00000000, control 00000000
+0024:trace:winsock:sock_ioctl handle 0xac, code 0x120334, in_buffer 0x12f570, in_size 48, out_buffer 0x0, out_size 0
+0024:trace:winsock:WS2_recv_base status 0xc00000a3.
+0024:trace:secur32:DecryptMessage 002AC014 0012F608 0 00000000
+0024:trace:secur32:schan_DecryptMessage context_handle 002AC014, message 0012F608, message_seq_no 0, quality 00000000
+0024:trace:secur32:dump_buffer_desc Buffer desc 0012F608:
+0024:trace:secur32:dump_buffer_desc 	buffer 0: cbBuffer 26, BufferType 0x1 pvBuffer 0031DDF8
+0024:trace:secur32:dump_buffer_desc 	buffer 1: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:dump_buffer_desc 	buffer 2: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:dump_buffer_desc 	buffer 3: cbBuffer 0, BufferType 0 pvBuffer 00000000
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 26, BufferType 0x1, pvBuffer 0x31ddf8
+0024:trace:secur32:pull_adapter Read 5 bytes
+0024:trace:secur32:pull_adapter Pull 21 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 26, BufferType 0x1, pvBuffer 0x31ddf8
+0024:trace:secur32:pull_adapter Read 21 bytes
+0024:trace:secur32:pull_adapter Pull 5 bytes
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 26, BufferType 0x1, pvBuffer 0x31ddf8
+0024:trace:secur32:get_buffer No next buffer
+0024:trace:secur32:gnutls_log <3> ASSERT: buffers.c[_gnutls_io_read_buffered]:568
+0024:trace:secur32:gnutls_log <3> ASSERT: record.c[_gnutls_recv_int]:1759
+0024:trace:secur32:get_buffer Using buffer 0: cbBuffer 26, BufferType 0x1, pvBuffer 0x31ddf8
+0024:trace:secur32:get_buffer No next buffer
+0024:trace:secur32:schan_DecryptMessage Received 5 bytes
+0024:trace:wininet:NETCON_recv received 5 bytes
+0024:trace:wininet:chunked_read state 0
+0024:trace:wininet:chunked_read reading 0 byte chunk
+0024:trace:wininet:chunked_read state 1
+0024:trace:wininet:chunked_read state 1
+0024:trace:wininet:chunked_read state 4
+0024:trace:wininet:chunked_read state 4
+0024:trace:wininet:chunked_read state 5
+0024:trace:wininet:chunked_read read 47 bytes
+0024:trace:wininet:http_release_netconn 002A98F8 002AC008 1
+[JuiceWine] redirected KUSER_SHARED_DATA fault addr=0x7ffe0324 pc=0x2bf77c028 to 0x17ffe0000
+[JuiceWine] redirected KUSER_SHARED_DATA fault addr=0x7ffe0320 pc=0x2bf77c048 to 0x17ffe0000
+[JuiceWine] redirected KUSER_SHARED_DATA fault addr=0x7ffe0328 pc=0x2bf77c068 to 0x17ffe0000
+0024:trace:wininet:WININET_Release destroying object 002A98F8
+0024:trace:wininet:HTTPREQ_Destroy 
+0024:trace:wininet:WININET_Release object 002A9878 refcount = 1
+0024:trace:wininet:InternetCloseHandle 00000002
+0024:trace:wininet:WININET_AddRef 002A9878 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 2 -> 002A9878
+0024:trace:wininet:WININET_Release object 002A9878 refcount = 1
+0024:trace:wininet:WININET_Release object 002A9878 refcount = 0
+0024:trace:wininet:WININET_Release destroying object 002A9878
+0024:trace:wininet:HTTPSESSION_Destroy 002A9878
+0024:trace:wininet:WININET_Release object 002A8F78 refcount = 1
+0024:trace:wininet:InternetCloseHandle 00000001
+0024:trace:wininet:WININET_AddRef 002A8F78 -> refcount = 2
+0024:trace:wininet:get_handle_object handle 1 -> 002A8F78
+0024:trace:wininet:WININET_Release object 002A8F78 refcount = 1
+0024:trace:wininet:WININET_Release object 002A8F78 refcount = 0
+0024:trace:wininet:WININET_Release destroying object 002A8F78
+0024:trace:wininet:APPINFO_Destroy 002A8F78
+0024:trace:winsock:WSACleanup decreasing startup count from 2
+0024:trace:wininet:DllMain 7B880000,0,00000001
+[JuiceX18] broad #3 pc=0x1005cdb84 fault=0x378 instr=f941be4a x8=0x2d7ab1000 x16=0x1fb31ee74 x17=0x11fb70 x18=0x0 teb=0x7ffe8000
+[JuiceWine parent] child exited with 0
+[JuiceWine parent] child exited with 100

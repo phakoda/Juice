@@ -1670,7 +1670,7 @@ NTSTATUS WINAPI NtRaiseException( EXCEPTION_RECORD *rec, CONTEXT *context, BOOL 
  * authoritative per-thread source, and preserve the ARM64EC register set for
  * direct calls from FEX-generated code.
  */
-static TEB * __attribute__((preserve_all)) juice_ios_current_teb(void)
+TEB * __attribute__((preserve_all)) juice_ios_current_teb(void)
 {
     struct thread_data *data = get_thread_data();
     TEB *teb = data ? data->teb : NULL;

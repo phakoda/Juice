@@ -1103,6 +1103,16 @@ static BOOL handle_syscall_fault( struct thread_data *data, ucontext_t *context,
     if ((frame = get_syscall_frame( data )))
     {
         TRACE( "returning to user mode ip=%p ret=%08x\n", (void *)frame->pc, rec->ExceptionCode );
+#ifdef __APPLE__
+        /*
+         * The standalone dispatcher return reads syscall_trace through the
+         * TEB saved in frame->x[18].  A fault can arrive after Darwin cleared
+         * physical x18, leaving that slot zero even though this native signal
+         * handler has the canonical TEB.  Repair the frame as well as the
+         * live signal context so the return path cannot loop on TEB+0x380.
+         */
+        frame->x[18] = (ULONG_PTR)data->teb;
+#endif
         REGn_sig(0, context)  = rec->ExceptionCode;
         REGn_sig(18, context) = (ULONG_PTR)data->teb;
         SP_sig(context)       = (ULONG_PTR)frame;
@@ -1707,7 +1717,7 @@ static void segv_handler( int signal, siginfo_t *siginfo, void *_sigcontext )
         fprintf(
             stderr,
             "[JuiceStage] native segv #%d; "
-            "signal=%d code=%d pc=%p instruction=%08x lr=%p "
+            "signal=%d code=%d pc=%p lr=%p "
             "sp=%p x8=%p x16=%p x17=%p x18=%p "
             "addr=%p esr=%016llx ec=%02llx "
             "teb=%p frame=%p\n",
@@ -1715,7 +1725,6 @@ static void segv_handler( int signal, siginfo_t *siginfo, void *_sigcontext )
             signal,
             siginfo->si_code,
             (void *)(ULONG_PTR)PC_sig(sigcontext),
-            !(PC_sig(sigcontext) & 3) ? *(const ULONG *)PC_sig(sigcontext) : 0,
             (void *)(ULONG_PTR)LR_sig(sigcontext),
             (void *)(ULONG_PTR)SP_sig(sigcontext),
             (void *)(ULONG_PTR)
@@ -1754,19 +1763,13 @@ static void segv_handler( int signal, siginfo_t *siginfo, void *_sigcontext )
             (void *)(ULONG_PTR)REGn_sig(14, sigcontext),
             (void *)(ULONG_PTR)REGn_sig(15, sigcontext)
         );
-        if (!(PC_sig(sigcontext) & 3) && PC_sig(sigcontext) >= 0x20)
-        {
-            const ULONG *pc = (const ULONG *)PC_sig(sigcontext);
-
-            fprintf(
-                stderr,
-                "[JuiceStage] native code -20=%08x -1c=%08x -18=%08x "
-                "-14=%08x -10=%08x -0c=%08x -08=%08x -04=%08x "
-                "+00=%08x +04=%08x +08=%08x +0c=%08x\n",
-                pc[-8], pc[-7], pc[-6], pc[-5], pc[-4], pc[-3],
-                pc[-2], pc[-1], pc[0], pc[1], pc[2], pc[3]
-            );
-        }
+        /*
+         * Never read the instruction stream from a synchronous signal
+         * handler.  Execute faults can report an unmapped PC; probing that
+         * address here recursively faults inside segv_handler and prevents
+         * Wine/FEX from handling the original exception.  The PC, ESR and
+         * register dump above are sufficient for safe diagnostics.
+         */
         fflush( stderr );
     }
 
@@ -2380,6 +2383,85 @@ __ASM_GLOBAL_FUNC( signal_start_thread,
  */
 __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "hint 34\n\t" /* bti c */
+#ifdef __APPLE__
+                   /*
+                    * Darwin may clear its platform-reserved x18 while
+                    * returning from native code.  Recover the Wine TEB from
+                    * pthread TLS before touching thread_data.  This is a
+                    * normal call rather than a deliberate SIGSEGV: save the
+                    * complete volatile integer/vector state plus the status
+                    * registers that the dispatcher records for Windows.
+                    */
+                   "cbnz x18, 1f\n\t"
+                   "sub sp, sp, #0x2c0\n\t"
+                   "stp x0,  x1,  [sp, #0x000]\n\t"
+                   "stp x2,  x3,  [sp, #0x010]\n\t"
+                   "stp x4,  x5,  [sp, #0x020]\n\t"
+                   "stp x6,  x7,  [sp, #0x030]\n\t"
+                   "stp x8,  x9,  [sp, #0x040]\n\t"
+                   "stp x10, x11, [sp, #0x050]\n\t"
+                   "stp x12, x13, [sp, #0x060]\n\t"
+                   "stp x14, x15, [sp, #0x070]\n\t"
+                   "stp x16, x17, [sp, #0x080]\n\t"
+                   "str x30, [sp, #0x090]\n\t"
+                   "mrs x0, NZCV\n\t"
+                   "str x0, [sp, #0x0a0]\n\t"
+                   "mrs x0, FPCR\n\t"
+                   "str x0, [sp, #0x0a8]\n\t"
+                   "mrs x0, FPSR\n\t"
+                   "str x0, [sp, #0x0b0]\n\t"
+                   "stp q0,  q1,  [sp, #0x0c0]\n\t"
+                   "stp q2,  q3,  [sp, #0x0e0]\n\t"
+                   "stp q4,  q5,  [sp, #0x100]\n\t"
+                   "stp q6,  q7,  [sp, #0x120]\n\t"
+                   "stp q8,  q9,  [sp, #0x140]\n\t"
+                   "stp q10, q11, [sp, #0x160]\n\t"
+                   "stp q12, q13, [sp, #0x180]\n\t"
+                   "stp q14, q15, [sp, #0x1a0]\n\t"
+                   "stp q16, q17, [sp, #0x1c0]\n\t"
+                   "stp q18, q19, [sp, #0x1e0]\n\t"
+                   "stp q20, q21, [sp, #0x200]\n\t"
+                   "stp q22, q23, [sp, #0x220]\n\t"
+                   "stp q24, q25, [sp, #0x240]\n\t"
+                   "stp q26, q27, [sp, #0x260]\n\t"
+                   "stp q28, q29, [sp, #0x280]\n\t"
+                   "stp q30, q31, [sp, #0x2a0]\n\t"
+                   "bl " __ASM_NAME("juice_ios_current_teb") "\n\t"
+                   "ldp q0,  q1,  [sp, #0x0c0]\n\t"
+                   "ldp q2,  q3,  [sp, #0x0e0]\n\t"
+                   "ldp q4,  q5,  [sp, #0x100]\n\t"
+                   "ldp q6,  q7,  [sp, #0x120]\n\t"
+                   "ldp q8,  q9,  [sp, #0x140]\n\t"
+                   "ldp q10, q11, [sp, #0x160]\n\t"
+                   "ldp q12, q13, [sp, #0x180]\n\t"
+                   "ldp q14, q15, [sp, #0x1a0]\n\t"
+                   "ldp q16, q17, [sp, #0x1c0]\n\t"
+                   "ldp q18, q19, [sp, #0x1e0]\n\t"
+                   "ldp q20, q21, [sp, #0x200]\n\t"
+                   "ldp q22, q23, [sp, #0x220]\n\t"
+                   "ldp q24, q25, [sp, #0x240]\n\t"
+                   "ldp q26, q27, [sp, #0x260]\n\t"
+                   "ldp q28, q29, [sp, #0x280]\n\t"
+                   "ldp q30, q31, [sp, #0x2a0]\n\t"
+                   "ldr x0, [sp, #0x0a0]\n\t"
+                   "msr NZCV, x0\n\t"
+                   "ldr x0, [sp, #0x0a8]\n\t"
+                   "msr FPCR, x0\n\t"
+                   "ldr x0, [sp, #0x0b0]\n\t"
+                   "msr FPSR, x0\n\t"
+                   "ldr x30, [sp, #0x090]\n\t"
+                   "ldp x16, x17, [sp, #0x080]\n\t"
+                   "ldp x14, x15, [sp, #0x070]\n\t"
+                   "ldp x12, x13, [sp, #0x060]\n\t"
+                   "ldp x10, x11, [sp, #0x050]\n\t"
+                   "ldp x8,  x9,  [sp, #0x040]\n\t"
+                   "ldp x6,  x7,  [sp, #0x030]\n\t"
+                   "ldp x4,  x5,  [sp, #0x020]\n\t"
+                   "ldp x2,  x3,  [sp, #0x010]\n\t"
+                   "ldp x0,  x1,  [sp, #0x000]\n\t"
+                   "add sp, sp, #0x2c0\n"
+                   "1:\n\t"
+#endif
                    "ldr x10, [x18, #0x378]\n\t" /* thread_data->syscall_frame */
                    "stp x18, x19, [x10, #0x90]\n\t"
                    "stp x20, x21, [x10, #0xa0]\n\t"
@@ -2387,6 +2469,18 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "stp x24, x25, [x10, #0xc0]\n\t"
                    "stp x26, x27, [x10, #0xd0]\n\t"
                    "stp x28, x29, [x10, #0xe0]\n\t"
+#ifdef __APPLE__
+                   /*
+                    * x18 is Darwin-reserved and may disappear after the
+                    * dispatcher has begun.  Once the guest callee-saved
+                    * registers are in the syscall frame, keep the known-good
+                    * TEB in x24.  Native service functions preserve x24, so
+                    * subsequent table/trace lookups avoid both repeated x18
+                    * dependencies and signal-based recovery.  The hot path
+                    * pays one cached load, not a pthread-TLS call.
+                    */
+                   "ldr x24, [x10, #0x90]\n\t"
+#endif
                    "mov x19, sp\n\t"
                    "stp x9, x19, [x10, #0xf0]\n\t"
                    "mrs x9, NZCV\n\t"
@@ -2431,7 +2525,11 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    __ASM_CFI(".cfi_offset 28, -0x68\n\t")
                    "and x20, x8, #0xfff\n\t"    /* syscall number */
                    "ubfx x21, x8, #12, #2\n\t"  /* syscall table number */
+#ifdef __APPLE__
+                   "ldr x16, [x24, #0x370]\n\t" /* thread_data->syscall_table */
+#else
                    "ldr x16, [x18, #0x370]\n\t" /* thread_data->syscall_table */
+#endif
                    "add x21, x16, x21, lsl #5\n\t"
                    "ldr x16, [x21, #16]\n\t"    /* table->ServiceLimit */
                    "cmp x20, x16\n\t"
@@ -2449,7 +2547,11 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "cbnz x9, 1b\n"
                    "2:\tldr x16, [x21]\n\t"     /* table->ServiceTable */
                    "ldr x23, [x16, x20, lsl 3]\n\t"
+#ifdef __APPLE__
+                   "ldr w11, [x24, #0x380]\n\t" /* thread_data->syscall_trace */
+#else
                    "ldr w11, [x18, #0x380]\n\t" /* thread_data->syscall_trace */
+#endif
                    "cbnz x11, " __ASM_LOCAL_LABEL("trace_syscall") "\n\t"
                    "blr x23\n\t"
                    "mov sp, x22\n"
@@ -2536,7 +2638,12 @@ __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher,
                    "b " __ASM_LOCAL_LABEL("__wine_syscall_dispatcher_return") )
 
 __ASM_GLOBAL_FUNC( __wine_syscall_dispatcher_return,
+#ifdef __APPLE__
+                   "ldr x11, [sp, #0x90]\n\t" /* saved TEB */
+                   "ldr w11, [x11, #0x380]\n\t" /* thread_data->syscall_trace */
+#else
                    "ldr w11, [x18, #0x380]\n\t" /* thread_data->syscall_trace */
+#endif
                    "cbnz x11, " __ASM_LOCAL_LABEL("trace_syscall_ret") "\n\t"
                    "b " __ASM_LOCAL_LABEL("__wine_syscall_dispatcher_return") )
 

@@ -58,7 +58,7 @@ export WINEPREFIX="$PREFIX"
 export WINELOADER="$GRAPE/tools/grape-nested-wrapper"
 export WINELOADERNOEXEC=1
 export WINESERVER="$SERVER"
-export WINEDLLPATH="$PE_ROOT:$NATIVE/crypt32:$NATIVE/wineios.drv:$NATIVE/winevulkan:$NATIVE/win32u:$NATIVE/ws2_32"
+export WINEDLLPATH="$PE_ROOT:$NATIVE/crypt32:$NATIVE/dnsapi:$NATIVE/wineios.drv:$NATIVE/winevulkan:$NATIVE/win32u:$NATIVE/ws2_32"
 export DYLD_LIBRARY_PATH="${DYLD_LIBRARY_PATH:-/var/jb/usr/lib}"
 export JUICE_IOS_SOCKET="$SOCKET"
 # This runner verifies the translator, not prefix initialization.  Keep the

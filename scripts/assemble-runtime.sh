@@ -17,6 +17,7 @@ rm -rf "$GRAPE"
 mkdir -p "$GRAPE/build/wine-ios/server" "$GRAPE/build/wine-ios/loader" \
   "$GRAPE/build/wine-ios/dlls/ntdll/aarch64-windows" \
   "$GRAPE/build/wine-ios/dlls/crypt32" \
+  "$GRAPE/build/wine-ios/dlls/dnsapi" \
   "$GRAPE/build/wine-ios/dlls/secur32" \
   "$GRAPE/build/wine-ios/dlls/dwrite" \
   "$GRAPE/build/wine-ios/dlls/mountmgr.sys" \
@@ -40,6 +41,7 @@ cp "$NATIVE/dlls/ntdll/ntdll.so" "$GRAPE/build/wine-ios/dlls/ntdll/"
 cp "$PEBUILD/dlls/ntdll/aarch64-windows/ntdll.dll" \
   "$GRAPE/build/wine-ios/dlls/ntdll/aarch64-windows/"
 cp "$NATIVE/dlls/crypt32/crypt32.so" "$GRAPE/build/wine-ios/dlls/crypt32/"
+cp "$NATIVE/dlls/dnsapi/dnsapi.so" "$GRAPE/build/wine-ios/dlls/dnsapi/"
 cp "$NATIVE/dlls/secur32/secur32.so" "$GRAPE/build/wine-ios/dlls/secur32/"
 dwrite_unixlib=0
 if test -s "$NATIVE/dlls/dwrite/dwrite.so"; then
@@ -67,6 +69,7 @@ cp "$NATIVE/dlls/wineios.drv/wineios.so" "$GRAPE/runtime/lib/wine/aarch64-window
 cp "$NATIVE/dlls/winevulkan/winevulkan.so" "$GRAPE/runtime/lib/wine/aarch64-windows/winevulkan.so"
 cp "$NATIVE/dlls/ws2_32/ws2_32.so" "$GRAPE/runtime/lib/wine/aarch64-windows/ws2_32.so"
 cp "$NATIVE/dlls/crypt32/crypt32.so" "$GRAPE/runtime/lib/wine/aarch64-windows/crypt32.so"
+cp "$NATIVE/dlls/dnsapi/dnsapi.so" "$GRAPE/runtime/lib/wine/aarch64-windows/dnsapi.so"
 cp "$NATIVE/dlls/secur32/secur32.so" "$GRAPE/runtime/lib/wine/aarch64-windows/secur32.so"
 if test "$dwrite_unixlib" = 1; then
   cp "$NATIVE/dlls/dwrite/dwrite.so" "$GRAPE/runtime/lib/wine/aarch64-windows/dwrite.so"
@@ -83,6 +86,7 @@ cp "$NATIVE/dlls/win32u/win32u.so" "$GRAPE/runtime/lib/wine/aarch64-windows/win3
 UNIX_RUNTIME="$GRAPE/runtime/lib/wine/aarch64-unix"
 cp "$NATIVE/dlls/ntdll/ntdll.so" "$UNIX_RUNTIME/ntdll.so"
 cp "$NATIVE/dlls/crypt32/crypt32.so" "$UNIX_RUNTIME/crypt32.so"
+cp "$NATIVE/dlls/dnsapi/dnsapi.so" "$UNIX_RUNTIME/dnsapi.so"
 cp "$NATIVE/dlls/secur32/secur32.so" "$UNIX_RUNTIME/secur32.so"
 cp "$NATIVE/dlls/mountmgr.sys/mountmgr.so" "$UNIX_RUNTIME/mountmgr.so"
 cp "$NATIVE/dlls/opengl32/opengl32.so" "$UNIX_RUNTIME/opengl32.so"
