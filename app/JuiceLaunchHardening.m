@@ -9,8 +9,7 @@
 #import <sys/wait.h>
 #import <unistd.h>
 
-static void (*JuiceOriginalLaunchTapped)(id, SEL);
-static void (*JuiceOriginalStopTapped)(id, SEL);
+static char JuiceForegroundProcessGroupKey;
 
 static id JuiceLaunchValue(id self, NSString *key)
 {
@@ -58,7 +57,6 @@ static char **JuiceCopyStrings(NSArray<NSString *> *strings)
 {
     char **result = calloc(strings.count + 1, sizeof(*result));
     if (!result) return NULL;
-
     for (NSUInteger index = 0; index < strings.count; index++)
     {
         const char *utf8 = strings[index].UTF8String;
@@ -81,16 +79,18 @@ static void JuiceFreeStrings(char **strings)
 
 static BOOL JuiceIsWhitespace(unichar character)
 {
-    static NSCharacterSet *whitespace;
+    static NSCharacterSet *set;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ whitespace = NSCharacterSet.whitespaceAndNewlineCharacterSet; });
-    return [whitespace characterIsMember:character];
+    dispatch_once(&once, ^{ set = NSCharacterSet.whitespaceAndNewlineCharacterSet; });
+    return [set characterIsMember:character];
 }
 
+/* Shell-like quoting for the UIKit argument field without treating ordinary
+   Windows backslashes as escapes. Backslash only escapes whitespace, a quote,
+   or another backslash; C:\Program Files therefore remains intact. */
 static NSArray<NSString *> *JuiceParseArguments(NSString *line, NSString **failure)
 {
     if (!line.length) return @[];
-
     NSMutableArray<NSString *> *arguments = [NSMutableArray array];
     NSMutableString *current = [NSMutableString string];
     unichar quote = 0;
@@ -99,7 +99,6 @@ static NSArray<NSString *> *JuiceParseArguments(NSString *line, NSString **failu
     for (NSUInteger index = 0; index < line.length; index++)
     {
         unichar character = [line characterAtIndex:index];
-
         if (quote)
         {
             if (character == quote)
@@ -175,7 +174,6 @@ static void JuiceRefreshServerState(id self)
 {
     pid_t server = [JuiceLaunchValue(self, @"server") intValue];
     if (server <= 0) return;
-
     int status = 0;
     pid_t waited = waitpid(server, &status, WNOHANG);
     if (waited == server || (waited < 0 && errno == ECHILD && !JuiceProcessExists(server)))
@@ -186,11 +184,34 @@ static void JuiceRefreshServerState(id self)
     }
 }
 
+static BOOL JuiceInitSpawnAttributes(posix_spawnattr_t *attributes, BOOL newProcessGroup,
+                                     BOOL *processGroupEnabled)
+{
+    if (processGroupEnabled) *processGroupEnabled = NO;
+    if (posix_spawnattr_init(attributes) != 0) return NO;
+
+    short flags = 0;
+#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
+    flags |= POSIX_SPAWN_CLOEXEC_DEFAULT;
+#endif
+    if (newProcessGroup && posix_spawnattr_setpgroup(attributes, 0) == 0)
+    {
+        flags |= POSIX_SPAWN_SETPGROUP;
+        if (processGroupEnabled) *processGroupEnabled = YES;
+    }
+    if (posix_spawnattr_setflags(attributes, flags) != 0)
+    {
+        posix_spawnattr_destroy(attributes);
+        if (processGroupEnabled) *processGroupEnabled = NO;
+        return NO;
+    }
+    return YES;
+}
+
 static BOOL JuiceStartServerIfNeeded(id self, NSString *serverPath, NSArray<NSString *> *environment)
 {
     JuiceRefreshServerState(self);
-    pid_t current = [JuiceLaunchValue(self, @"server") intValue];
-    if (current > 0) return YES;
+    if ([JuiceLaunchValue(self, @"server") intValue] > 0) return YES;
 
     char **env = JuiceCopyStrings(environment);
     char **argv = JuiceCopyStrings(@[serverPath, @"-f"]);
@@ -203,17 +224,22 @@ static BOOL JuiceStartServerIfNeeded(id self, NSString *serverPath, NSArray<NSSt
     }
 
     posix_spawn_file_actions_t actions;
-    int actionStatus = posix_spawn_file_actions_init(&actions);
+    BOOL actionsReady = posix_spawn_file_actions_init(&actions) == 0;
+    int actionStatus = actionsReady ? 0 : ENOMEM;
     if (!actionStatus)
-    {
         actionStatus = posix_spawn_file_actions_addopen(&actions, 1, "/dev/null", O_WRONLY, 0);
-        if (!actionStatus) actionStatus = posix_spawn_file_actions_adddup2(&actions, 1, 2);
-    }
+    if (!actionStatus)
+        actionStatus = posix_spawn_file_actions_adddup2(&actions, 1, 2);
 
+    posix_spawnattr_t attributes;
+    BOOL attributesReady = JuiceInitSpawnAttributes(&attributes, NO, NULL);
     pid_t serverPID = -1;
     int spawnStatus = actionStatus ?: posix_spawn(&serverPID, serverPath.fileSystemRepresentation,
-                                                   &actions, NULL, argv, env);
-    if (!actionStatus) posix_spawn_file_actions_destroy(&actions);
+                                                   actionsReady ? &actions : NULL,
+                                                   attributesReady ? &attributes : NULL,
+                                                   argv, env);
+    if (actionsReady) posix_spawn_file_actions_destroy(&actions);
+    if (attributesReady) posix_spawnattr_destroy(&attributes);
     JuiceFreeStrings(argv);
     JuiceFreeStrings(env);
 
@@ -226,9 +252,14 @@ static BOOL JuiceStartServerIfNeeded(id self, NSString *serverPath, NSArray<NSSt
     }
 
     JuiceLaunchSetValue(self, @"server", @(serverPID));
-    JuiceLaunchAppend(self, [NSString stringWithFormat:@"Wine server: 0 pid=%d\n", serverPID]);
-    /* Keep the historical startup grace period, but shorter; Wine's loader
-       will still synchronize with wineserver if it needs longer. */
+    JuiceLaunchAppend(self, [NSString stringWithFormat:
+        @"Wine server: 0 pid=%d cloexec_default=%d\n", serverPID,
+#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
+        1
+#else
+        0
+#endif
+    ]);
     usleep(150000);
     return YES;
 }
@@ -244,15 +275,17 @@ static void JuiceTerminateForeground(id self)
 
     pid_t child = [JuiceLaunchValue(self, @"child") intValue];
     if (child <= 0) return;
+    BOOL hasGroup = [objc_getAssociatedObject(self, &JuiceForegroundProcessGroupKey) boolValue];
+    objc_setAssociatedObject(self, &JuiceForegroundProcessGroupKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
     errno = 0;
-    int groupResult = kill(-child, SIGTERM);
-    int groupError = errno;
-    if (groupResult != 0) kill(child, SIGTERM);
+    int result = hasGroup ? kill(-child, SIGTERM) : kill(child, SIGTERM);
+    int saved = errno;
+    if (result != 0 && hasGroup) result = kill(child, SIGTERM);
     JuiceLaunchSetValue(self, @"child", @(-1));
     JuiceLaunchAppend(self, [NSString stringWithFormat:
-        @"FOREGROUND_STOP pid=%d group=%d group_errno=%d\n",
-        child, groupResult == 0, groupError]);
+        @"FOREGROUND_STOP pid=%d pgroup=%d result=%d errno=%d\n",
+        child, hasGroup, result, saved]);
 }
 
 static NSString *JuiceDecodeLogData(NSData *data)
@@ -266,50 +299,51 @@ static NSString *JuiceDecodeLogData(NSData *data)
 static void JuiceConsumeChildOutput(id self, int readFD, pid_t childPID, int inputFD)
 {
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-        NSMutableData *pending = [NSMutableData data];
-        uint8_t buffer[4096];
-
-        for (;;)
+        @autoreleasepool
         {
-            ssize_t count = read(readFD, buffer, sizeof(buffer));
-            if (count < 0 && errno == EINTR) continue;
-            if (count <= 0) break;
-            [pending appendBytes:buffer length:(NSUInteger)count];
-
-            const uint8_t *bytes = pending.bytes;
-            NSUInteger start = 0;
-            for (NSUInteger index = 0; index < pending.length; index++)
+            NSMutableData *pending = [NSMutableData data];
+            uint8_t buffer[4096];
+            for (;;)
             {
-                if (bytes[index] != '\n') continue;
-                NSUInteger length = index + 1 - start;
-                NSData *line = [NSData dataWithBytes:bytes + start length:length];
-                JuiceLaunchAppend(self, JuiceDecodeLogData(line));
-                start = index + 1;
-            }
-            if (start)
-                [pending replaceBytesInRange:NSMakeRange(0, start) withBytes:NULL length:0];
+                ssize_t count = read(readFD, buffer, sizeof(buffer));
+                if (count < 0 && errno == EINTR) continue;
+                if (count <= 0) break;
+                [pending appendBytes:buffer length:(NSUInteger)count];
 
-            /* A program that emits megabytes without newlines must not make
-               this line buffer itself unbounded. */
-            if (pending.length >= 64 * 1024)
-            {
-                JuiceLaunchAppend(self, JuiceDecodeLogData(pending));
-                [pending setLength:0];
+                const uint8_t *bytes = pending.bytes;
+                NSUInteger start = 0;
+                for (NSUInteger index = 0; index < pending.length; index++)
+                {
+                    if (bytes[index] != '\n') continue;
+                    NSData *line = [NSData dataWithBytes:bytes + start length:index + 1 - start];
+                    JuiceLaunchAppend(self, JuiceDecodeLogData(line));
+                    start = index + 1;
+                }
+                if (start)
+                    [pending replaceBytesInRange:NSMakeRange(0, start) withBytes:NULL length:0];
+                if (pending.length >= 64 * 1024)
+                {
+                    JuiceLaunchAppend(self, JuiceDecodeLogData(pending));
+                    [pending setLength:0];
+                }
             }
+            if (pending.length) JuiceLaunchAppend(self, JuiceDecodeLogData(pending));
         }
-        if (pending.length) JuiceLaunchAppend(self, JuiceDecodeLogData(pending));
         close(readFD);
 
         int status = 0;
         pid_t waited;
         do { waited = waitpid(childPID, &status, 0); }
         while (waited < 0 && errno == EINTR);
+        int waitError = waited < 0 ? errno : 0;
 
         dispatch_async(dispatch_get_main_queue(), ^{
-            pid_t currentChild = [JuiceLaunchValue(self, @"child") intValue];
-            if (currentChild == childPID)
+            pid_t current = [JuiceLaunchValue(self, @"child") intValue];
+            if (current == childPID)
             {
                 JuiceLaunchSetValue(self, @"child", @(-1));
+                objc_setAssociatedObject(self, &JuiceForegroundProcessGroupKey, @NO,
+                                         OBJC_ASSOCIATION_RETAIN_NONATOMIC);
                 int currentInput = [JuiceLaunchValue(self, @"childInput") intValue];
                 if (currentInput == inputFD && currentInput >= 0)
                 {
@@ -317,13 +351,14 @@ static void JuiceConsumeChildOutput(id self, int readFD, pid_t childPID, int inp
                     JuiceLaunchSetValue(self, @"childInput", @(-1));
                 }
             }
+
             NSString *result;
             if (waited == childPID && WIFEXITED(status))
                 result = [NSString stringWithFormat:@"exit=%d", WEXITSTATUS(status)];
             else if (waited == childPID && WIFSIGNALED(status))
                 result = [NSString stringWithFormat:@"signal=%d", WTERMSIG(status)];
             else
-                result = [NSString stringWithFormat:@"wait=%d errno=%d", waited, errno];
+                result = [NSString stringWithFormat:@"wait=%d errno=%d", waited, waitError];
             JuiceLaunchAppend(self, [NSString stringWithFormat:
                 @"FOREGROUND_EXIT pid=%d %@\n", childPID, result]);
         });
@@ -360,7 +395,6 @@ static void JuiceHardenedLaunchTapped(id self, SEL _cmd)
         JuiceLaunchReject(self, @"The selected Wine runtime is incomplete or not executable.");
         return;
     }
-
     if (!JuiceStartServerIfNeeded(self, server, environment))
     {
         JuiceLaunchReject(self, @"Juice could not start wineserver. Export the full log for details.");
@@ -398,7 +432,8 @@ static void JuiceHardenedLaunchTapped(id self, SEL _cmd)
     fcntl(inputPipe[1], F_SETFD, FD_CLOEXEC);
 
     posix_spawn_file_actions_t actions;
-    int actionStatus = posix_spawn_file_actions_init(&actions);
+    BOOL actionsReady = posix_spawn_file_actions_init(&actions) == 0;
+    int actionStatus = actionsReady ? 0 : ENOMEM;
     if (!actionStatus) actionStatus = posix_spawn_file_actions_adddup2(&actions, inputPipe[0], 0);
     if (!actionStatus) actionStatus = posix_spawn_file_actions_adddup2(&actions, outputPipe[1], 1);
     if (!actionStatus) actionStatus = posix_spawn_file_actions_adddup2(&actions, outputPipe[1], 2);
@@ -410,24 +445,22 @@ static void JuiceHardenedLaunchTapped(id self, SEL _cmd)
         actionStatus = posix_spawn_file_actions_addclose(&actions, outputPipe[1]);
 
     NSString *workingDirectory = exe.stringByDeletingLastPathComponent;
+#if defined(__APPLE__)
     if (!actionStatus && [exe containsString:@"/"] && workingDirectory.length)
         actionStatus = posix_spawn_file_actions_addchdir_np(&actions,
                                                              workingDirectory.fileSystemRepresentation);
+#endif
 
     posix_spawnattr_t attributes;
-    BOOL attributesReady = posix_spawnattr_init(&attributes) == 0;
     BOOL processGroup = NO;
-    if (attributesReady && posix_spawnattr_setpgroup(&attributes, 0) == 0 &&
-        posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP) == 0)
-        processGroup = YES;
-
+    BOOL attributesReady = JuiceInitSpawnAttributes(&attributes, YES, &processGroup);
     pid_t childPID = -1;
     int spawnStatus = actionStatus ?: posix_spawn(&childPID, tracer.fileSystemRepresentation,
-                                                   &actions,
-                                                   processGroup ? &attributes : NULL,
+                                                   actionsReady ? &actions : NULL,
+                                                   attributesReady ? &attributes : NULL,
                                                    argv, env);
 
-    if (!actionStatus) posix_spawn_file_actions_destroy(&actions);
+    if (actionsReady) posix_spawn_file_actions_destroy(&actions);
     if (attributesReady) posix_spawnattr_destroy(&attributes);
     close(inputPipe[0]);
     close(outputPipe[1]);
@@ -448,15 +481,23 @@ static void JuiceHardenedLaunchTapped(id self, SEL _cmd)
     JuiceLaunchSetValue(self, @"child", @(childPID));
     JuiceLaunchSetValue(self, @"childInput", @(inputPipe[1]));
     JuiceLaunchSetValue(self, @"serverUsingX64", JuiceLaunchValue(self, @"usingX64") ?: @NO);
+    objc_setAssociatedObject(self, &JuiceForegroundProcessGroupKey, @(processGroup),
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
     UISegmentedControl *mode = JuiceLaunchValue(self, @"mode");
     UIView *canvas = JuiceLaunchValue(self, @"canvas");
     BOOL cli = mode.selectedSegmentIndex == 1;
     canvas.hidden = cli;
     JuiceLaunchAppend(self, [NSString stringWithFormat:
-        @"\n%@ launch %@: 0 pid=%d pgroup=%d argc=%lu cwd=%@\n",
+        @"\n%@ launch %@: 0 pid=%d pgroup=%d argc=%lu cwd=%@ cloexec_default=%d\n",
         cli ? @"CLI" : @"GUI", exe, childPID, processGroup,
-        (unsigned long)arguments.count, workingDirectory]);
+        (unsigned long)arguments.count, workingDirectory,
+#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
+        1
+#else
+        0
+#endif
+    ]);
 
     JuiceConsumeChildOutput(self, outputPipe[0], childPID, inputPipe[1]);
 }
@@ -472,14 +513,8 @@ static void JuiceInstallLaunchHardening(void)
 {
     Class cls = NSClassFromString(@"JuiceController");
     if (!cls) return;
-
     Method launch = class_getInstanceMethod(cls, NSSelectorFromString(@"launchTapped"));
-    if (launch)
-        JuiceOriginalLaunchTapped = (void (*)(id, SEL))
-            method_setImplementation(launch, (IMP)JuiceHardenedLaunchTapped);
-
+    if (launch) method_setImplementation(launch, (IMP)JuiceHardenedLaunchTapped);
     Method stop = class_getInstanceMethod(cls, NSSelectorFromString(@"stopTapped"));
-    if (stop)
-        JuiceOriginalStopTapped = (void (*)(id, SEL))
-            method_setImplementation(stop, (IMP)JuiceHardenedStopTapped);
+    if (stop) method_setImplementation(stop, (IMP)JuiceHardenedStopTapped);
 }
