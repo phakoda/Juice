@@ -1,8 +1,10 @@
 #import <UIKit/UIKit.h>
+#import <errno.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import <signal.h>
 #import <sys/wait.h>
+#import <unistd.h>
 
 #define JUICE_PE_I386 0x014cu
 #define JUICE_PE_AMD64 0x8664u
@@ -64,6 +66,7 @@ static BOOL JuiceWin32RuntimeReady(NSString *runtime, NSString **missing)
 {
     NSArray<NSString *> *required = @[
         @"runtime/lib/wine/i386-windows/ntdll.dll",
+        @"runtime/lib/wine/i386-windows/kernel32.dll",
         @"runtime/lib/wine/aarch64-windows/libwow64fex.dll"
     ];
     NSFileManager *files = NSFileManager.defaultManager;
@@ -77,6 +80,41 @@ static BOOL JuiceWin32RuntimeReady(NSString *runtime, NSString **missing)
         }
     }
     return YES;
+}
+
+static void JuiceStopServerForRuntimeSwitch(id self, pid_t server)
+{
+    if (server <= 0) return;
+
+    int terminateResult = kill(server, SIGTERM);
+    int terminateError = terminateResult == 0 ? 0 : errno;
+    int status = 0;
+    pid_t waited = 0;
+
+    /* Runtime changes are rare and must not race a still-exiting wineserver.
+       Give graceful shutdown a short bounded window, then reap forcibly. */
+    for (unsigned int attempt = 0; attempt < 30; attempt++)
+    {
+        do { waited = waitpid(server, &status, WNOHANG); }
+        while (waited < 0 && errno == EINTR);
+        if (waited == server || (waited < 0 && errno == ECHILD)) break;
+        if (waited < 0) break;
+        usleep(10000);
+    }
+
+    BOOL forced = NO;
+    if (waited == 0)
+    {
+        forced = YES;
+        kill(server, SIGKILL);
+        do { waited = waitpid(server, &status, 0); }
+        while (waited < 0 && errno == EINTR);
+    }
+
+    JuiceArchSetValue(self, @"server", @(-1));
+    JuiceArchAppend(self, [NSString stringWithFormat:
+        @"WINE_SERVER_RUNTIME_SWITCH pid=%d term=%d term_errno=%d reaped=%d forced=%d\n",
+        server, terminateResult, terminateError, waited == server, forced]);
 }
 
 static void JuiceArchitectureLaunchRequested(id self, SEL _cmd)
@@ -132,11 +170,7 @@ static void JuiceArchitectureLaunchRequested(id self, SEL _cmd)
     pid_t server = [JuiceArchValue(self, @"server") intValue];
     BOOL serverUsingTranslatedRuntime = [JuiceArchValue(self, @"serverUsingX64") boolValue];
     if (server > 0 && serverUsingTranslatedRuntime != translated)
-    {
-        kill(server, SIGTERM);
-        waitpid(server, NULL, WNOHANG);
-        JuiceArchSetValue(self, @"server", @(-1));
-    }
+        JuiceStopServerForRuntimeSwitch(self, server);
 
     JuiceArchSetValue(self, @"usingX64", @(translated));
     objc_setAssociatedObject(self, &JuiceSelectedMachineKey, @(machine), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
