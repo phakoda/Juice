@@ -137,7 +137,10 @@ static void JuiceReconnectRemoveWindows(id self, SEL _cmd, int fd)
     });
 }
 
-__attribute__((constructor))
+/* Install before the default-priority runtime-hardening constructor. That
+ * wrapper should continue to invalidate its private framebuffer cache
+ * immediately, then delegate host window-state removal into this grace layer. */
+__attribute__((constructor(200)))
 static void JuiceInstallReconnectGrace(void)
 {
     Class cls = NSClassFromString(@"JuiceController");
