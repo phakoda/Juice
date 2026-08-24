@@ -22,6 +22,8 @@ jobs:
         run: bash scripts/verify-storage-hardening.sh
       - name: Verify hardware keyboard and architecture routing
         run: bash scripts/verify-input-architecture-hardening.sh
+      - name: Verify lifecycle and control routing
+        run: bash scripts/verify-lifecycle-hardening.sh
 
   app-build:
     runs-on: macos-latest
