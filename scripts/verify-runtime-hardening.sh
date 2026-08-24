@@ -29,13 +29,16 @@ done
 
 # Display transport: dirty rectangles must be understood on both sides, input
 # allocations are capped, and UIKit must coalesce producer frames rather than
-# enqueueing one multi-megabyte render block per Wine present.
+# enqueueing one multi-megabyte render block per Wine present. Full repaints
+# must also reuse an unchanged backing store or they can bypass the coalescer.
 grep -Fq 'JUICE_IOS_FRAME_DIRTY' "$ROOT/wine/dlls/wineios.drv/ipc.h"
 grep -Fq 'msg.flags=JUICE_IOS_FRAME_DIRTY' "$ROOT/wine/dlls/wineios.drv/ipc.c"
 grep -Fq 'JUICE_FRAME_DIRTY' "$ROOT/app/JuiceRuntimeHardening.m"
 grep -Fq 'JUICE_MAX_FRAME_BYTES' "$ROOT/app/JuiceRuntimeHardening.m"
 grep -Fq 'renderScheduled' "$ROOT/app/JuiceRuntimeHardening.m"
 grep -Fq 'frame.generation != generation' "$ROOT/app/JuiceRuntimeHardening.m"
+grep -Fq 'existing.width == message.width' "$ROOT/app/JuiceRuntimeHardening.m"
+grep -Fq 'memcpy(existing.bytes.mutableBytes, data.bytes, data.length)' "$ROOT/app/JuiceRuntimeHardening.m"
 
 # ZIP extraction must stream deflate output using bounded heap storage. A large
 # automatic array here is unsafe on GCD worker stacks and was a prior regression.
