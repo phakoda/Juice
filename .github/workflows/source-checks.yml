@@ -16,6 +16,8 @@ jobs:
         run: make verify
       - name: Verify runtime hardening invariants
         run: bash scripts/verify-runtime-hardening.sh
+      - name: Verify reconnect and keyboard invariants
+        run: bash scripts/verify-reconnect-hardening.sh
 
   app-build:
     runs-on: macos-latest
