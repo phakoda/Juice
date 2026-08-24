@@ -1,0 +1,53 @@
+name: Publish Juice v0.2.0-rc2
+
+on:
+  push:
+    branches:
+      - agent/steam-chocolate-doom-dx12
+    paths:
+      - .github/workflows/publish-v0.2.0-rc2.yml
+      - releases/Juice-v0.2.0-rc2-content-delta.tar.zst
+      - releases/Juice-v0.2.0-rc2-content-delta.tar.zst.sha256
+      - scripts/juice-release-delta.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Download the preceding release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v0.2.0-rc1 \
+            --pattern Juice-Steam-Chocolate-Network-v0.2.0-rc1.tipa \
+            --dir build/rc1
+      - name: Verify and apply release delta
+        run: |
+          sha256sum -c releases/Juice-v0.2.0-rc2-content-delta.tar.zst.sha256
+          unzip -q build/rc1/Juice-Steam-Chocolate-Network-v0.2.0-rc1.tipa \
+            -d build/rc2-tree
+          python3 scripts/juice-release-delta.py apply \
+            build/rc2-tree releases/Juice-v0.2.0-rc2-content-delta.tar.zst
+      - name: Build and checksum release payload
+        run: |
+          (cd build/rc2-tree && zip -qry "$GITHUB_WORKSPACE/releases/Juice-v0.2.0-rc2.tipa" Payload)
+          (cd releases && sha256sum Juice-v0.2.0-rc2.tipa > Juice-v0.2.0-rc2.tipa.sha256)
+      - name: Create prerelease and upload payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view v0.2.0-rc2 >/dev/null 2>&1 || gh release create v0.2.0-rc2 \
+            --title "Juice v0.2.0-rc2" \
+            --notes "RC2 bundles native ARM64 Grape, experimental x86-64 and i386 FEX runtimes, persistent prefixes, bundled TLS trust, and the verified Chocolate Doom path. SteamSetup installs and downloads the complete Steam client payload, but full Steam startup and OfficeSetup remain experimental and are not claimed as passing; see proofs for exact results." \
+            --prerelease
+          gh release upload v0.2.0-rc2 \
+            releases/Juice-v0.2.0-rc2.tipa \
+            releases/Juice-v0.2.0-rc2.tipa.sha256 \
+            --clobber
