@@ -22,9 +22,16 @@ static void (*host_window_changed)(UINT_PTR,const RECT *,BOOL);
 static void (*host_window_destroyed)(UINT_PTR);
 static void (*host_present_bgra)(UINT_PTR,const void *,unsigned int,unsigned int,unsigned int,const RECT *);
 typedef struct { struct gdi_physdev dev; } IOSDRV_PDEVICE;
-struct iosdrv_surface { struct window_surface header; void *bits; unsigned int width,height,stride; };
+struct iosdrv_surface
+{
+    struct window_surface header;
+    void *bits;
+    unsigned int width,height,stride;
+    BOOL presented;
+    struct iosdrv_surface *next;
+};
 static pthread_mutex_t surface_lock=PTHREAD_MUTEX_INITIALIZER;
-static struct iosdrv_surface *active_surface;
+static struct iosdrv_surface *surface_list;
 static struct user_driver_funcs iosdrv_funcs;
 
 static void init_metrics_once(void)
@@ -97,12 +104,14 @@ BOOL iosdrv_present_now(HWND hwnd)
     RECT dirty;
     BOOL presented=FALSE;
     pthread_mutex_lock(&surface_lock);
-    surface=active_surface;
-    if(surface&&surface->header.hwnd==hwnd)
+    for(surface=surface_list;surface;surface=surface->next)
+        if(surface->header.hwnd==hwnd)break;
+    if(surface)
     {
         SetRect(&dirty,0,0,surface->width,surface->height);
         if(host_present_bgra)host_present_bgra(HandleToUlong(hwnd),surface->bits,surface->width,surface->height,surface->stride,&dirty);
         ios_ipc_present(hwnd,surface->bits,surface->width,surface->height,surface->stride,&dirty);
+        surface->presented=TRUE;
         presented=TRUE;
     }
     pthread_mutex_unlock(&surface_lock);
@@ -112,15 +121,36 @@ static void surface_set_clip(struct window_surface *surface,const RECT *rects,UI
 static BOOL surface_flush(struct window_surface *header,const RECT *rect,const RECT *dirty,const BITMAPINFO *color_info,const void *color_bits,BOOL shape_changed,const BITMAPINFO *shape_info,const void *shape_bits)
 {
     struct iosdrv_surface *surface=(struct iosdrv_surface *)header;
+    RECT full;
+    const RECT *ipc_dirty=dirty;
+
     if(host_present_bgra)host_present_bgra(HandleToUlong(header->hwnd),surface->bits,surface->width,surface->height,surface->stride,dirty);
-    ios_ipc_present(header->hwnd,surface->bits,surface->width,surface->height,surface->stride,dirty);
+
+    /* Dirty updates require a receiver-side baseline. Seed every new or
+       resized surface with one full frame, then preserve Wine's dirty rects. */
+    if(!surface->presented)
+    {
+        SetRect(&full,0,0,surface->width,surface->height);
+        ipc_dirty=&full;
+    }
+    ios_ipc_present(header->hwnd,surface->bits,surface->width,surface->height,surface->stride,ipc_dirty);
+    surface->presented=TRUE;
     return TRUE;
 }
 static void surface_destroy(struct window_surface *header)
 {
     struct iosdrv_surface *surface=(struct iosdrv_surface *)header;
+    struct iosdrv_surface **cursor;
+
     pthread_mutex_lock(&surface_lock);
-    if(active_surface==surface)active_surface=NULL;
+    for(cursor=&surface_list;*cursor;cursor=&(*cursor)->next)
+    {
+        if(*cursor==surface)
+        {
+            *cursor=surface->next;
+            break;
+        }
+    }
     pthread_mutex_unlock(&surface_lock);
     free(surface->bits);
 }
@@ -148,8 +178,8 @@ static BOOL ios_CreateWindowSurface(HWND hwnd,BOOL layered,const RECT *rect,stru
     if(desc.hDeviceDc)NtUserReleaseDC(hwnd,desc.hDeviceDc);
     header=window_surface_create(sizeof(*surface),&surface_funcs,hwnd,rect,&info,bitmap);
     if(!header){if(bitmap)NtGdiDeleteObjectApp(bitmap);free(bits);return FALSE;}
-    surface=(struct iosdrv_surface *)header;surface->bits=bits;surface->width=width;surface->height=height;surface->stride=stride;
-    pthread_mutex_lock(&surface_lock);active_surface=surface;pthread_mutex_unlock(&surface_lock);
+    surface=(struct iosdrv_surface *)header;surface->bits=bits;surface->width=width;surface->height=height;surface->stride=stride;surface->presented=FALSE;
+    pthread_mutex_lock(&surface_lock);surface->next=surface_list;surface_list=surface;pthread_mutex_unlock(&surface_lock);
     if(previous)window_surface_release(previous);*out=header;return TRUE;
 }
 static UINT ios_OpenGLInit(UINT version,const struct opengl_funcs *funcs,const struct opengl_driver_funcs **driver)
