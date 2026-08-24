@@ -15,21 +15,143 @@
 #include "ipc.h"
 #include "wine/server.h"
 WINE_DEFAULT_DEBUG_CHANNEL(iosdrv);
-static int ipc_fd=-1; static pthread_mutex_t ipc_lock=PTHREAD_MUTEX_INITIALIZER;
-static __thread BOOL queue_registered;
+
+static int ipc_fd=-1;
+static pthread_mutex_t ipc_lock=PTHREAD_MUTEX_INITIALIZER;
+static char ipc_path[sizeof(((struct sockaddr_un *)0)->sun_path)];
+static unsigned int ipc_width=1024,ipc_height=768,ipc_dpi=96;
+static unsigned int ipc_generation;
+static __thread unsigned int queue_generation;
 static HWND input_target;
 static BOOL pointer_down;
+
+struct ipc_surface_generation
+{
+ HWND hwnd;
+ unsigned int generation;
+ struct ipc_surface_generation *next;
+};
+static struct ipc_surface_generation *surface_generations;
+
 static BOOL write_all(int fd,const void *data,size_t size){const char *p=data;while(size){ssize_t n=write(fd,p,size);if(n<0&&errno==EINTR)continue;if(n<=0)return FALSE;p+=n;size-=n;}return TRUE;}
 static BOOL read_all(int fd,void *data,size_t size){char *p=data;while(size){ssize_t n=read(fd,p,size);if(n<0&&errno==EINTR)continue;if(n<=0)return FALSE;p+=n;size-=n;}return TRUE;}
-static void disconnect_ipc_locked(void){if(ipc_fd>=0)close(ipc_fd);ipc_fd=-1;queue_registered=FALSE;}
+
+static void disconnect_ipc_locked(void)
+{
+ if(ipc_fd>=0) close(ipc_fd);
+ ipc_fd=-1;
+}
+
+static void disconnect_ipc_fd(int fd)
+{
+ pthread_mutex_lock(&ipc_lock);
+ if(ipc_fd==fd) disconnect_ipc_locked();
+ pthread_mutex_unlock(&ipc_lock);
+}
+
+static BOOL surface_has_baseline_locked(HWND hwnd)
+{
+ struct ipc_surface_generation *entry;
+ for(entry=surface_generations;entry;entry=entry->next)
+  if(entry->hwnd==hwnd) return entry->generation==ipc_generation;
+ return FALSE;
+}
+
+static void mark_surface_baseline_locked(HWND hwnd)
+{
+ struct ipc_surface_generation *entry;
+ for(entry=surface_generations;entry;entry=entry->next)
+  if(entry->hwnd==hwnd)
+  {
+   entry->generation=ipc_generation;
+   return;
+  }
+ if((entry=malloc(sizeof(*entry))))
+ {
+  entry->hwnd=hwnd;
+  entry->generation=ipc_generation;
+  entry->next=surface_generations;
+  surface_generations=entry;
+ }
+}
+
+static void forget_surface_locked(HWND hwnd)
+{
+ struct ipc_surface_generation **cursor;
+ for(cursor=&surface_generations;*cursor;cursor=&(*cursor)->next)
+  if((*cursor)->hwnd==hwnd)
+  {
+   struct ipc_surface_generation *entry=*cursor;
+   *cursor=entry->next;
+   free(entry);
+   return;
+  }
+}
+
+static BOOL connect_ipc_locked(void)
+{
+ struct sockaddr_un addr;
+ struct juice_ios_msg hello;
+ int fd,one=1;
+
+ if(ipc_fd>=0) return TRUE;
+ if(!ipc_path[0]) return FALSE;
+
+ memset(&addr,0,sizeof(addr));
+ addr.sun_family=AF_UNIX;
+ strcpy(addr.sun_path,ipc_path);
+ if((fd=socket(AF_UNIX,SOCK_STREAM,0))<0) return FALSE;
+#ifdef SO_NOSIGPIPE
+ setsockopt(fd,SOL_SOCKET,SO_NOSIGPIPE,&one,sizeof(one));
+#else
+ (void)one;
+#endif
+ if(connect(fd,(struct sockaddr *)&addr,sizeof(addr))<0)
+ {
+  close(fd);
+  return FALSE;
+ }
+
+ memset(&hello,0,sizeof(hello));
+ hello.magic=JUICE_IOS_MAGIC;
+ hello.type=JUICE_IOS_HELLO;
+ hello.width=ipc_width;
+ hello.height=ipc_height;
+ hello.stride=ipc_dpi;
+ hello.flags=(UINT)getpid();
+ if(!write_all(fd,&hello,sizeof(hello)))
+ {
+  close(fd);
+  return FALSE;
+ }
+
+ ipc_fd=fd;
+ if(++ipc_generation==0) ++ipc_generation;
+ fprintf(stderr,"[JuiceIPC] connected fd=%d generation=%u desktop=%ux%u dpi=%u\n",
+         ipc_fd,ipc_generation,ipc_width,ipc_height,ipc_dpi);
+ return TRUE;
+}
+
 static void send_msg(UINT type,HWND hwnd,const RECT *rect,const void *payload,UINT size,UINT stride,UINT flags)
 {
  struct juice_ios_msg msg={JUICE_IOS_MAGIC,type,size,(UINT64)(UINT_PTR)hwnd};
- if(rect){msg.x=rect->left;msg.y=rect->top;msg.width=rect->right-rect->left;msg.height=rect->bottom-rect->top;} msg.stride=stride;msg.flags=flags;
- pthread_mutex_lock(&ipc_lock);if(ipc_fd>=0&&(!write_all(ipc_fd,&msg,sizeof(msg))||(size&&!write_all(ipc_fd,payload,size))))disconnect_ipc_locked();pthread_mutex_unlock(&ipc_lock);
+ BOOL connected=FALSE;
+ if(rect){msg.x=rect->left;msg.y=rect->top;msg.width=rect->right-rect->left;msg.height=rect->bottom-rect->top;}
+ msg.stride=stride;msg.flags=flags;
+
+ pthread_mutex_lock(&ipc_lock);
+ if(connect_ipc_locked())
+ {
+  if(write_all(ipc_fd,&msg,sizeof(msg))&&(!size||write_all(ipc_fd,payload,size))) connected=TRUE;
+  else disconnect_ipc_locked();
+ }
+ pthread_mutex_unlock(&ipc_lock);
+ if(connected) ios_ipc_register_queue();
 }
+
 BOOL ios_ipc_process_input(void)
 {
+ ios_ipc_register_queue();
  for(;;)
  {
   struct juice_ios_msg msg;
@@ -41,28 +163,33 @@ BOOL ios_ipc_process_input(void)
   LRESULT text_length=0;
   BOOL redrawn=FALSE,presented=FALSE;
   ssize_t available;
+  int fd;
 
-  if(ipc_fd<0) break;
-  available=recv(ipc_fd,&msg,sizeof(msg),MSG_PEEK|MSG_DONTWAIT);
+  pthread_mutex_lock(&ipc_lock);
+  fd=ipc_fd;
+  pthread_mutex_unlock(&ipc_lock);
+  if(fd<0) break;
+
+  available=recv(fd,&msg,sizeof(msg),MSG_PEEK|MSG_DONTWAIT);
   if(available<(ssize_t)sizeof(msg)) break;
-  if(!read_all(ipc_fd,&msg,sizeof(msg)))
+  if(!read_all(fd,&msg,sizeof(msg)))
   {
-   pthread_mutex_lock(&ipc_lock);disconnect_ipc_locked();pthread_mutex_unlock(&ipc_lock);
+   disconnect_ipc_fd(fd);
    break;
   }
   if(msg.size>64u*1024u)
   {
    fprintf(stderr,"[JuiceInput] rejected oversized message type=%u size=%u\n",msg.type,msg.size);
-   pthread_mutex_lock(&ipc_lock);disconnect_ipc_locked();pthread_mutex_unlock(&ipc_lock);
+   disconnect_ipc_fd(fd);
    break;
   }
   if(msg.size)
   {
    payload=malloc(msg.size);
-   if(!payload||!read_all(ipc_fd,payload,msg.size))
+   if(!payload||!read_all(fd,payload,msg.size))
    {
     free(payload);
-    pthread_mutex_lock(&ipc_lock);disconnect_ipc_locked();pthread_mutex_unlock(&ipc_lock);
+    disconnect_ipc_fd(fd);
     break;
    }
   }
@@ -180,17 +307,29 @@ BOOL ios_ipc_process_input(void)
  }
  return TRUE;
 }
+
 void ios_ipc_register_queue(void)
 {
  HANDLE handle;
- int ret;
+ int ret,fd;
+ unsigned int generation;
 
- if(queue_registered||ipc_fd<0) return;
- if(wine_server_fd_to_handle(ipc_fd,GENERIC_READ|SYNCHRONIZE,0,&handle))
+ pthread_mutex_lock(&ipc_lock);
+ fd=ipc_fd;
+ generation=ipc_generation;
+ if(fd<0||queue_generation==generation)
  {
+  pthread_mutex_unlock(&ipc_lock);
+  return;
+ }
+ if(wine_server_fd_to_handle(fd,GENERIC_READ|SYNCHRONIZE,0,&handle))
+ {
+  pthread_mutex_unlock(&ipc_lock);
   fprintf(stderr,"[JuiceInput] failed to allocate queue fd handle tid=%p\n",NtCurrentTeb()->ClientId.UniqueThread);
   return;
  }
+ pthread_mutex_unlock(&ipc_lock);
+
  SERVER_START_REQ(set_queue_fd)
  {
   req->handle=wine_server_obj_handle(handle);
@@ -201,54 +340,47 @@ void ios_ipc_register_queue(void)
  if(ret) fprintf(stderr,"[JuiceInput] failed to register queue fd status=%x tid=%p\n",ret,NtCurrentTeb()->ClientId.UniqueThread);
  else
  {
-  queue_registered=TRUE;
-  fprintf(stderr,"[JuiceInput] queue fd registered fd=%d tid=%p\n",ipc_fd,NtCurrentTeb()->ClientId.UniqueThread);
+  pthread_mutex_lock(&ipc_lock);
+  if(ipc_fd==fd&&ipc_generation==generation) queue_generation=generation;
+  pthread_mutex_unlock(&ipc_lock);
+  fprintf(stderr,"[JuiceInput] queue fd registered fd=%d generation=%u tid=%p\n",
+          fd,generation,NtCurrentTeb()->ClientId.UniqueThread);
  }
 }
+
 void ios_ipc_init(unsigned int width,unsigned int height,unsigned int dpi)
 {
  const char *path=getenv("JUICE_IOS_SOCKET");
- struct sockaddr_un addr;
- struct juice_ios_msg hello={JUICE_IOS_MAGIC,JUICE_IOS_HELLO,0,0,0,0,(INT)width,(INT)height,dpi,(UINT)getpid()};
- int one=1;
+ BOOL connected=FALSE;
 
- if(!path||!*path) return;
- memset(&addr,0,sizeof(addr));
- addr.sun_family=AF_UNIX;
- if(strlen(path)>=sizeof(addr.sun_path)) return;
- strcpy(addr.sun_path,path);
- ipc_fd=socket(AF_UNIX,SOCK_STREAM,0);
- if(ipc_fd<0) return;
-#ifdef SO_NOSIGPIPE
- setsockopt(ipc_fd,SOL_SOCKET,SO_NOSIGPIPE,&one,sizeof(one));
-#else
- (void)one;
-#endif
- if(connect(ipc_fd,(struct sockaddr *)&addr,sizeof(addr))<0)
- {
-  close(ipc_fd);
-  ipc_fd=-1;
-  return;
- }
- if(!write_all(ipc_fd,&hello,sizeof(hello)))
- {
-  close(ipc_fd);
-  ipc_fd=-1;
-  return;
- }
- ios_ipc_register_queue();
+ if(!path||!*path||strlen(path)>=sizeof(ipc_path)) return;
+ pthread_mutex_lock(&ipc_lock);
+ strcpy(ipc_path,path);
+ ipc_width=width;
+ ipc_height=height;
+ ipc_dpi=dpi;
+ connected=connect_ipc_locked();
+ pthread_mutex_unlock(&ipc_lock);
+ if(connected) ios_ipc_register_queue();
 }
+
 void ios_ipc_window(HWND hwnd,const RECT *rect,BOOL visible){send_msg(JUICE_IOS_WINDOW,hwnd,rect,NULL,0,0,visible);}
-void ios_ipc_destroy(HWND hwnd){send_msg(JUICE_IOS_DESTROY,hwnd,NULL,NULL,0,0,0);}
+void ios_ipc_destroy(HWND hwnd)
+{
+ send_msg(JUICE_IOS_DESTROY,hwnd,NULL,NULL,0,0,0);
+ pthread_mutex_lock(&ipc_lock);
+ forget_surface_locked(hwnd);
+ pthread_mutex_unlock(&ipc_lock);
+}
+
 void ios_ipc_present(HWND hwnd,const void *bits,unsigned int width,unsigned int height,unsigned int stride,const RECT *dirty)
 {
  struct juice_ios_msg msg={JUICE_IOS_MAGIC,JUICE_IOS_FRAME,0,(UINT64)(UINT_PTR)hwnd};
  const unsigned char *source=bits;
- unsigned char *packed=NULL;
  size_t full_size,payload_size,row_bytes;
  unsigned int dirty_width,dirty_height,row;
  RECT clipped;
- BOOL partial=FALSE;
+ BOOL partial,connected=FALSE,success=FALSE;
 
  if(!bits||!width||!height||stride<width*4u) return;
  full_size=(size_t)stride*height;
@@ -272,21 +404,19 @@ void ios_ipc_present(HWND hwnd,const void *bits,unsigned int width,unsigned int 
  dirty_height=clipped.bottom-clipped.top;
  row_bytes=(size_t)dirty_width*4u;
  payload_size=row_bytes*dirty_height;
-
- /* Full frames are cheaper as a single contiguous write. For partial frames,
-  * packing rows costs one memcpy per row but avoids transmitting untouched
-  * pixels and keeps the receiver protocol simple. */
  partial=clipped.left||clipped.top||dirty_width!=width||dirty_height!=height;
- if(partial&&payload_size<full_size)
+
+ pthread_mutex_lock(&ipc_lock);
+ if(connect_ipc_locked())
  {
-  packed=malloc(payload_size);
-  if(packed)
+  connected=TRUE;
+  /* A reconnect has a new generation and therefore no host-side baseline for
+     any existing HWND. Force the first present of each surface to be full even
+     if Wine only dirtied a small rectangle. */
+  if(!surface_has_baseline_locked(hwnd)) partial=FALSE;
+
+  if(partial&&payload_size<full_size)
   {
-   for(row=0;row<dirty_height;row++)
-    memcpy(packed+(size_t)row*row_bytes,
-           source+(size_t)(clipped.top+row)*stride+(size_t)clipped.left*4u,
-           row_bytes);
-   source=packed;
    msg.x=clipped.left;
    msg.y=clipped.top;
    msg.width=dirty_width;
@@ -294,24 +424,27 @@ void ios_ipc_present(HWND hwnd,const void *bits,unsigned int width,unsigned int 
    msg.stride=row_bytes;
    msg.size=payload_size;
    msg.flags=JUICE_IOS_FRAME_DIRTY;
+   success=write_all(ipc_fd,&msg,sizeof(msg));
+   for(row=0;success&&row<dirty_height;row++)
+    success=write_all(ipc_fd,
+                      source+(size_t)(clipped.top+row)*stride+(size_t)clipped.left*4u,
+                      row_bytes);
   }
-  else partial=FALSE;
- }
+  else
+  {
+   msg.x=0;
+   msg.y=0;
+   msg.width=width;
+   msg.height=height;
+   msg.stride=stride;
+   msg.size=full_size;
+   msg.flags=0;
+   success=write_all(ipc_fd,&msg,sizeof(msg))&&write_all(ipc_fd,bits,full_size);
+  }
 
- if(!partial||!packed)
- {
-  source=bits;
-  msg.x=0;
-  msg.y=0;
-  msg.width=width;
-  msg.height=height;
-  msg.stride=stride;
-  msg.size=full_size;
-  msg.flags=0;
+  if(success) mark_surface_baseline_locked(hwnd);
+  else disconnect_ipc_locked();
  }
-
- pthread_mutex_lock(&ipc_lock);
- if(ipc_fd>=0&&(!write_all(ipc_fd,&msg,sizeof(msg))||!write_all(ipc_fd,source,msg.size)))disconnect_ipc_locked();
  pthread_mutex_unlock(&ipc_lock);
- free(packed);
+ if(connected&&success) ios_ipc_register_queue();
 }
