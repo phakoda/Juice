@@ -4,11 +4,12 @@
 #import <errno.h>
 #import <fcntl.h>
 #import <limits.h>
+#import <string.h>
 #import <unistd.h>
 #import <zlib.h>
 
 static NSString *const JuiceZipErrorDomain = @"com.exocore.Juice.zip";
-static const NSUInteger JZIOChunkSize = 256 * 1024;
+enum { JZIOChunkSize = 64 * 1024 };
 
 static uint16_t JZRead16(const uint8_t *p)
 {
@@ -112,7 +113,7 @@ static BOOL JZExtractStored(const uint8_t *input, uint32_t size, int fd, NSStrin
 
     while (remaining)
     {
-        uInt chunk = (uInt)MIN((NSUInteger)remaining, JZIOChunkSize);
+        uInt chunk = (uInt)MIN((NSUInteger)remaining, (NSUInteger)JZIOChunkSize);
         crc = crc32(crc, cursor, chunk);
         if (!JZWriteAll(fd, cursor, chunk, error, path)) return NO;
         cursor += chunk;
@@ -145,7 +146,7 @@ static BOOL JZExtractDeflated(const uint8_t *input, uint32_t compressedSize,
     {
         if (!stream.avail_in && remaining)
         {
-            uInt chunk = (uInt)MIN((NSUInteger)remaining, JZIOChunkSize);
+            uInt chunk = (uInt)MIN((NSUInteger)remaining, (NSUInteger)JZIOChunkSize);
             stream.next_in = (Bytef *)cursor;
             stream.avail_in = chunk;
             cursor += chunk;
