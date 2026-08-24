@@ -24,6 +24,8 @@ jobs:
         run: bash scripts/verify-input-architecture-hardening.sh
       - name: Verify lifecycle and control routing
         run: bash scripts/verify-lifecycle-hardening.sh
+      - name: Verify MSI and bounded text input
+        run: bash scripts/verify-installer-text-hardening.sh
 
   app-build:
     runs-on: macos-latest
