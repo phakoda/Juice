@@ -38,14 +38,15 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 
 "$CC" "${target_flags[@]}" -fobjc-arc -fblocks -O2 \
-  "$ROOT/app/main.m" "$ROOT/app/JuiceZip.m" "$ROOT/app/JuicePrefixRepair.m" \
-  "$ROOT/app/JuiceApiSetBootstrap.m" "$ROOT/app/JuiceWin32Bootstrap.m" \
-  "$ROOT/app/JuiceArchitectureRouting.m" "$ROOT/app/JuiceLegacyWin32.m" \
-  "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
-  "$ROOT/app/JuiceWindowActivation.m" "$ROOT/app/JuiceFramebufferFix.m" \
-  "$ROOT/app/JuiceBootProgress.m" "$ROOT/app/JuiceBootOverlayVisibility.m" \
-  "$ROOT/app/JuiceRuntimeHardening.m" "$ROOT/app/JuiceReconnectGrace.m" \
-  "$ROOT/app/JuiceGeometryHardening.m" "$ROOT/app/JuiceLaunchHardening.m" \
+  "$ROOT/app/main.m" "$ROOT/app/JuiceZip.m" "$ROOT/app/JuiceStoragePaths.m" \
+  "$ROOT/app/JuicePrefixRepair.m" "$ROOT/app/JuiceApiSetBootstrap.m" \
+  "$ROOT/app/JuiceWin32Bootstrap.m" "$ROOT/app/JuiceArchitectureRouting.m" \
+  "$ROOT/app/JuiceLegacyWin32.m" "$ROOT/app/JuiceLogExport.m" \
+  "$ROOT/app/JuiceMultiWindowFix.m" "$ROOT/app/JuiceWindowActivation.m" \
+  "$ROOT/app/JuiceFramebufferFix.m" "$ROOT/app/JuiceBootProgress.m" \
+  "$ROOT/app/JuiceBootOverlayVisibility.m" "$ROOT/app/JuiceRuntimeHardening.m" \
+  "$ROOT/app/JuiceReconnectGrace.m" "$ROOT/app/JuiceGeometryHardening.m" \
+  "$ROOT/app/JuiceLaunchHardening.m" \
   -framework UIKit -framework Foundation -framework QuartzCore \
   -framework CoreGraphics -framework CoreFoundation -lz -o "$OUT/Juice"
 cp "$ROOT/config/Info.plist" "$OUT/Info.plist"
