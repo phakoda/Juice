@@ -280,12 +280,46 @@ static void JuiceTerminateForeground(id self)
 
     errno = 0;
     int result = hasGroup ? kill(-child, SIGTERM) : kill(child, SIGTERM);
-    int saved = errno;
-    if (result != 0 && hasGroup) result = kill(child, SIGTERM);
+    int saved = result == 0 ? 0 : errno;
+    if (result != 0 && hasGroup)
+    {
+        errno = 0;
+        result = kill(child, SIGTERM);
+        if (result != 0 && !saved) saved = errno;
+    }
+
+    int status = 0;
+    pid_t waited = 0;
+    BOOL alreadyReaped = NO;
+    for (unsigned int attempt = 0; attempt < 30; attempt++)
+    {
+        do { waited = waitpid(child, &status, WNOHANG); }
+        while (waited < 0 && errno == EINTR);
+        if (waited == child) break;
+        if (waited < 0 && errno == ECHILD)
+        {
+            alreadyReaped = YES;
+            break;
+        }
+        if (waited < 0) break;
+        usleep(10000);
+    }
+
+    BOOL forced = NO;
+    if (waited == 0 && !alreadyReaped)
+    {
+        forced = YES;
+        if (hasGroup) kill(-child, SIGKILL);
+        else kill(child, SIGKILL);
+        do { waited = waitpid(child, &status, 0); }
+        while (waited < 0 && errno == EINTR);
+        if (waited < 0 && errno == ECHILD) alreadyReaped = YES;
+    }
+
     JuiceLaunchSetValue(self, @"child", @(-1));
     JuiceLaunchAppend(self, [NSString stringWithFormat:
-        @"FOREGROUND_STOP pid=%d pgroup=%d result=%d errno=%d\n",
-        child, hasGroup, result, saved]);
+        @"FOREGROUND_STOP pid=%d pgroup=%d term_result=%d term_errno=%d reaped=%d already_reaped=%d forced=%d\n",
+        child, hasGroup, result, saved, waited == child, alreadyReaped, forced]);
 }
 
 static NSString *JuiceDecodeLogData(NSData *data)
@@ -352,15 +386,17 @@ static void JuiceConsumeChildOutput(id self, int readFD, pid_t childPID, int inp
                 }
             }
 
-            NSString *result;
+            NSString *resultText;
             if (waited == childPID && WIFEXITED(status))
-                result = [NSString stringWithFormat:@"exit=%d", WEXITSTATUS(status)];
+                resultText = [NSString stringWithFormat:@"exit=%d", WEXITSTATUS(status)];
             else if (waited == childPID && WIFSIGNALED(status))
-                result = [NSString stringWithFormat:@"signal=%d", WTERMSIG(status)];
+                resultText = [NSString stringWithFormat:@"signal=%d", WTERMSIG(status)];
+            else if (waited < 0 && waitError == ECHILD)
+                resultText = @"reaped-by-stop=1";
             else
-                result = [NSString stringWithFormat:@"wait=%d errno=%d", waited, waitError];
+                resultText = [NSString stringWithFormat:@"wait=%d errno=%d", waited, waitError];
             JuiceLaunchAppend(self, [NSString stringWithFormat:
-                @"FOREGROUND_EXIT pid=%d %@\n", childPID, result]);
+                @"FOREGROUND_EXIT pid=%d %@\n", childPID, resultText]);
         });
     });
 }
@@ -417,7 +453,7 @@ static void JuiceHardenedLaunchTapped(id self, SEL _cmd)
     int inputPipe[2] = {-1, -1};
     if (pipe(outputPipe) != 0 || pipe(inputPipe) != 0)
     {
-        int saved = errno;
+        int savedPipe = errno;
         if (outputPipe[0] >= 0) close(outputPipe[0]);
         if (outputPipe[1] >= 0) close(outputPipe[1]);
         if (inputPipe[0] >= 0) close(inputPipe[0]);
@@ -425,7 +461,7 @@ static void JuiceHardenedLaunchTapped(id self, SEL _cmd)
         JuiceFreeStrings(argv);
         JuiceFreeStrings(env);
         JuiceLaunchReject(self, [NSString stringWithFormat:
-            @"Juice could not create process pipes: %s", strerror(saved)]);
+            @"Juice could not create process pipes: %s", strerror(savedPipe)]);
         return;
     }
     fcntl(outputPipe[0], F_SETFD, FD_CLOEXEC);
