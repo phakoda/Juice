@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include "ipc.h"
@@ -35,6 +36,28 @@ static struct ipc_surface_generation *surface_generations;
 
 static BOOL write_all(int fd,const void *data,size_t size){const char *p=data;while(size){ssize_t n=write(fd,p,size);if(n<0&&errno==EINTR)continue;if(n<=0)return FALSE;p+=n;size-=n;}return TRUE;}
 static BOOL read_all(int fd,void *data,size_t size){char *p=data;while(size){ssize_t n=read(fd,p,size);if(n<0&&errno==EINTR)continue;if(n<=0)return FALSE;p+=n;size-=n;}return TRUE;}
+
+static BOOL writev_all(int fd,struct iovec *iov,int count)
+{
+ while(count)
+ {
+  ssize_t written=writev(fd,iov,count);
+  if(written<0&&errno==EINTR) continue;
+  if(written<=0) return FALSE;
+  while(count&&written>=(ssize_t)iov->iov_len)
+  {
+   written-=iov->iov_len;
+   iov++;
+   count--;
+  }
+  if(count&&written)
+  {
+   iov->iov_base=(char *)iov->iov_base+written;
+   iov->iov_len-=written;
+  }
+ }
+ return TRUE;
+}
 
 static void disconnect_ipc_locked(void)
 {
@@ -149,9 +172,24 @@ static void send_msg(UINT type,HWND hwnd,const RECT *rect,const void *payload,UI
  if(connected) ios_ipc_register_queue();
 }
 
+static UINT send_virtual_key(HWND target,WORD vkey)
+{
+ INPUT input={0};
+ UINT sent=0;
+ input.type=INPUT_KEYBOARD;
+ input.ki.wVk=vkey;
+ input.ki.wScan=0;
+ input.ki.dwFlags=0;
+ input.ki.time=0;
+ input.ki.dwExtraInfo=0;
+ sent+=NtUserSendHardwareInput(target,0,&input,0);
+ input.ki.dwFlags=KEYEVENTF_KEYUP;
+ sent+=NtUserSendHardwareInput(target,0,&input,0);
+ return sent;
+}
+
 BOOL ios_ipc_process_input(void)
 {
- ios_ipc_register_queue();
  for(;;)
  {
   struct juice_ios_msg msg;
@@ -166,11 +204,24 @@ BOOL ios_ipc_process_input(void)
   int fd;
 
   pthread_mutex_lock(&ipc_lock);
+  if(ipc_fd<0) connect_ipc_locked();
   fd=ipc_fd;
   pthread_mutex_unlock(&ipc_lock);
   if(fd<0) break;
+  ios_ipc_register_queue();
 
   available=recv(fd,&msg,sizeof(msg),MSG_PEEK|MSG_DONTWAIT);
+  if(available==0)
+  {
+   disconnect_ipc_fd(fd);
+   break;
+  }
+  if(available<0)
+  {
+   if(errno==EINTR) continue;
+   if(errno!=EAGAIN&&errno!=EWOULDBLOCK) disconnect_ipc_fd(fd);
+   break;
+  }
   if(available<(ssize_t)sizeof(msg)) break;
   if(!read_all(fd,&msg,sizeof(msg)))
   {
@@ -286,17 +337,14 @@ BOOL ios_ipc_process_input(void)
   }
   else if(msg.type==JUICE_IOS_KEY&&!msg.size&&(msg.flags&0xffffu))
   {
+   WORD vkey=msg.flags&0xffffu;
    target=input_target?input_target:hwnd;
    NtUserSetForegroundWindow(hwnd);
    NtUserSetActiveWindow(hwnd);
    NtUserSetFocus(target);
-   NtUserMessageCall(target,WM_CHAR,msg.flags&0xffffu,1,NULL,NtUserSendMessage,FALSE);
-   sent=1;
-   text_length=NtUserMessageCall(target,WM_GETTEXTLENGTH,0,0,NULL,NtUserSendMessage,FALSE);
-   redrawn=NtUserRedrawWindow(target,NULL,0,RDW_INVALIDATE|RDW_UPDATENOW|RDW_ALLCHILDREN);
-   redrawn|=NtUserRedrawWindow(hwnd,NULL,0,RDW_INVALIDATE|RDW_UPDATENOW|RDW_ALLCHILDREN);
-   presented=iosdrv_present_now(hwnd);
-   fprintf(stderr,"[JuiceInput] key surface=%p target=%p vk=%x delivered=%u length=%ld redraw=%u present=%u\n",hwnd,target,msg.flags&0xffffu,sent,(long)text_length,redrawn,presented);
+   sent=send_virtual_key(target,vkey);
+   fprintf(stderr,"[JuiceInput] key surface=%p target=%p vk=%x hardware_events=%u\n",
+           hwnd,target,vkey,sent);
   }
   else
   {
@@ -378,9 +426,10 @@ void ios_ipc_present(HWND hwnd,const void *bits,unsigned int width,unsigned int 
  struct juice_ios_msg msg={JUICE_IOS_MAGIC,JUICE_IOS_FRAME,0,(UINT64)(UINT_PTR)hwnd};
  const unsigned char *source=bits;
  size_t full_size,payload_size,row_bytes;
- unsigned int dirty_width,dirty_height,row;
+ unsigned int dirty_width,dirty_height,row,start,count;
  RECT clipped;
  BOOL partial,connected=FALSE,success=FALSE;
+ struct iovec rows[64];
 
  if(!bits||!width||!height||stride<width*4u) return;
  full_size=(size_t)stride*height;
@@ -425,10 +474,20 @@ void ios_ipc_present(HWND hwnd,const void *bits,unsigned int width,unsigned int 
    msg.size=payload_size;
    msg.flags=JUICE_IOS_FRAME_DIRTY;
    success=write_all(ipc_fd,&msg,sizeof(msg));
-   for(row=0;success&&row<dirty_height;row++)
-    success=write_all(ipc_fd,
-                      source+(size_t)(clipped.top+row)*stride+(size_t)clipped.left*4u,
-                      row_bytes);
+   /* Avoid allocating/copying a packed dirty-frame buffer while also avoiding
+      one write(2) per scanline. writev batches keep stack use bounded. */
+   for(start=0;success&&start<dirty_height;start+=count)
+   {
+    count=dirty_height-start;
+    if(count>ARRAY_SIZE(rows)) count=ARRAY_SIZE(rows);
+    for(row=0;row<count;row++)
+    {
+     rows[row].iov_base=(void *)(source+(size_t)(clipped.top+start+row)*stride+
+                                 (size_t)clipped.left*4u);
+     rows[row].iov_len=row_bytes;
+    }
+    success=writev_all(ipc_fd,rows,count);
+   }
   }
   else
   {
