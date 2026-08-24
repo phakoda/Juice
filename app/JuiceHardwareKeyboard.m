@@ -31,6 +31,14 @@ static BOOL JuiceHasEditingResponder(UIView *view)
     return NO;
 }
 
+static BOOL JuiceHasWineKeyboardTarget(id self)
+{
+    id canvas = JuiceKeyboardValue(self, @"canvas");
+    uint64_t hwnd = [JuiceKeyboardValue(canvas, @"hwnd") unsignedLongLongValue];
+    int client = [JuiceKeyboardValue(self, @"activeClient") intValue];
+    return hwnd != 0 && client >= 0;
+}
+
 static void JuiceHardwareAppend(id self, NSString *line)
 {
     SEL selector = NSSelectorFromString(@"append:");
@@ -48,10 +56,9 @@ static void JuiceMarkHardwareKeyboardActive(id self)
 
 static BOOL JuiceSendWineText(id self, NSString *text)
 {
-    if (!text.length) return NO;
+    if (!text.length || !JuiceHasWineKeyboardTarget(self)) return NO;
     id canvas = JuiceKeyboardValue(self, @"canvas");
     uint64_t hwnd = [JuiceKeyboardValue(canvas, @"hwnd") unsignedLongLongValue];
-    if (!hwnd) return NO;
 
     NSData *payload = [text dataUsingEncoding:NSUTF16LittleEndianStringEncoding];
     if (!payload.length || payload.length > UINT32_MAX) return NO;
@@ -65,6 +72,7 @@ static BOOL JuiceSendWineText(id self, NSString *text)
 
 static BOOL JuiceSendWineVirtualKey(id self, uint32_t vkey, NSString *name)
 {
+    if (!JuiceHasWineKeyboardTarget(self)) return NO;
     SEL selector = NSSelectorFromString(@"sendVirtualKey:name:");
     if (![self respondsToSelector:selector]) return NO;
     ((void (*)(id, SEL, uint32_t, id))objc_msgSend)(self, selector, vkey, name);
@@ -148,7 +156,9 @@ static void JuiceHardwarePressesBegan(id self, SEL _cmd, NSSet<UIPress *> *press
         uint32_t vkey = JuiceVirtualKeyForHID((NSInteger)key.keyCode, &name);
         if (vkey)
         {
-            handledAny |= JuiceSendWineVirtualKey(self, vkey, name ?: @"key");
+            BOOL delivered = JuiceSendWineVirtualKey(self, vkey, name ?: @"key");
+            handledAny |= delivered;
+            shouldForwardOriginal |= !delivered;
             continue;
         }
 
@@ -156,7 +166,9 @@ static void JuiceHardwarePressesBegan(id self, SEL _cmd, NSSet<UIPress *> *press
         if (characters.length &&
             [characters rangeOfCharacterFromSet:NSCharacterSet.controlCharacterSet].location == NSNotFound)
         {
-            handledAny |= JuiceSendWineText(self, characters);
+            BOOL delivered = JuiceSendWineText(self, characters);
+            handledAny |= delivered;
+            shouldForwardOriginal |= !delivered;
             continue;
         }
         shouldForwardOriginal = YES;
