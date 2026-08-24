@@ -1,7 +1,9 @@
 #import <UIKit/UIKit.h>
+#import <errno.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import <signal.h>
+#import <string.h>
 #import <sys/resource.h>
 #import <sys/types.h>
 #import <sys/socket.h>
@@ -25,12 +27,16 @@ typedef struct
 
 @interface JuiceRuntimeFramebuffer : NSObject
 @property(nonatomic,strong) NSMutableData *bytes;
+@property(nonatomic) uint64_t hwnd;
 @property(nonatomic) int32_t width;
 @property(nonatomic) int32_t height;
 @property(nonatomic) uint32_t stride;
 @property(nonatomic) int clientFD;
 @property(nonatomic) pid_t peerPID;
 @property(nonatomic) NSUInteger generation;
+@property(nonatomic) NSUInteger receivedFrames;
+@property(nonatomic) NSUInteger renderedFrames;
+@property(nonatomic) NSUInteger coalescedFrames;
 @property(nonatomic) BOOL renderScheduled;
 @property(nonatomic) BOOL firstPending;
 @property(nonatomic) BOOL invalidated;
@@ -55,7 +61,6 @@ typedef struct
  */
 
 static IMP JuiceOriginalViewDidLoad;
-static IMP JuiceOriginalReadClient;
 static void (*JuiceOriginalDestroyWindow)(id, SEL, uint64_t);
 static void (*JuiceOriginalRemoveClientWindows)(id, SEL, int);
 static char JuiceRuntimeFramebuffersKey;
@@ -158,13 +163,18 @@ static JuiceRuntimeFramebuffer *JuiceCreateFramebuffer(id self, JuiceRuntimeMsg 
     if (!JuiceFrameHeaderIsValid(message) || data.length != message.size) return nil;
 
     JuiceRuntimeFramebuffer *frame = [JuiceRuntimeFramebuffer new];
-    frame.bytes = [data mutableCopy];
+    if ([data isKindOfClass:NSMutableData.class])
+        frame.bytes = (NSMutableData *)data;
+    else
+        frame.bytes = [data mutableCopy];
+    frame.hwnd = message.hwnd;
     frame.width = message.width;
     frame.height = message.height;
     frame.stride = message.stride;
     frame.clientFD = clientFD;
     frame.peerPID = peerPID;
     frame.generation = 1;
+    frame.receivedFrames = 1;
 
     NSMutableDictionary *frames = JuiceFramebuffers(self);
     @synchronized(frames)
@@ -219,6 +229,7 @@ static JuiceRuntimeFramebuffer *JuiceApplyFrame(id self, JuiceRuntimeMsg message
         frame.clientFD = clientFD;
         frame.peerPID = peerPID;
         frame.generation++;
+        frame.receivedFrames++;
     }
     return frame;
 }
@@ -237,6 +248,10 @@ static void JuiceScheduleFramebuffer(id self, JuiceRuntimeFramebuffer *frame, BO
             frame.renderScheduled = YES;
             schedule = YES;
         }
+        else
+        {
+            frame.coalescedFrames++;
+        }
     }
     if (schedule)
         dispatch_async(dispatch_get_main_queue(), ^{ JuiceDeliverFramebuffer(self, frame); });
@@ -249,6 +264,7 @@ static void JuiceDeliverFramebuffer(id self, JuiceRuntimeFramebuffer *frame)
     uint32_t stride;
     int clientFD;
     pid_t peerPID;
+    uint64_t hwnd;
     NSUInteger generation;
     BOOL first;
 
@@ -260,6 +276,7 @@ static void JuiceDeliverFramebuffer(id self, JuiceRuntimeFramebuffer *frame)
             return;
         }
         snapshot = [frame.bytes copy];
+        hwnd = frame.hwnd;
         width = frame.width;
         height = frame.height;
         stride = frame.stride;
@@ -268,30 +285,13 @@ static void JuiceDeliverFramebuffer(id self, JuiceRuntimeFramebuffer *frame)
         generation = frame.generation;
         first = frame.firstPending;
         frame.firstPending = NO;
+        frame.renderedFrames++;
     }
 
     JuiceRuntimeMsg message = {
-        JUICE_MAGIC, JUICE_MSG_FRAME, (uint32_t)snapshot.length, 0,
+        JUICE_MAGIC, JUICE_MSG_FRAME, (uint32_t)snapshot.length, hwnd,
         0, 0, width, height, stride, 0
     };
-
-    NSMutableDictionary *frames = JuiceFramebuffers(self);
-    @synchronized(frames)
-    {
-        for (NSNumber *key in frames)
-        {
-            if (frames[key] == frame)
-            {
-                message.hwnd = key.unsignedLongLongValue;
-                break;
-            }
-        }
-    }
-    if (!message.hwnd)
-    {
-        @synchronized(frame) { frame.renderScheduled = NO; }
-        return;
-    }
 
     SEL presentSelector = NSSelectorFromString(@"presentFrameMessage:data:client:peerPID:first:");
     if ([self respondsToSelector:presentSelector])
@@ -340,6 +340,7 @@ static void JuiceInvalidateClientFrames(id self, int clientFD)
 {
     NSMutableDictionary *frames = JuiceFramebuffers(self);
     NSMutableArray<NSNumber *> *remove = [NSMutableArray array];
+    NSUInteger received = 0, rendered = 0, coalesced = 0;
     @synchronized(frames)
     {
         [frames enumerateKeysAndObjectsUsingBlock:^(NSNumber *key, JuiceRuntimeFramebuffer *frame, BOOL *stop) {
@@ -349,12 +350,20 @@ static void JuiceInvalidateClientFrames(id self, int clientFD)
                 if (frame.clientFD == clientFD)
                 {
                     frame.invalidated = YES;
+                    received += frame.receivedFrames;
+                    rendered += frame.renderedFrames;
+                    coalesced += frame.coalescedFrames;
                     [remove addObject:key];
                 }
             }
         }];
         [frames removeObjectsForKeys:remove];
     }
+    if (received)
+        JuiceRuntimeAppend(self, [NSString stringWithFormat:
+            @"DISPLAY_COALESCE fd=%d received=%lu rendered=%lu merged_while_pending=%lu windows=%lu\n",
+            clientFD, (unsigned long)received, (unsigned long)rendered,
+            (unsigned long)coalesced, (unsigned long)remove.count]);
 }
 
 static void JuiceRuntimeReadClient(id self, SEL _cmd, int fd)
@@ -520,7 +529,7 @@ static void JuiceInstallRuntimeHardening(void)
 
     Method readClient = class_getInstanceMethod(cls, NSSelectorFromString(@"readClient:"));
     if (readClient)
-        JuiceOriginalReadClient = method_setImplementation(readClient, (IMP)JuiceRuntimeReadClient);
+        method_setImplementation(readClient, (IMP)JuiceRuntimeReadClient);
 
     SEL destroySelector = NSSelectorFromString(@"destroyWindowHwnd:");
     Method destroy = class_getInstanceMethod(cls, destroySelector);
