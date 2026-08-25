@@ -35,10 +35,12 @@
  *     avoidable large UIImage allocations. Keep at most one compositor pass
  *     pending on the main queue and merge intervening redraw requests.
  *
- *  5. Drawing order is not input focus. Once a user clicks a live Wine window,
- *     keep that selected HWND/client as the keyboard/text route across later
- *     composites. Only fall back to the top drawable window if the selection
- *     is gone or hidden; refresh its client FD from state after reconnects.
+ *  5. Drawing order and pointer hover are not keyboard focus. Once a user
+ *     button-down selects a live Wine window, keep that HWND/client as the
+ *     keyboard/text route across later composites. Hover and wheel traffic may
+ *     target another window but must not steal typing focus. If the selection
+ *     disappears, fall back to the top drawable window and refresh its client
+ *     FD from current state after reconnects.
  */
 
 #define JUICE_MAGIC 0x4a554943u
@@ -100,11 +102,6 @@ static BOOL JuiceStateDrawable(id state)
     return [JuiceValue(state, @"visible") boolValue] && [JuiceValue(state, @"image") isKindOfClass:UIImage.class];
 }
 
-/*
- * The backing UIImage is generated directly from the Wine software surface,
- * so its pixels are desktop pixels. Never stretch a stale backing allocation
- * to a newer window rectangle. Use only the area present in both.
- */
 static CGRect JuiceStateDrawableRect(id state)
 {
     CGRect rect = JuiceStateRect(state);
@@ -150,7 +147,6 @@ static CGRect JuiceViewportForWindows(id self, NSArray<NSNumber *> *order, NSDic
 
     if (CGRectIsNull(content)) return desktop;
 
-    /* A little breathing room without reintroducing the mostly-empty desktop. */
     CGFloat pad = MIN(16.0, MAX(4.0, MIN(content.size.width, content.size.height) * 0.03));
     CGRect viewport = CGRectIntersection(CGRectInset(content, -pad, -pad), desktop);
     if (CGRectIsNull(viewport) || CGRectIsEmpty(viewport)) viewport = content;
@@ -184,11 +180,6 @@ static void JuiceDrawStateImage(id state, CGContextRef context)
     CGRect drawable = JuiceStateDrawableRect(state);
     if (CGRectIsEmpty(drawable) || CGRectIsNull(drawable)) return;
 
-    /*
-     * Draw the framebuffer at its native 1:1 size and clip it to the current
-     * Wine window rectangle. This discards stale oversized backing pixels
-     * without distorting the live application contents.
-     */
     CGContextSaveGState(context);
     CGContextClipToRect(context, drawable);
     [image drawInRect:CGRectMake(logical.origin.x, logical.origin.y,
@@ -337,6 +328,12 @@ static BOOL JuiceSendMessageToFD(id self, JuiceMsg *message, NSData *payload, in
     return ((BOOL (*)(id, SEL, JuiceMsg *, id, int))objc_msgSend)(self, selector, message, payload, fd);
 }
 
+static void JuiceSelectInputRoute(id self,id canvas,uint64_t hwnd,int client)
+{
+    if(canvas)JuiceSetValue(canvas,@"hwnd",@(hwnd));
+    JuiceSetValue(self,@"activeClient",@(client));
+}
+
 static void JuiceFixedHandleCanvasInput(id self, SEL _cmd, JuiceMsg message)
 {
     if (![JuiceValue(self, @"experimentalMultiWindow") boolValue])
@@ -356,7 +353,6 @@ static void JuiceFixedHandleCanvasInput(id self, SEL _cmd, JuiceMsg message)
     if (!viewportValue) viewportValue = objc_getAssociatedObject(self, &JuiceCompositeViewportKey);
     CGRect viewport = viewportValue ? viewportValue.CGRectValue : JuiceDesktopRect(self);
 
-    /* Freeze the exact coordinate basis used for the button-down event. */
     if (down && !objc_getAssociatedObject(self, &JuiceCapturedViewportKey))
     {
         NSValue *locked = [NSValue valueWithCGRect:viewport];
@@ -386,28 +382,20 @@ static void JuiceFixedHandleCanvasInput(id self, SEL _cmd, JuiceMsg message)
     CGRect rect = JuiceStateDrawableRect(target);
     if (client < 0 || !hwnd || CGRectIsEmpty(rect)) return;
 
+    id canvas = JuiceValue(self, @"canvas");
     if (down)
     {
         JuiceSetValue(self, @"inputHwnd", @(hwnd));
         JuiceSetValue(self, @"inputClient", @(client));
+        JuiceSelectInputRoute(self,canvas,hwnd,client);
     }
 
-    /*
-     * Do not subtract rect.origin and do not clamp to the window. A title-bar
-     * drag is screen-space pointer capture: the finger remains meaningful even
-     * after the window has moved underneath it or the pointer leaves its old
-     * rectangle. Wine consumes this flag and treats x/y as desktop coords.
-     */
     message.magic = JUICE_MAGIC;
     message.type = MSG_INPUT;
     message.hwnd = hwnd;
     message.x = (int32_t)floor(desktopPoint.x);
     message.y = (int32_t)floor(desktopPoint.y);
     message.flags |= INPUT_COORDS_DESKTOP;
-
-    id canvas = JuiceValue(self, @"canvas");
-    if (canvas) JuiceSetValue(canvas, @"hwnd", @(hwnd));
-    JuiceSetValue(self, @"activeClient", @(client));
     JuiceSendMessageToFD(self, &message, nil, client);
 
     if (up)
@@ -416,7 +404,6 @@ static void JuiceFixedHandleCanvasInput(id self, SEL _cmd, JuiceMsg message)
         JuiceSetValue(self, @"inputClient", @(-1));
         objc_setAssociatedObject(self, &JuiceCapturedViewportKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
-        /* Recenter only after the drag is finished. */
         SEL composite = NSSelectorFromString(@"compositeWineDesktop");
         if ([self respondsToSelector:composite])
             ((void (*)(id, SEL))objc_msgSend)(self, composite);
