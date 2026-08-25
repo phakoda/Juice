@@ -1,0 +1,105 @@
+diff --git a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+index 3f070a496..8c7d84a21 100644
+--- a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
++++ b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+@@ -12,6 +12,7 @@ $end_info$
+ #endif
+ 
+ #include <new>
++#include <cstdlib>
+ #include <cstddef>
+ #include <cstdint>
+ #include <sys/types.h>
+@@ -120,6 +121,47 @@ inline bool VirtualProtect(void* Ptr, size_t Size, ProtectOptions options) {
+   DWORD old_prot {};
+   return ::VirtualProtect(Ptr, Size, prot, &old_prot) != 0;
+ }
++
++#if defined(FEX_JUICE_IOS) && defined(__aarch64__)
++/*
++ * StikDebug's universal iOS 26 protocol.  Juice deliberately keeps this tiny
++ * client in FEX rather than importing StikJIT itself: StikDebug owns the
++ * debugger connection, while the translated process owns executable memory.
++ *
++ * The host starts this process suspended and does not resume it until
++ * CS_DEBUGGED is set, so reaching BRK #0xf00d is safe.  x0/x1 carry the region
++ * address/size and x16=1 selects PREPARE_REGION.  The universal script advances
++ * PC and returns the prepared executable mapping in x0.
++ */
++__attribute__((naked, noinline)) inline void* JuiceJIT26PrepareRegion(void*, size_t) {
++  __asm__ volatile(
++    "mov x16, #1\n"
++    "brk #0xf00d\n"
++    "ret\n");
++}
++
++inline bool JuiceStikDebugTXMEnabled() {
++  static const bool Enabled = []() {
++    const char* Value = std::getenv("JUICE_STIKDEBUG_TXM");
++    return Value && Value[0] == '1' && Value[1] == '\0';
++  }();
++  return Enabled;
++}
++
++inline bool JuicePrepareExecutableRegion(void* Ptr, size_t Size) {
++  if (JuiceStikDebugTXMEnabled()) {
++    /* Every generated page is write-once in Juice's iOS FEX path.  Ask the
++     * debugger to publish the engine-created mapping in place, then never
++     * make that page writable again. */
++    return JuiceJIT26PrepareRegion(Ptr, Size) == Ptr;
++  }
++  return VirtualProtect(Ptr, Size, ProtectOptions::Read | ProtectOptions::Exec);
++}
++#else
++inline bool JuiceStikDebugTXMEnabled() { return false; }
++inline bool JuicePrepareExecutableRegion(void* Ptr, size_t Size) {
++  return VirtualProtect(Ptr, Size, ProtectOptions::Read | ProtectOptions::Exec);
++}
++#endif
+ 
+ FEX_DEFAULT_VISIBILITY extern VirtualNamePtr VirtualName;
+ FEX_DEFAULT_VISIBILITY extern VirtualTHPPtr VirtualTHPControl;
+diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
+index 6d59cfc24..fc8534874 100644
+--- a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
++++ b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
+@@ -50,8 +50,10 @@ Dispatcher::Dispatcher(FEXCore::Context::ContextImpl* ctx)
+   EmitDispatcher();
+ 
+ #ifdef FEX_JUICE_IOS
+-  FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(GetBufferBase()), MAX_DISPATCHER_CODE_SIZE,
+-                                     FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec);
++  LOGMAN_THROW_A_FMT(
++    FEXCore::Allocator::JuicePrepareExecutableRegion(reinterpret_cast<void*>(GetBufferBase()), MAX_DISPATCHER_CODE_SIZE),
++    "Couldn't publish the iOS dispatcher as executable code");
+ #endif
+   FEXCore::Allocator::VirtualName("FEXMem_Misc", reinterpret_cast<void*>(GetBufferBase()), MAX_DISPATCHER_CODE_SIZE);
+ }
+diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+index a91fc3ad8..60e35399b 100644
+--- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+@@ -500,6 +500,13 @@ static void JuiceSetLinkPatchProtection(uintptr_t Begin, uintptr_t End, bool Wri
+   constexpr uintptr_t HostPageMask = HostPageSize - 1;
+   const uintptr_t ProtectStart = Begin & ~HostPageMask;
+   const uintptr_t ProtectEnd = (End + HostPageMask) & ~HostPageMask;
++
++  if (FEXCore::Allocator::JuiceStikDebugTXMEnabled()) {
++    /* Published TXM pages are immutable.  The iOS path disables direct block
++     * linking, so a writable transition here indicates a regression. */
++    LOGMAN_THROW_A_FMT(!Writable, "Attempted to reopen a StikDebug JIT page for writing");
++    return;
++  }
+   const auto Protection = Writable ?
+     (FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Write) :
+     (FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec);
+@@ -1212,8 +1219,7 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
+ #ifdef FEX_JUICE_IOS
+     ClearICache(CopyStart, TempSize);
+     LOGMAN_THROW_A_FMT(
+-      FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(ProtectStart), ProtectEnd - ProtectStart,
+-                                         FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec),
++      FEXCore::Allocator::JuicePrepareExecutableRegion(reinterpret_cast<void*>(ProtectStart), ProtectEnd - ProtectStart),
+       "Couldn't make iOS JIT code buffer executable");
+ #endif
+     SetCursorOffset(CodeBuffers.LatestOffset + TempSize);
