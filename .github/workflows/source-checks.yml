@@ -23,5 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compile Juice for iPhoneOS
         run: make app
+      - name: Compile launcher helpers for iPhoneOS
+        run: make launchers
       - name: Run ZIP extractor regressions
         run: bash scripts/test-zip-extractor-host.sh
