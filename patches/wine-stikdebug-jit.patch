@@ -1,0 +1,255 @@
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -472,6 +472,9 @@
+ @ stdcall -syscall=0x003a NtWriteVirtualMemory(long ptr ptr long ptr)
+ @ stdcall -syscall=0x0046 NtYieldExecution()
+ @ stdcall -private -syscall NtWineGetCurrentTebAccessor(ptr)
++@ stdcall -private -syscall -arch=win64 NtWineAllocateJitMemory(ptr ptr int64)
++@ stdcall -private -syscall -arch=win64 NtWineFreeJitMemory(ptr ptr int64)
++@ stdcall -private -syscall -arch=win64 NtWineDetachJitDebugger()
+ @ stdcall NtWineRestoreCurrentTeb()
+ @ stdcall NtdllDefWindowProc_A(long long long long)
+ @ stdcall NtdllDefWindowProc_W(long long long long)
+diff --git a/dlls/ntdll/ntsyscalls.h b/dlls/ntdll/ntsyscalls.h
+--- a/dlls/ntdll/ntsyscalls.h
++++ b/dlls/ntdll/ntsyscalls.h
+@@ -543,7 +543,10 @@
+     SYSCALL_ENTRY( 0x0105, NtWaitForAlertByThreadId, 16 ) \
+     SYSCALL_ENTRY( 0x0106, NtWaitForDebugEvent, 32 ) \
+     SYSCALL_ENTRY( 0x0107, NtWaitForKeyedEvent, 32 ) \
+-    SYSCALL_ENTRY( 0x0108, NtWineGetCurrentTebAccessor, 8 )
++    SYSCALL_ENTRY( 0x0108, NtWineGetCurrentTebAccessor, 8 ) \
++    SYSCALL_ENTRY( 0x0109, NtWineAllocateJitMemory, 24 ) \
++    SYSCALL_ENTRY( 0x010a, NtWineFreeJitMemory, 24 ) \
++    SYSCALL_ENTRY( 0x010b, NtWineDetachJitDebugger, 0 )
+ #else
+ #define ALL_SYSCALLS ALL_SYSCALLS32
+ #endif
+diff --git a/dlls/ntdll/unix/unix_private.h b/dlls/ntdll/unix/unix_private.h
+--- a/dlls/ntdll/unix/unix_private.h
++++ b/dlls/ntdll/unix/unix_private.h
+@@ -280,6 +280,9 @@ extern void set_process_instrumentation_callback( void *callback );
+ extern void *get_cpu_area( struct thread_data *data, USHORT machine );
+ extern void set_thread_id( struct thread_data *data );
+ extern NTSTATUS WINAPI NtWineGetCurrentTebAccessor( void **accessor );
++extern NTSTATUS WINAPI NtWineAllocateJitMemory( void **write_address, void **exec_address, SIZE_T size );
++extern NTSTATUS WINAPI NtWineFreeJitMemory( void *write_address, void *exec_address, SIZE_T size );
++extern NTSTATUS WINAPI NtWineDetachJitDebugger(void);
+ #ifdef __APPLE__
+ extern TEB * __attribute__((preserve_all)) juice_ios_current_teb(void);
+ #endif
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -139,6 +139,7 @@ struct file_view
+ #define VPROT_PLACEHOLDER      0x0400
+ #define VPROT_FREE_PLACEHOLDER 0x0800
++#define VPROT_JUICE_JIT        0x1000  /* StikDebug dual-mapped JIT view */
+ 
+ /* Conversion from VPROT_* to Win32 flags */
+ static const BYTE VIRTUAL_Win32Flags[16] =
+@@ -5697,6 +5698,200 @@ NTSTATUS WINAPI NtAllocateVirtualMemory( HANDLE process, PVOID *ret, ULONG_PTR z
+     return STATUS_SUCCESS;
+ }
+ 
++#if defined(__APPLE__) && defined(__aarch64__)
++/*
++ * MeloNX's iOS JIT allocator obtains an RX mapping from BreakpointJIT and
++ * creates a second RW alias with vm_remap.  FEX is a Windows PE module, so it
++ * cannot call Darwin's Mach VM API directly.  These private ntdll syscalls
++ * provide the same allocator inside Wine's native Unix half while keeping the
++ * executable range registered in Wine's virtual-memory and ARM64EC metadata.
++ */
++__attribute__((naked, noinline, optnone))
++static void *juice_break_mark_jit_mapping( SIZE_T size __attribute__((unused)) )
++{
++    __asm__ volatile(
++        "brk #0x69\n"
++        "ret\n");
++}
++
++__attribute__((naked, noinline, optnone))
++static void *juice_break_get_jit_mapping( void *address __attribute__((unused)),
++                                          SIZE_T size __attribute__((unused)) )
++{
++    __asm__ volatile(
++        "mov x16, #1\n"
++        "brk #0xf00d\n"
++        "ret\n");
++}
++
++__attribute__((naked, noinline, optnone))
++static void juice_break_jit_detach(void)
++{
++    __asm__ volatile(
++        "mov x16, #0\n"
++        "brk #0xf00d\n"
++        "ret\n");
++}
++
++static BOOL juice_stikdebug_enabled(void)
++{
++    const char *value = getenv( "JUICE_STIKDEBUG_JIT" );
++    return value && value[0] == '1' && !value[1];
++}
++
++static BOOL juice_stikdebug_txm_enabled(void)
++{
++    const char *value = getenv( "JUICE_STIKDEBUG_TXM" );
++    return value && value[0] == '1' && !value[1];
++}
++
++static BOOL juice_invalid_breakpoint_mapping( const void *address )
++{
++    const UINT_PTR value = (UINT_PTR)address;
++    return !address || address == MAP_FAILED || value == 0xcccccccc690000e0ull || value == 0x690000e0ull;
++}
++
++static NTSTATUS juice_register_jit_views( void *write_address, void *exec_address, SIZE_T size )
++{
++    struct file_view *exec_view = NULL, *write_view = NULL;
++    sigset_t sigset;
++    NTSTATUS status;
++
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    status = create_view( &exec_view, exec_address, size,
++                          VPROT_SYSTEM | VPROT_JUICE_JIT | VPROT_COMMITTED | VPROT_READ | VPROT_EXEC );
++    if (!status && arm64ec_view)
++    {
++        commit_arm64ec_map( exec_view );
++        set_arm64ec_range( exec_address, size );
++    }
++    if (!status)
++        status = create_view( &write_view, write_address, size,
++                              VPROT_SYSTEM | VPROT_JUICE_JIT | VPROT_COMMITTED | VPROT_READ | VPROT_WRITE );
++    if (status && exec_view) delete_view( exec_view );
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    return status;
++}
++
++static BOOL juice_unregister_jit_view_locked( void *address, SIZE_T size )
++{
++    struct file_view *view = find_view( address, size );
++    if (!view || view->base != address || view->size != size || !(view->protect & VPROT_JUICE_JIT)) return FALSE;
++    delete_view( view );
++    return TRUE;
++}
++#endif
++
++/***********************************************************************
++ *             NtWineAllocateJitMemory   (NTDLL.@)
++ *
++ * Return a permanently executable mapping and a separate writable alias of
++ * the same backing memory.  On TXM/SPTM devices the RX mapping is allocated
++ * by StikDebug's breakpoint protocol exactly like MeloNX's
++ * DualMappedJitAllocator; on older devices an ordinary RX mmap is sufficient
++ * once the process has CS_DEBUGGED.
++ */
++NTSTATUS WINAPI NtWineAllocateJitMemory( void **write_address, void **exec_address, SIZE_T size )
++{
++#if defined(__APPLE__) && defined(__aarch64__)
++    vm_address_t write = 0;
++    vm_prot_t current_protection = 0, maximum_protection = 0;
++    void *exec;
++    kern_return_t result;
++    NTSTATUS status;
++
++    if (!write_address || !exec_address || !size || !juice_stikdebug_enabled()) return STATUS_INVALID_PARAMETER;
++    *write_address = NULL;
++    *exec_address = NULL;
++    size = ROUND_SIZE( 0, size, host_page_mask );
++
++    if (juice_stikdebug_txm_enabled())
++    {
++        /* MeloNX tries BreakMarkJITMapping first for compatibility and falls
++         * back to the universal PREPARE_REGION command when it receives the
++         * legacy sentinel. */
++        exec = juice_break_mark_jit_mapping( size );
++        if (juice_invalid_breakpoint_mapping( exec )) exec = juice_break_get_jit_mapping( NULL, size );
++        if (juice_invalid_breakpoint_mapping( exec )) return STATUS_NO_MEMORY;
++    }
++    else
++    {
++        exec = mmap( NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE | MAP_ANON, -1, 0 );
++        if (exec == MAP_FAILED) return STATUS_NO_MEMORY;
++    }
++
++    result = vm_remap( mach_task_self(), &write, size, 0, VM_FLAGS_ANYWHERE,
++                       mach_task_self(), (vm_address_t)exec, FALSE,
++                       &current_protection, &maximum_protection, VM_INHERIT_NONE );
++    if (result != KERN_SUCCESS)
++    {
++        vm_deallocate( mach_task_self(), (vm_address_t)exec, size );
++        return STATUS_NO_MEMORY;
++    }
++
++    result = vm_protect( mach_task_self(), write, size, FALSE, VM_PROT_READ | VM_PROT_WRITE );
++    if (result != KERN_SUCCESS)
++    {
++        vm_deallocate( mach_task_self(), write, size );
++        vm_deallocate( mach_task_self(), (vm_address_t)exec, size );
++        return STATUS_UNSUCCESSFUL;
++    }
++
++    status = juice_register_jit_views( (void *)write, exec, size );
++    if (status)
++    {
++        vm_deallocate( mach_task_self(), write, size );
++        vm_deallocate( mach_task_self(), (vm_address_t)exec, size );
++        return status;
++    }
++
++    *write_address = (void *)write;
++    *exec_address = exec;
++    TRACE( "StikDebug dual JIT mapping write=%p exec=%p size=%lx txm=%u\n",
++           *write_address, *exec_address, (unsigned long)size, juice_stikdebug_txm_enabled() );
++    return STATUS_SUCCESS;
++#else
++    return STATUS_NOT_SUPPORTED;
++#endif
++}
++
++/***********************************************************************
++ *             NtWineFreeJitMemory   (NTDLL.@)
++ */
++NTSTATUS WINAPI NtWineFreeJitMemory( void *write_address, void *exec_address, SIZE_T size )
++{
++#if defined(__APPLE__) && defined(__aarch64__)
++    BOOL write_registered, exec_registered;
++    sigset_t sigset;
++
++    if (!write_address || !exec_address || !size) return STATUS_INVALID_PARAMETER;
++    size = ROUND_SIZE( 0, size, host_page_mask );
++
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    write_registered = juice_unregister_jit_view_locked( write_address, size );
++    exec_registered = juice_unregister_jit_view_locked( exec_address, size );
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    if (!write_registered || !exec_registered) return STATUS_INVALID_ADDRESS;
++
++    vm_deallocate( mach_task_self(), (vm_address_t)write_address, size );
++    vm_deallocate( mach_task_self(), (vm_address_t)exec_address, size );
++    return STATUS_SUCCESS;
++#else
++    return STATUS_NOT_SUPPORTED;
++#endif
++}
++
++/***********************************************************************
++ *             NtWineDetachJitDebugger   (NTDLL.@)
++ */
++NTSTATUS WINAPI NtWineDetachJitDebugger(void)
++{
++#if defined(__APPLE__) && defined(__aarch64__)
++    if (!juice_stikdebug_enabled()) return STATUS_INVALID_PARAMETER;
++    if (juice_stikdebug_txm_enabled()) juice_break_jit_detach();
++    return STATUS_SUCCESS;
++#else
++    return STATUS_NOT_SUPPORTED;
++#endif
++}
++
+ 
+ /***********************************************************************
+  *             NtAllocateVirtualMemoryEx   (NTDLL.@)
