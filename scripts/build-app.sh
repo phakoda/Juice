@@ -39,10 +39,11 @@ mkdir -p "$OUT"
 
 "$CC" "${target_flags[@]}" -fobjc-arc -fblocks -O2 \
   "$ROOT/app/main.m" "$ROOT/app/JuiceZip.m" "$ROOT/app/JuiceStoragePaths.m" \
-  "$ROOT/app/JuicePrefixRepair.m" "$ROOT/app/JuiceApiSetBootstrap.m" \
-  "$ROOT/app/JuiceWin32Bootstrap.m" "$ROOT/app/JuiceArchitectureRouting.m" \
-  "$ROOT/app/JuiceControlLaunchRouting.m" "$ROOT/app/JuiceCompatibilityLabels.m" \
-  "$ROOT/app/JuiceHardwareKeyboard.m" "$ROOT/app/JuiceTextInputHardening.m" \
+  "$ROOT/app/JuiceSocketHardening.m" "$ROOT/app/JuicePrefixRepair.m" \
+  "$ROOT/app/JuiceApiSetBootstrap.m" "$ROOT/app/JuiceWin32Bootstrap.m" \
+  "$ROOT/app/JuiceArchitectureRouting.m" "$ROOT/app/JuiceControlLaunchRouting.m" \
+  "$ROOT/app/JuiceCompatibilityLabels.m" "$ROOT/app/JuiceHardwareKeyboard.m" \
+  "$ROOT/app/JuicePointerInput.m" "$ROOT/app/JuiceTextInputHardening.m" \
   "$ROOT/app/JuiceMSIImport.m" "$ROOT/app/JuiceScriptImport.m" \
   "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
   "$ROOT/app/JuiceWindowActivation.m" "$ROOT/app/JuiceFramebufferFix.m" \
