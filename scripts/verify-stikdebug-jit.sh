@@ -20,6 +20,10 @@ bash -n \
   "$ROOT/scripts/fetch-fex-linux.sh" \
   "$ROOT/scripts/verify-fex-patch.sh"
 
+# --numstat parses the complete unified diff without requiring an FEX checkout,
+# catching malformed hunk counts and missing terminal newlines in normal CI.
+git -C "$ROOT" apply --numstat "$ROOT/patches/fex-stikdebug-jit.patch" >/dev/null
+
 # Verify the small Wine overlay against either a clean source checkout or a
 # source tree that has already been prepared for an incremental build.
 "$ROOT/scripts/verify-wine-patch.sh"
@@ -41,12 +45,13 @@ PY
 
 app="$ROOT/app/JuiceStikDebugJIT.m"
 grep -Fq 'POSIX_SPAWN_START_SUSPENDED' "$app"
+grep -Fq '0x0080' "$app"
 grep -Fq 'CS_DEBUGGED' "$app"
 grep -Fq 'JUICE_STIKDEBUG_JIT=1' "$app"
 grep -Fq 'JUICE_STIKDEBUG_TXM=1' "$app"
+grep -Fq 'Ap,TrustedExecutionMonitor.img4' "$app"
 grep -Fq 'queryItemWithName:@"pid"' "$app"
-grep -Fq 'queryItemWithName:@"script-name"' "$app"
-grep -Fq '@"universal.js"' "$app"
+grep -Fq 'queryItemWithName:@"script-name" value:@"universal.js"' "$app"
 grep -Fq 'get-task-allow' "$app"
 grep -Fq 'JuiceStikDebugJIT.m' "$ROOT/scripts/build-app.sh"
 grep -Fq 'stikdebug-wine:' "$ROOT/Makefile"
