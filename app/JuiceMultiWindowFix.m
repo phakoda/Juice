@@ -29,6 +29,11 @@
  *     apps such as WineMine. Wine's iOS software surfaces are 1 pixel per
  *     desktop unit, so preserve that 1:1 mapping and clip any excess backing
  *     pixels instead of scaling them into view.
+ *
+ *  4. Several HWNDs can publish frames before UIKit returns to the run loop.
+ *     Rebuilding the full viewport for every one of those callbacks creates
+ *     avoidable large UIImage allocations. Keep at most one compositor pass
+ *     pending on the main queue and merge intervening redraw requests.
  */
 
 #define JUICE_MAGIC 0x4a554943u
@@ -52,6 +57,8 @@ static void (*OriginalHandleCanvasInput)(id, SEL, JuiceMsg);
 static char JuiceCompositeViewportKey;
 static char JuiceCompositeLoggedViewportKey;
 static char JuiceCapturedViewportKey;
+static char JuiceCompositeScheduledKey;
+static char JuiceCompositeCoalescedKey;
 
 static id JuiceValue(id object, NSString *key)
 {
@@ -184,7 +191,7 @@ static void JuiceDrawStateImage(id state, CGContextRef context)
     CGContextRestoreGState(context);
 }
 
-static void JuiceFixedCompositeWineDesktop(id self, SEL _cmd)
+static void JuiceRenderCompositeWineDesktop(id self, SEL _cmd)
 {
     if (![JuiceValue(self, @"experimentalMultiWindow") boolValue])
     {
@@ -245,6 +252,51 @@ static void JuiceFixedCompositeWineDesktop(id self, SEL _cmd)
         if (client) JuiceSetValue(self, @"activeClient", client);
     }
     JuiceLogViewportIfChanged(self, viewport, desktop);
+}
+
+static void JuiceFixedCompositeWineDesktop(id self, SEL _cmd)
+{
+    if (![JuiceValue(self, @"experimentalMultiWindow") boolValue])
+    {
+        if (OriginalCompositeWineDesktop) OriginalCompositeWineDesktop(self, _cmd);
+        return;
+    }
+
+    if (![NSThread isMainThread])
+    {
+        dispatch_async(dispatch_get_main_queue(), ^{ JuiceFixedCompositeWineDesktop(self, _cmd); });
+        return;
+    }
+
+    @synchronized(self)
+    {
+        if ([objc_getAssociatedObject(self, &JuiceCompositeScheduledKey) boolValue])
+        {
+            NSUInteger coalesced = [objc_getAssociatedObject(self, &JuiceCompositeCoalescedKey) unsignedIntegerValue];
+            objc_setAssociatedObject(self, &JuiceCompositeCoalescedKey, @(coalesced + 1),
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            return;
+        }
+        objc_setAssociatedObject(self, &JuiceCompositeScheduledKey, @YES,
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSUInteger coalesced = 0;
+        @synchronized(self)
+        {
+            coalesced = [objc_getAssociatedObject(self, &JuiceCompositeCoalescedKey) unsignedIntegerValue];
+            objc_setAssociatedObject(self, &JuiceCompositeScheduledKey, @NO,
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(self, &JuiceCompositeCoalescedKey, nil,
+                                     OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        JuiceRenderCompositeWineDesktop(self, _cmd);
+        if (coalesced)
+            JuiceAppend(self, [NSString stringWithFormat:
+                @"MULTI_WINDOW_COMPOSITE_COALESCED merged_requests=%lu\n",
+                (unsigned long)coalesced]);
+    });
 }
 
 static id JuiceTopWindowAtDesktopPoint(NSDictionary<NSNumber *, id> *windows,
