@@ -36,7 +36,8 @@ grep -Fq 'KEYEVENTF_SCANCODE' "$IPC_C"
 grep -Fq 'JUICE_IOS_KEY_EXTENDED' "$IPC_C"
 
 # Software framebuffer transport: track every HWND, seed a complete baseline,
-# then transmit packed dirty updates with reconnect generations.
+# then transmit packed dirty updates with reconnect generations. Disconnects
+# from stale readers must match both fd and connection generation.
 grep -Fq 'surface_list' "$IOSDRV"
 grep -Fq 'surface->presented' "$IOSDRV"
 grep -Fq 'JUICE_IOS_FRAME_DIRTY' "$IPC_H"
@@ -44,6 +45,8 @@ grep -Fq 'ipc_generation' "$IPC_C"
 grep -Fq 'connect_ipc_locked' "$IPC_C"
 grep -Fq 'writev_all' "$IPC_C"
 grep -Fq 'surface_has_baseline_locked' "$IPC_C"
+grep -Fq 'disconnect_ipc_connection' "$IPC_C"
+grep -Fq 'ipc_fd==fd&&ipc_generation==generation' "$IPC_C"
 
 # Preserve current main's viewport and desktop-coordinate drag fixes while
 # collapsing multiple HWND redraws into one pending full-viewport composite.
@@ -65,12 +68,21 @@ grep -Fq 'frame.coalesced++' "$DISPLAY"
 grep -Fq 'frame.generation!=generation' "$DISPLAY"
 grep -Fq 'presentFrameMessage:data:client:peerPID:first:' "$DISPLAY"
 
-# Host sockets are short, non-inheritable and resilient to transient accept or
-# EINTR failures; single-window writes remain serialized through clients.
+# Host sockets are short/non-inheritable and survive sustained transient accept
+# pressure. Per-listener generations plus SO_ACCEPTCONN/path verification prevent
+# old loops or lifecycle recovery from trusting/closing a reused unrelated fd.
 grep -Fq 'NSTemporaryDirectory()' "$SOCKET"
 grep -Fq 'FD_CLOEXEC' "$SOCKET"
 grep -Fq 'SO_NOSIGPIPE' "$SOCKET"
-grep -Fq 'SOCKET_ACCEPT_RETRY' "$SOCKET"
+grep -Fq 'SO_ACCEPTCONN' "$SOCKET"
+grep -Fq 'JuiceListenerFDMatchesPath' "$SOCKET"
+grep -Fq 'JuiceListenerGeneration' "$SOCKET"
+grep -Fq 'persistent=1' "$SOCKET"
+grep -Fq 'SOCKET_BIND_RETRY' "$SOCKET"
+if grep -Fq 'failures++<20' "$SOCKET"; then
+  echo "Socket accept recovery must not permanently stop after a fixed retry count." >&2
+  exit 3
+fi
 grep -Fq 'errno==EINTR' "$HOSTIO"
 grep -Fq '@synchronized(clients)' "$HOSTIO"
 
@@ -115,12 +127,16 @@ grep -Fq 'class_addMethod' "$MEMORY"
 grep -Fq 'hidden_images_trimmed' "$MEMORY"
 
 # Foregrounding repairs missing listeners, backgrounding drops stale pointer
-# capture, and newer mainline host FDs are explicitly close-on-exec.
+# capture, and newer mainline host FDs are explicitly close-on-exec. Lifecycle
+# ownership checks must not close an unrelated fd that reused a listener number.
 grep -Fq 'UIApplicationWillEnterForegroundNotification' "$LIFECYCLE"
 grep -Fq 'listener_restart=' "$LIFECYCLE"
 grep -Fq 'gamepadFD' "$LIFECYCLE"
 grep -Fq 'persistentLogHandle' "$LIFECYCLE"
 grep -Fq 'FD_CLOEXEC' "$LIFECYCLE"
+grep -Fq 'SO_ACCEPTCONN' "$LIFECYCLE"
+grep -Fq 'JuiceListenerOwnsFD' "$LIFECYCLE"
+grep -Fq 'reused_fd=' "$LIFECYCLE"
 
 # CLI stdin uses the same exact-write semantics as socket I/O: EINTR retries and
 # hard failures close/invalidate the child pipe rather than reusing a dead fd.
