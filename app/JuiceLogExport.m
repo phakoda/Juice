@@ -4,10 +4,9 @@
 
 /*
  * Keep log exporting isolated from the main controller implementation. Juice's
- * main UI already owns a persistent log file containing both controller events
- * and the child Wine/FEX stdout+stderr stream. This category installs one
- * button after the controller has built its form and exports a timestamped
- * snapshot through UIDocumentPickerViewController.
+ * main UI owns a persistent log file containing controller events and the child
+ * Wine/FEX stdout+stderr stream. Runtime hardening may rotate that file into a
+ * single `.previous` segment; export combines both retained segments.
  *
  * Do not hand /var/mobile/Documents URLs directly to UIActivityViewController.
  * Juice is intentionally unsandboxed under TrollStore and those paths are not
@@ -16,6 +15,60 @@
  * fragile. Instead create an immutable snapshot in Juice's temporary directory
  * and ask the system document picker to copy it to the user's chosen location.
  */
+static const unsigned long long JuiceLogExportTailBytes=8ull*1024ull*1024ull;
+
+static NSData *JuiceReadLogTail(NSString *path)
+{
+    if(!path.length)return nil;
+    NSFileHandle *handle=[NSFileHandle fileHandleForReadingAtPath:path];
+    if(!handle)return nil;
+    unsigned long long size=[NSFileManager.defaultManager attributesOfItemAtPath:path error:nil].fileSize;
+    unsigned long long start=size>JuiceLogExportTailBytes?size-JuiceLogExportTailBytes:0;
+    NSData *data=nil;
+    @try
+    {
+        if(start)[handle seekToFileOffset:start];
+        data=[handle readDataToEndOfFile];
+        [handle closeFile];
+    }
+    @catch(__unused NSException *exception)
+    {
+        @try{[handle closeFile];}@catch(__unused NSException *closeException){}
+        return nil;
+    }
+    return data.length?data:nil;
+}
+
+static NSData *JuiceCombinedLogContents(NSString *source)
+{
+    if(!source.length)return nil;
+    NSArray<NSString *> *paths=@[[source stringByAppendingString:@".previous"],source];
+    NSMutableData *combined=[NSMutableData data];
+    for(NSString *path in paths)
+    {
+        NSData *part=JuiceReadLogTail(path);
+        if(!part.length)continue;
+        if(combined.length)
+        {
+            NSData *separator=[@"\n--- JUICE LOG SEGMENT ---\n" dataUsingEncoding:NSUTF8StringEncoding];
+            [combined appendData:separator];
+        }
+        [combined appendData:part];
+    }
+    return combined.length?combined:nil;
+}
+
+static void JuiceCleanupLogExportStaging(NSFileManager *files,NSURL *temporaryRoot)
+{
+    NSArray<NSURL *> *children=[files contentsOfDirectoryAtURL:temporaryRoot
+                                   includingPropertiesForKeys:nil
+                                                      options:NSDirectoryEnumerationSkipsHiddenFiles
+                                                        error:nil];
+    for(NSURL *child in children)
+        if([child.lastPathComponent hasPrefix:@"JuiceLogExport-"])
+            [files removeItemAtURL:child error:nil];
+}
+
 @interface JuiceController : UIViewController
 @end
 
@@ -99,9 +152,9 @@
     @try { source = [self valueForKey:@"persistentLogPath"]; }
     @catch (__unused NSException *exception) {}
 
-    /* NSData gives us a stable snapshot. The live log can continue growing
-       while the document picker is open without changing the exported bytes. */
-    NSData *contents = source.length ? [NSData dataWithContentsOfFile:source] : nil;
+    /* Read only the retained tail of each segment. This remains bounded even
+       when exporting a log created by an older Juice build without rotation. */
+    NSData *contents = JuiceCombinedLogContents(source);
     if (!contents.length)
     {
         id logView = nil;
@@ -116,8 +169,7 @@
         UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"No log to export"
          message:@"Juice has not recorded any log output yet."
          preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"OK"
-         style:UIAlertActionStyleDefault handler:nil]];
+        [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
         [self presentViewController:alert animated:YES completion:nil];
         return;
     }
@@ -129,6 +181,7 @@
 
     NSFileManager *files = NSFileManager.defaultManager;
     NSURL *temporaryRoot = files.temporaryDirectory;
+    JuiceCleanupLogExportStaging(files,temporaryRoot);
     NSURL *stagingDirectory = [temporaryRoot URLByAppendingPathComponent:
      [NSString stringWithFormat:@"JuiceLogExport-%@", NSUUID.UUID.UUIDString]
      isDirectory:YES];
@@ -169,7 +222,7 @@
     picker.modalPresentationStyle = UIModalPresentationFormSheet;
 
     /* Do not set self as the export picker's delegate. JuiceController's
-       existing document-picker delegate is the EXE/ZIP importer and would
+       existing document-picker delegate is the program importer and would
        otherwise try to interpret the exported .txt as a program selection. */
     @try
     {
@@ -185,7 +238,7 @@
     if ([self respondsToSelector:appendSelector])
     {
         NSString *message = [NSString stringWithFormat:
-         @"LOG_EXPORT_PICKER_OPEN snapshot=%@ bytes=%lu\n",
+         @"LOG_EXPORT_PICKER_OPEN snapshot=%@ bytes=%lu retained_segments=2 bounded=1\n",
          snapshotURL.path, (unsigned long)contents.length];
         ((void (*)(id, SEL, id))objc_msgSend)(self, appendSelector, message);
     }
