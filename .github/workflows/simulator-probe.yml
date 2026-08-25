@@ -13,21 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Probe remote iPhone simulator tunnel
+      - name: Discover remote simulator API
         shell: bash
         env:
           SIMULATOR_URL: https://f81b-64-93-169-237.ngrok-free.app
         run: |
           set -euo pipefail
-          for path in / /health /status /api /api/health /api/status; do
-            echo "===== $path ====="
-            code="$(curl --connect-timeout 10 --max-time 20 -sS -L \
-              -H 'ngrok-skip-browser-warning: 1' \
-              -H 'User-Agent: Juice-GitHub-Simulator-Probe/1.0' \
-              -o response.txt -w '%{http_code}' "${SIMULATOR_URL}${path}" || true)"
-            echo "HTTP $code"
-            if test -s response.txt; then
-              head -c 12000 response.txt
-              echo
-            fi
-          done
+          hdr=(-H 'ngrok-skip-browser-warning: 1' -H 'User-Agent: Juice-GitHub-Simulator-Probe/1.0')
+          curl --connect-timeout 10 --max-time 20 -fsSL "${hdr[@]}" "${SIMULATOR_URL}/static/app.js" -o app.js
+          echo '===== API paths ====='
+          grep -Eo '/api/[A-Za-z0-9_./?=&${}:-]+' app.js | sed -E 's/[`"'"'"'()]$//' | sort -u || true
+          echo '===== auth/token references ====='
+          grep -nEi 'authorization|bearer|access.?token|auth.?token|x-[a-z-]*token' app.js | head -80 || true
+          echo '===== fetch/websocket references ====='
+          grep -nE 'fetch\(|WebSocket\(|EventSource\(' app.js | head -120 || true
+          echo '===== likely app/install/control references ====='
+          grep -nEi 'install|launch|terminate|apps|screenshot|shell|console|crash|upload|ipa|tipa' app.js | head -180 || true
