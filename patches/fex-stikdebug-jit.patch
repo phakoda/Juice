@@ -9,7 +9,7 @@ diff --git a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h b/FEXCore/include/FE
  #include <cstddef>
  #include <cstdint>
  #include <sys/types.h>
-@@ -120,6 +121,62 @@ inline bool VirtualProtect(void* Ptr, size_t Size, ProtectOptions options) {
+@@ -120,6 +121,57 @@ inline bool VirtualProtect(void* Ptr, size_t Size, ProtectOptions options) {
    DWORD old_prot {};
    return ::VirtualProtect(Ptr, Size, prot, &old_prot) != 0;
  }
@@ -81,7 +81,7 @@ diff --git a/FEXCore/Source/Interface/Core/CPUBackend.h b/FEXCore/Source/Interfa
 diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Interface/Core/CPUBackend.cpp
 --- a/FEXCore/Source/Interface/Core/CPUBackend.cpp
 +++ b/FEXCore/Source/Interface/Core/CPUBackend.cpp
-@@ -367,15 +367,22 @@ namespace CPU {
+@@ -367,19 +367,26 @@ namespace CPU {
    CodeBuffer::CodeBuffer(size_t Size)
      : AllocatedSize(Size) {
  #ifdef FEX_JUICE_IOS
@@ -116,7 +116,7 @@ diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Inter
 -    }
  
      FEXCore::Allocator::VirtualName("FEXMemJIT", reinterpret_cast<void*>(Ptr), Size);
-@@ -386,7 +393,16 @@ namespace CPU {
+@@ -386,5 +393,12 @@ namespace CPU {
    }
  
    CodeBuffer::~CodeBuffer() {
@@ -140,7 +140,7 @@ diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.h b/FEXCore/Sou
  
  #include <array>
  #include <cstddef>
-@@ -54,6 +55,9 @@ protected:
+@@ -54,5 +55,8 @@ protected:
    JITCallback CallbackPtr;
  private:
 +  Dispatcher(FEXCore::Context::ContextImpl* ctx, FEXCore::Allocator::JuiceJITMapping Mapping);
@@ -152,7 +152,13 @@ diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.h b/FEXCore/Sou
 diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
 --- a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
 +++ b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
-@@ -36,30 +36,83 @@ static void SleepThread(FEXCore::Context::ContextImpl* CTX, FEXCore::Core::CpuSt
+@@ -27,4 +27,5 @@
+ #include <array>
+ #include <bit>
+ #include <cstring>
++#include <type_traits>
+ 
+@@ -36,31 +37,88 @@ static void SleepThread(FEXCore::Context::ContextImpl* CTX, FEXCore::Core::CpuSt
  
  constexpr size_t MAX_DISPATCHER_CODE_SIZE = FEXCore::Utils::FEX_PAGE_SIZE * 4;
  
@@ -188,14 +194,17 @@ diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp b/FEXCore/S
 +  if (JITMapping.DualMapped) {
 +    const uintptr_t WriteBase = reinterpret_cast<uintptr_t>(JITMapping.Writable);
 +    const uintptr_t WriteEnd = WriteBase + MAX_DISPATCHER_CODE_SIZE;
-+    const intptr_t Delta = reinterpret_cast<uintptr_t>(JITMapping.Executable) - WriteBase;
++    const intptr_t Delta = reinterpret_cast<intptr_t>(JITMapping.Executable) - reinterpret_cast<intptr_t>(JITMapping.Writable);
 +    auto Rebase = [&](uint64_t& Address) {
-+      if (Address >= WriteBase && Address < WriteEnd) Address += Delta;
++      if (Address >= WriteBase && Address < WriteEnd) {
++        Address = static_cast<uint64_t>(static_cast<intptr_t>(Address) + Delta);
++      }
 +    };
 +    auto RebaseFunction = [&](auto& Function) {
-+      uintptr_t Address = reinterpret_cast<uintptr_t>(Function);
++      const uintptr_t Address = reinterpret_cast<uintptr_t>(Function);
 +      if (Address >= WriteBase && Address < WriteEnd) {
-+        Function = reinterpret_cast<std::remove_reference_t<decltype(Function)>>(Address + Delta);
++        const uintptr_t Rebased = static_cast<uintptr_t>(static_cast<intptr_t>(Address) + Delta);
++        Function = reinterpret_cast<std::remove_reference_t<decltype(Function)>>(Rebased);
 +      }
 +    };
 +
@@ -286,7 +295,7 @@ diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interfac
  #endif
  
        // NOTE: 16-byte alignment of the new cursor offset must be preserved for block linking records
-@@ -1201,16 +1210,25 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
+@@ -1201,25 +1210,25 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
      }
  
      // Copy over CodeBuffer contents
