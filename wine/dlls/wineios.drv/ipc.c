@@ -176,19 +176,33 @@ static void send_msg(UINT type,HWND hwnd,const RECT *rect,const void *payload,UI
  if(connected) ios_ipc_register_queue();
 }
 
-static UINT send_virtual_key(HWND target,WORD vkey)
+static UINT send_key_event(HWND target,WORD vkey,DWORD flags)
 {
  INPUT input={0};
- UINT sent=0;
  input.type=INPUT_KEYBOARD;
  input.ki.wVk=vkey;
  input.ki.wScan=0;
- input.ki.dwFlags=0;
+ input.ki.dwFlags=flags;
  input.ki.time=0;
  input.ki.dwExtraInfo=0;
- sent+=NtUserSendHardwareInput(target,0,&input,0);
- input.ki.dwFlags=KEYEVENTF_KEYUP;
- sent+=NtUserSendHardwareInput(target,0,&input,0);
+ return NtUserSendHardwareInput(target,0,&input,0);
+}
+
+static UINT send_virtual_key(HWND target,WORD vkey,UINT flags)
+{
+ UINT sent=0;
+ BOOL shift=(flags&JUICE_IOS_KEY_SHIFT)!=0;
+ BOOL control=(flags&JUICE_IOS_KEY_CONTROL)!=0;
+ BOOL alt=(flags&JUICE_IOS_KEY_ALT)!=0;
+
+ if(control) sent+=send_key_event(target,VK_CONTROL,0);
+ if(shift) sent+=send_key_event(target,VK_SHIFT,0);
+ if(alt) sent+=send_key_event(target,VK_MENU,0);
+ sent+=send_key_event(target,vkey,0);
+ sent+=send_key_event(target,vkey,KEYEVENTF_KEYUP);
+ if(alt) sent+=send_key_event(target,VK_MENU,KEYEVENTF_KEYUP);
+ if(shift) sent+=send_key_event(target,VK_SHIFT,KEYEVENTF_KEYUP);
+ if(control) sent+=send_key_event(target,VK_CONTROL,KEYEVENTF_KEYUP);
  return sent;
 }
 
@@ -357,9 +371,9 @@ BOOL ios_ipc_process_input(void)
    NtUserSetForegroundWindow(hwnd);
    NtUserSetActiveWindow(hwnd);
    NtUserSetFocus(target);
-   sent=send_virtual_key(target,vkey);
-   fprintf(stderr,"[JuiceInput] key surface=%p target=%p vk=%x hardware_events=%u\n",
-           hwnd,target,vkey,sent);
+   sent=send_virtual_key(target,vkey,msg.flags);
+   fprintf(stderr,"[JuiceInput] key surface=%p target=%p vk=%x modifiers=%x hardware_events=%u\n",
+           hwnd,target,vkey,msg.flags&0xffff0000u,sent);
   }
   else
   {
