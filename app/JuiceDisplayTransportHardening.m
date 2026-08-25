@@ -152,7 +152,7 @@ static void JuiceInvalidateClient(id self,int fd)
 {
     NSMutableDictionary *frames=JuiceDisplayFrames(self);
     NSMutableArray<NSNumber *> *remove=[NSMutableArray array];
-    NSUInteger received=0,rendered=0,coalesced=0;
+    __block NSUInteger received=0,rendered=0,coalesced=0;
     @synchronized(frames)
     {
         [frames enumerateKeysAndObjectsUsingBlock:^(NSNumber *key,JuiceDisplayFramebuffer *frame,BOOL *stop){
