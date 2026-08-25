@@ -49,7 +49,7 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
  
  /* Conversion from VPROT_* to Win32 flags */
  static const BYTE VIRTUAL_Win32Flags[16] =
-@@ -5697,6 +5698,203 @@ NTSTATUS WINAPI NtAllocateVirtualMemory( HANDLE process, PVOID *ret, ULONG_PTR z
+@@ -5697,6 +5698,202 @@ NTSTATUS WINAPI NtAllocateVirtualMemory( HANDLE process, PVOID *ret, ULONG_PTR z
      return STATUS_SUCCESS;
  }
  
