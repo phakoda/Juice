@@ -26,8 +26,9 @@ git -C "$RPMALLOC_SOURCE" diff --check
 # and touches some of the same files.  Verify that the combined checkout can
 # reverse the overlay, then compare the remaining tree byte-for-byte with the
 # base patch.  Re-apply the overlay before returning so verification is
-# non-destructive for incremental builds.
-git -C "$SOURCE" apply --reverse --check "$STIKDEBUG_PATCH"
+# non-destructive for incremental builds.  --recount lets the hand-edited
+# overlay derive hunk sizes from its actual lines while still checking context.
+git -C "$SOURCE" apply --recount --reverse --check "$STIKDEBUG_PATCH"
 git -C "$RPMALLOC_SOURCE" apply --reverse --check "$RPMALLOC_PATCH"
 temporary="$(mktemp "$ROOT/build/fex-patch-verify.XXXXXX")"
 rpmalloc_temporary="$(mktemp "$ROOT/build/fex-rpmalloc-patch-verify.XXXXXX")"
@@ -35,16 +36,16 @@ stikdebug_reversed=0
 cleanup()
 {
   if test "$stikdebug_reversed" = 1; then
-    git -C "$SOURCE" apply "$STIKDEBUG_PATCH" || true
+    git -C "$SOURCE" apply --recount "$STIKDEBUG_PATCH" || true
   fi
   case "$temporary" in "$ROOT"/build/fex-patch-verify.*) rm -f "$temporary";; esac
   case "$rpmalloc_temporary" in "$ROOT"/build/fex-rpmalloc-patch-verify.*) rm -f "$rpmalloc_temporary";; esac
 }
 trap cleanup EXIT
 
-git -C "$SOURCE" apply --reverse "$STIKDEBUG_PATCH"
+git -C "$SOURCE" apply --recount --reverse "$STIKDEBUG_PATCH"
 stikdebug_reversed=1
-git -C "$SOURCE" apply --check "$STIKDEBUG_PATCH"
+git -C "$SOURCE" apply --recount --check "$STIKDEBUG_PATCH"
 git -C "$SOURCE" apply --reverse --check "$PATCH"
 
 git -C "$SOURCE" diff --no-ext-diff --src-prefix=a/ --dst-prefix=b/ \
@@ -60,7 +61,7 @@ cmp -s "$rpmalloc_temporary" "$RPMALLOC_PATCH" || {
   exit 3
 }
 
-git -C "$SOURCE" apply "$STIKDEBUG_PATCH"
+git -C "$SOURCE" apply --recount "$STIKDEBUG_PATCH"
 stikdebug_reversed=0
 git -C "$SOURCE" diff --check
 
