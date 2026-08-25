@@ -70,7 +70,7 @@ diff --git a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h b/FEXCore/include/FE
 diff --git a/FEXCore/Source/Interface/Core/CPUBackend.h b/FEXCore/Source/Interface/Core/CPUBackend.h
 --- a/FEXCore/Source/Interface/Core/CPUBackend.h
 +++ b/FEXCore/Source/Interface/Core/CPUBackend.h
-@@ -43,6 +43,8 @@ namespace CPU {
+@@ -43,5 +43,7 @@ namespace CPU {
    struct CodeBuffer {
      uint8_t* Ptr;
 +    uint8_t* WritablePtr;
@@ -81,7 +81,7 @@ diff --git a/FEXCore/Source/Interface/Core/CPUBackend.h b/FEXCore/Source/Interfa
 diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Interface/Core/CPUBackend.cpp
 --- a/FEXCore/Source/Interface/Core/CPUBackend.cpp
 +++ b/FEXCore/Source/Interface/Core/CPUBackend.cpp
-@@ -367,19 +367,26 @@ namespace CPU {
+@@ -367,20 +367,26 @@ namespace CPU {
    CodeBuffer::CodeBuffer(size_t Size)
      : AllocatedSize(Size) {
  #ifdef FEX_JUICE_IOS
@@ -158,7 +158,7 @@ diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp b/FEXCore/S
  #include <cstring>
 +#include <type_traits>
  
-@@ -36,31 +37,88 @@ static void SleepThread(FEXCore::Context::ContextImpl* CTX, FEXCore::Core::CpuSt
+@@ -36,26 +37,86 @@ static void SleepThread(FEXCore::Context::ContextImpl* CTX, FEXCore::Core::CpuSt
  
  constexpr size_t MAX_DISPATCHER_CODE_SIZE = FEXCore::Utils::FEX_PAGE_SIZE * 4;
  
@@ -278,7 +278,7 @@ diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interfac
    const auto Protection = Writable ?
      (FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Write) :
      (FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec);
-@@ -1172,10 +1179,12 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
+@@ -1172,9 +1179,11 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
        const uintptr_t CopyOffset = AlignedOffset;
        ProtectStart = BufferBase + CopyOffset;
        ProtectEnd = (BufferBase + CopyOffset + TempSize + JuiceHostPageMask) & ~JuiceHostPageMask;
@@ -295,7 +295,7 @@ diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interfac
  #endif
  
        // NOTE: 16-byte alignment of the new cursor offset must be preserved for block linking records
-@@ -1201,25 +1210,25 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
+@@ -1201,23 +1210,23 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
      }
  
      // Copy over CodeBuffer contents
