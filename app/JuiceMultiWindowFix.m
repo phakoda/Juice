@@ -7,7 +7,7 @@
  * Multi-window presentation fixes for the UIKit host.
  *
  * Keep Wine's desktop coordinates internally, but present only the bounding
- * viewport of the visible window group. Three details are important here:
+ * viewport of the visible window group. Five details are important here:
  *
  *  1. The viewport must not chase a window while the user is dragging it.
  *     If the crop origin changes between touch events, the same physical
@@ -34,6 +34,11 @@
  *     Rebuilding the full viewport for every one of those callbacks creates
  *     avoidable large UIImage allocations. Keep at most one compositor pass
  *     pending on the main queue and merge intervening redraw requests.
+ *
+ *  5. Drawing order is not input focus. Once a user clicks a live Wine window,
+ *     keep that selected HWND/client as the keyboard/text route across later
+ *     composites. Only fall back to the top drawable window if the selection
+ *     is gone or hidden; refresh its client FD from state after reconnects.
  */
 
 #define JUICE_MAGIC 0x4a554943u
@@ -191,6 +196,13 @@ static void JuiceDrawStateImage(id state, CGContextRef context)
     CGContextRestoreGState(context);
 }
 
+static id JuiceSelectedRoutingState(NSDictionary<NSNumber *, id> *windows,id canvas,id fallback)
+{
+    uint64_t selected=[JuiceValue(canvas,@"hwnd") unsignedLongLongValue];
+    id state=selected?windows[@(selected)]:nil;
+    return JuiceStateDrawable(state)?state:fallback;
+}
+
 static void JuiceRenderCompositeWineDesktop(id self, SEL _cmd)
 {
     if (![JuiceValue(self, @"experimentalMultiWindow") boolValue])
@@ -244,12 +256,18 @@ static void JuiceRenderCompositeWineDesktop(id self, SEL _cmd)
     UIGraphicsEndImageContext();
 
     if (result) JuiceSetValue(canvas, @"image", result);
-    if (topState)
+    id routingState=JuiceSelectedRoutingState(windows,canvas,topState);
+    if (routingState)
     {
-        NSNumber *hwnd = JuiceValue(topState, @"hwnd");
-        NSNumber *client = JuiceValue(topState, @"clientFD");
+        NSNumber *hwnd = JuiceValue(routingState, @"hwnd");
+        NSNumber *client = JuiceValue(routingState, @"clientFD");
         if (hwnd) JuiceSetValue(canvas, @"hwnd", hwnd);
         if (client) JuiceSetValue(self, @"activeClient", client);
+    }
+    else
+    {
+        JuiceSetValue(canvas,@"hwnd",@0);
+        JuiceSetValue(self,@"activeClient",@(-1));
     }
     JuiceLogViewportIfChanged(self, viewport, desktop);
 }
