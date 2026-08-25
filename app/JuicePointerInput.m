@@ -7,6 +7,8 @@
 #define JUICE_POINTER_INPUT 100u
 #define JUICE_POINTER_LEFT_DOWN 1u
 #define JUICE_POINTER_LEFT_UP 2u
+#define JUICE_POINTER_WHEEL 0x10u
+#define JUICE_POINTER_HWHEEL 0x20u
 
 typedef struct
 {
@@ -54,6 +56,22 @@ static CGPoint JuicePointerWinePoint(UIImageView *canvas, CGPoint point)
     return CGPointMake(x, y);
 }
 
+static void JuicePointerDispatch(id self, UIImageView *canvas, CGPoint point,
+                                 uint32_t flags, int32_t horizontal, int32_t vertical)
+{
+    uint64_t hwnd = [JuicePointerValue(canvas, @"hwnd") unsignedLongLongValue];
+    if (!hwnd) return;
+    CGPoint winePoint = JuicePointerWinePoint(canvas, point);
+    JuicePointerMsg message = {
+        JUICE_POINTER_MAGIC, JUICE_POINTER_INPUT, 0, hwnd,
+        (int32_t)winePoint.x, (int32_t)winePoint.y,
+        horizontal, vertical, 0, flags
+    };
+    SEL input = NSSelectorFromString(@"handleCanvasInput:");
+    if ([self respondsToSelector:input])
+        ((void (*)(id, SEL, JuicePointerMsg))objc_msgSend)(self, input, message);
+}
+
 static void JuicePointerHover(id self, SEL _cmd, UIHoverGestureRecognizer *hover)
 {
     (void)_cmd;
@@ -62,18 +80,39 @@ static void JuicePointerHover(id self, SEL _cmd, UIHoverGestureRecognizer *hover
 
     UIImageView *canvas = JuicePointerValue(self, @"canvas");
     if (![canvas isKindOfClass:UIImageView.class] || !canvas.image) return;
-    uint64_t hwnd = [JuicePointerValue(canvas, @"hwnd") unsignedLongLongValue];
-    if (!hwnd) return;
+    JuicePointerDispatch(self, canvas, [hover locationInView:canvas], 0, 0, 0);
+}
 
-    CGPoint point = JuicePointerWinePoint(canvas, [hover locationInView:canvas]);
-    JuicePointerMsg message = {
-        JUICE_POINTER_MAGIC, JUICE_POINTER_INPUT, 0, hwnd,
-        (int32_t)point.x, (int32_t)point.y, 0, 0, 0, 0
-    };
+static int32_t JuicePointerWheelDelta(CGFloat points)
+{
+    /* UIKit reports scroll translation in view points while Win32 wheel input
+       uses 120 units per traditional detent. Ten units per point preserves
+       smooth trackpad deltas and makes a ~12 point mouse-wheel step one detent. */
+    long delta = lrint(points * 10.0);
+    if (delta > 1200) delta = 1200;
+    if (delta < -1200) delta = -1200;
+    return (int32_t)delta;
+}
 
-    SEL input = NSSelectorFromString(@"handleCanvasInput:");
-    if ([self respondsToSelector:input])
-        ((void (*)(id, SEL, JuicePointerMsg))objc_msgSend)(self, input, message);
+static void JuicePointerScroll(id self, SEL _cmd, UIPanGestureRecognizer *scroll)
+{
+    (void)_cmd;
+    if (scroll.state != UIGestureRecognizerStateBegan &&
+        scroll.state != UIGestureRecognizerStateChanged) return;
+
+    UIImageView *canvas = JuicePointerValue(self, @"canvas");
+    if (![canvas isKindOfClass:UIImageView.class] || !canvas.image) return;
+
+    CGPoint translation = [scroll translationInView:canvas];
+    [scroll setTranslation:CGPointZero inView:canvas];
+    int32_t vertical = JuicePointerWheelDelta(-translation.y);
+    int32_t horizontal = JuicePointerWheelDelta(translation.x);
+    CGPoint point = [scroll locationInView:canvas];
+
+    if (vertical)
+        JuicePointerDispatch(self, canvas, point, JUICE_POINTER_WHEEL, 0, vertical);
+    if (horizontal)
+        JuicePointerDispatch(self, canvas, point, JUICE_POINTER_HWHEEL, horizontal, 0);
 }
 
 static void JuicePointerCanvasSend(id self, SEL _cmd, UITouch *touch, uint32_t flags)
@@ -127,9 +166,20 @@ static void JuicePointerViewDidLoad(id self, SEL _cmd)
             initWithTarget:self action:NSSelectorFromString(@"juice_pointerHover:")];
         hover.cancelsTouchesInView = NO;
         [canvas addGestureRecognizer:hover];
+
+        UIPanGestureRecognizer *scroll = [[UIPanGestureRecognizer alloc]
+            initWithTarget:self action:NSSelectorFromString(@"juice_pointerScroll:")];
+        scroll.allowedScrollTypesMask = UIScrollTypeMaskAll;
+        /* Apple documents an empty allowedTouchTypes array as the way to keep
+           this recognizer scroll-event-only instead of stealing finger pans. */
+        scroll.allowedTouchTypes = @[];
+        scroll.cancelsTouchesInView = NO;
+        [canvas addGestureRecognizer:scroll];
+
         objc_setAssociatedObject(self, &JuicePointerHoverInstalledKey, @YES,
                                  OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        JuicePointerAppend(self, @"POINTER_INPUT_READY hover=1 physical_secondary_click=1\n");
+        JuicePointerAppend(self,
+            @"POINTER_INPUT_READY hover=1 physical_secondary_click=1 wheel=1 hwheel=1\n");
     }
 }
 
@@ -141,7 +191,9 @@ static void JuiceInstallPointerInput(void)
     if (controller)
     {
         SEL hoverSelector = NSSelectorFromString(@"juice_pointerHover:");
+        SEL scrollSelector = NSSelectorFromString(@"juice_pointerScroll:");
         class_addMethod(controller, hoverSelector, (IMP)JuicePointerHover, "v@:@");
+        class_addMethod(controller, scrollSelector, (IMP)JuicePointerScroll, "v@:@");
 
         Method view = class_getInstanceMethod(controller, @selector(viewDidLoad));
         if (view)
