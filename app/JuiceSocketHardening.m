@@ -45,11 +45,24 @@ static NSUInteger JuiceBumpListenerGeneration(id self,BOOL control)
     objc_setAssociatedObject(self,JuiceListenerGenerationKey(control),@(generation),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     return generation;
 }
+static BOOL JuiceListenerFDMatchesPath(int fd,NSString *path)
+{
+    if(fd<0||!path.length)return NO;
+    int accepting=0;socklen_t acceptingLength=sizeof(accepting);
+    if(getsockopt(fd,SOL_SOCKET,SO_ACCEPTCONN,&accepting,&acceptingLength)||!accepting)return NO;
+    struct sockaddr_un address={0};socklen_t addressLength=sizeof(address);
+    if(getsockname(fd,(struct sockaddr *)&address,&addressLength)||address.sun_family!=AF_UNIX)return NO;
+    const char *wire=path.fileSystemRepresentation;
+    return wire&&address.sun_path[0]&&strcmp(address.sun_path,wire)==0;
+}
 static BOOL JuiceListenerStillCurrent(id self,BOOL control,int listener,NSUInteger generation)
 {
     NSString *fdKey=control?@"controlListenFD":@"listenFD";
+    NSString *pathKey=control?@"controlSocketPath":@"socketPath";
+    NSString *path=JuiceSocketValue(self,pathKey);
     return [JuiceSocketValue(self,fdKey) intValue]==listener&&
-           JuiceListenerGeneration(self,control)==generation;
+           JuiceListenerGeneration(self,control)==generation&&
+           JuiceListenerFDMatchesPath(listener,path);
 }
 static void JuiceSetSocketFlags(int fd)
 {
@@ -112,14 +125,18 @@ static useconds_t JuiceAcceptBackoff(unsigned failures,int error)
 }
 static void JuiceListenerEnded(id self,BOOL control,int listener,NSUInteger generation,int error)
 {
-    if(!JuiceListenerStillCurrent(self,control,listener,generation))return;
     NSString *fdKey=control?@"controlListenFD":@"listenFD";
     NSString *pathKey=control?@"controlSocketPath":@"socketPath";
-    close(listener);JuiceSocketSetValue(self,fdKey,@(-1));
-    NSString *path=JuiceSocketValue(self,pathKey);if(path.length)unlink(path.fileSystemRepresentation);
+    if([JuiceSocketValue(self,fdKey) intValue]!=listener||
+       JuiceListenerGeneration(self,control)!=generation)return;
+    NSString *path=JuiceSocketValue(self,pathKey);
+    BOOL owned=JuiceListenerFDMatchesPath(listener,path);
+    if(owned)close(listener);
+    JuiceSocketSetValue(self,fdKey,@(-1));
+    if(path.length)unlink(path.fileSystemRepresentation);
     JuiceSocketAppend(self,[NSString stringWithFormat:
-        @"SOCKET_LISTENER_ENDED kind=%@ fd=%d generation=%lu errno=%d restartable=1\n",
-        control?@"control":@"display",listener,(unsigned long)generation,error]);
+        @"SOCKET_LISTENER_ENDED kind=%@ fd=%d generation=%lu errno=%d owned=%d restartable=1\n",
+        control?@"control":@"display",listener,(unsigned long)generation,error,owned]);
 }
 static void JuiceAcceptLoop(id self,int listener,BOOL control,NSUInteger generation)
 {
@@ -186,21 +203,26 @@ static void JuiceScheduleListenerRestart(id self,BOOL control,NSUInteger generat
 static void JuiceStartListener(id self,BOOL control)
 {
     NSString *fdKey=control?@"controlListenFD":@"listenFD";
+    NSString *pathKey=control?@"controlSocketPath":@"socketPath";
     int old=[JuiceSocketValue(self,fdKey) intValue];
-    if(old>=0&&fcntl(old,F_GETFD)!=-1)
+    NSString *oldPath=JuiceSocketValue(self,pathKey);
+    BOOL oldIsListener=JuiceListenerFDMatchesPath(old,oldPath);
+    BOOL pathPresent=oldPath.length&&access(oldPath.fileSystemRepresentation,F_OK)==0;
+    if(oldIsListener&&pathPresent)
     {
         JuiceSocketAppend(self,[NSString stringWithFormat:
             @"SOCKET_LISTENER_ALREADY_RUNNING kind=%@ fd=%d generation=%lu\n",
             control?@"control":@"display",old,(unsigned long)JuiceListenerGeneration(self,control)]);
         return;
     }
+    if(oldIsListener)close(old);
     if(old>=0)JuiceSocketSetValue(self,fdKey,@(-1));
+    if(oldPath.length)unlink(oldPath.fileSystemRepresentation);
 
     NSUInteger generation=JuiceBumpListenerGeneration(self,control);
     NSString *root=JuiceSocketRoot();NSError *error=nil;
     [NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:&error];
     NSString *path=[root stringByAppendingPathComponent:control?@"control.sock":@"display.sock"];
-    NSString *pathKey=control?@"controlSocketPath":@"socketPath";
     JuiceSocketSetValue(self,pathKey,path);
     int listener=-1,saved=error?EACCES:0;
     BOOL ready=!error&&JuiceBindListener(path,control?4:8,&listener,&saved);
