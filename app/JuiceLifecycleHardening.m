@@ -3,6 +3,9 @@
 #import <fcntl.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import <string.h>
+#import <sys/socket.h>
+#import <sys/un.h>
 #import <unistd.h>
 
 static void (*JuiceLifecycleOriginalViewDidLoad)(id,SEL);
@@ -17,6 +20,17 @@ static BOOL JuiceDescriptorAlive(int fd)
     if(fd<0)return NO;errno=0;if(fcntl(fd,F_GETFD)>=0)return YES;return errno!=EBADF;
 }
 
+static BOOL JuiceListenerOwnsFD(int fd,NSString *path)
+{
+    if(fd<0||!path.length)return NO;
+    int accepting=0;socklen_t acceptingLength=sizeof(accepting);
+    if(getsockopt(fd,SOL_SOCKET,SO_ACCEPTCONN,&accepting,&acceptingLength)||!accepting)return NO;
+    struct sockaddr_un address={0};socklen_t addressLength=sizeof(address);
+    if(getsockname(fd,(struct sockaddr *)&address,&addressLength)||address.sun_family!=AF_UNIX)return NO;
+    const char *wire=path.fileSystemRepresentation;
+    return wire&&address.sun_path[0]&&strcmp(address.sun_path,wire)==0;
+}
+
 static void JuiceMarkCloseOnExec(int fd)
 {
     if(fd<0)return;int flags=fcntl(fd,F_GETFD);if(flags>=0)fcntl(fd,F_SETFD,flags|FD_CLOEXEC);
@@ -25,20 +39,25 @@ static void JuiceMarkCloseOnExec(int fd)
 static BOOL JuiceListenerNeedsRestart(id self,NSString *fdKey,NSString *pathKey)
 {
     int fd=[JuiceLifecycleValue(self,fdKey) intValue];NSString *path=JuiceLifecycleValue(self,pathKey);
-    if(!JuiceDescriptorAlive(fd)||!path.length)return YES;
-    return access(path.fileSystemRepresentation,F_OK)!=0;
+    if(!JuiceListenerOwnsFD(fd,path))return YES;
+    return !path.length||access(path.fileSystemRepresentation,F_OK)!=0;
 }
 
 static void JuiceRestartListener(id self,NSString *fdKey,NSString *pathKey,NSString *selectorName,NSString *label)
 {
     if(!JuiceListenerNeedsRestart(self,fdKey,pathKey))return;
     int oldFD=[JuiceLifecycleValue(self,fdKey) intValue];
-    if(JuiceDescriptorAlive(oldFD))close(oldFD);JuiceLifecycleSetValue(self,fdKey,@(-1));
-    NSString *oldPath=JuiceLifecycleValue(self,pathKey);if(oldPath.length)unlink(oldPath.fileSystemRepresentation);
+    NSString *oldPath=JuiceLifecycleValue(self,pathKey);
+    BOOL owned=JuiceListenerOwnsFD(oldFD,oldPath);
+    if(owned)close(oldFD);
+    JuiceLifecycleSetValue(self,fdKey,@(-1));
+    if(oldPath.length)unlink(oldPath.fileSystemRepresentation);
     SEL selector=NSSelectorFromString(selectorName);
     if([self respondsToSelector:selector])
     {
-        JuiceLifecycleAppend(self,[NSString stringWithFormat:@"APP_LIFECYCLE listener_restart=%@ old_fd=%d old_path=%@\n",label,oldFD,oldPath?:@""]);
+        JuiceLifecycleAppend(self,[NSString stringWithFormat:
+            @"APP_LIFECYCLE listener_restart=%@ old_fd=%d old_path=%@ owned=%d reused_fd=%d\n",
+            label,oldFD,oldPath?:@"",owned,oldFD>=0&&JuiceDescriptorAlive(oldFD)&&!owned]);
         ((void(*)(id,SEL))objc_msgSend)(self,selector);
     }
 }
@@ -67,9 +86,9 @@ static void JuiceWillTerminate(id self)
     NSArray<NSString *> *pathKeys=@[@"socketPath",@"controlSocketPath"];
     for(NSUInteger i=0;i<fdKeys.count;i++)
     {
-        int fd=[JuiceLifecycleValue(self,fdKeys[i]) intValue];if(JuiceDescriptorAlive(fd))close(fd);
-        JuiceLifecycleSetValue(self,fdKeys[i],@(-1));NSString *path=JuiceLifecycleValue(self,pathKeys[i]);
-        if(path.length)unlink(path.fileSystemRepresentation);
+        int fd=[JuiceLifecycleValue(self,fdKeys[i]) intValue];NSString *path=JuiceLifecycleValue(self,pathKeys[i]);
+        BOOL owned=JuiceListenerOwnsFD(fd,path);if(owned)close(fd);
+        JuiceLifecycleSetValue(self,fdKeys[i],@(-1));if(path.length)unlink(path.fileSystemRepresentation);
     }
     JuiceLifecycleAppend(self,@"APP_LIFECYCLE terminate listeners_closed=1\n");
 }
@@ -87,7 +106,7 @@ static void JuiceLifecycleViewDidLoad(id self,SEL _cmd)
     id foreground=[center addObserverForName:UIApplicationWillEnterForegroundNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){id strong=weakSelf;if(strong)JuiceEnteredForeground(strong);}];
     id terminate=[center addObserverForName:UIApplicationWillTerminateNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){id strong=weakSelf;if(strong)JuiceWillTerminate(strong);}];
     objc_setAssociatedObject(self,&JuiceLifecycleObserverTokensKey,@[background,foreground,terminate],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    JuiceLifecycleAppend(self,@"APP_LIFECYCLE_READY listener_recovery=1 descriptor_cloexec=1\n");
+    JuiceLifecycleAppend(self,@"APP_LIFECYCLE_READY listener_recovery=1 descriptor_cloexec=1 listener_identity=1\n");
 }
 
 __attribute__((constructor(420)))
