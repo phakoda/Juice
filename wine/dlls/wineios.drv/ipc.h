@@ -14,6 +14,11 @@
 #define JUICE_IOS_LEFT_UP 2u
 #define JUICE_IOS_RIGHT_DOWN 4u
 #define JUICE_IOS_RIGHT_UP 8u
+/* INPUT wheel events keep x/y as the pointer location. Vertical wheel delta is
+ * carried in height; horizontal wheel delta is carried in width. Deltas use
+ * Win32 mouse-wheel units, where WHEEL_DELTA (120) is one detent. */
+#define JUICE_IOS_WHEEL 0x10u
+#define JUICE_IOS_HWHEEL 0x20u
 /* x/y are Wine desktop coordinates instead of window-local coordinates. */
 #define JUICE_IOS_COORDS_DESKTOP 0x40000000u
 /* FRAME payload contains only the packed BGRA dirty rectangle. x/y locate the
