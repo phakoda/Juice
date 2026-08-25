@@ -10,13 +10,15 @@ DISPLAY="$ROOT/app/JuiceDisplayTransportHardening.m"
 SOCKET="$ROOT/app/JuiceSocketHardening.m"
 HOSTIO="$ROOT/app/JuiceHostIOHardening.m"
 RECONNECT="$ROOT/app/JuiceReconnectGrace.m"
+DATA_IMPORT="$ROOT/app/JuiceWindowsDataImport.m"
 POINTER="$ROOT/app/JuicePointerInput.m"
 MEMORY="$ROOT/app/JuiceMemoryPressure.m"
+LIFECYCLE="$ROOT/app/JuiceLifecycleHardening.m"
 LAUNCH="$ROOT/app/JuiceLaunchHardening.m"
 ZIP="$ROOT/app/JuiceZip.m"
 ZIP_TEST="$ROOT/scripts/test-zip-extractor-host.sh"
 
-for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$POINTER" "$MEMORY" "$LAUNCH" "$ZIP" "$ZIP_TEST"; do
+for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$DATA_IMPORT" "$POINTER" "$MEMORY" "$LIFECYCLE" "$LAUNCH" "$ZIP" "$ZIP_TEST"; do
   test -f "$path" || { echo "Missing mainline hardening source: $path" >&2; exit 2; }
 done
 
@@ -67,6 +69,21 @@ grep -Fq 'DISPLAY_RECONNECT_GRACE_END' "$RECONNECT"
 grep -Fq 'inputClient",@(-1)' "$RECONNECT"
 grep -Fq 'JuiceReconnectUnchanged' "$RECONNECT"
 
+# Imported MSI/BAT/CMD/REG files launch through current main's helper/runtime
+# flags, not the obsolete force-translation hook from the old branch.
+grep -Fq 'msiexec.exe' "$DATA_IMPORT"
+grep -Fq 'cmd.exe' "$DATA_IMPORT"
+grep -Fq 'reg.exe' "$DATA_IMPORT"
+grep -Fq 'usingX64",@YES' "$DATA_IMPORT"
+grep -Fq 'usingWin32",@YES' "$DATA_IMPORT"
+grep -Fq 'translatedRuntimeIsSafe:detail:' "$DATA_IMPORT"
+grep -Fq 'libarm64ecfex.dll' "$DATA_IMPORT"
+grep -Fq 'libwow64fex.dll' "$DATA_IMPORT"
+if grep -Fq 'juice_forceTranslatedRuntimeForNextLaunch' "$DATA_IMPORT"; then
+  echo "Windows data import must use current main runtime flags, not the old force hook." >&2
+  exit 3
+fi
+
 # iPad pointer hardware should behave like desktop input without stealing finger
 # pans: hover, secondary button and vertical/horizontal scroll are transported.
 grep -Fq 'UIHoverGestureRecognizer' "$POINTER"
@@ -84,6 +101,14 @@ grep -Fq 'MOUSEEVENTF_HWHEEL' "$IPC_C"
 grep -Fq 'MEMORY_PRESSURE' "$MEMORY"
 grep -Fq 'class_addMethod' "$MEMORY"
 grep -Fq 'hidden_images_trimmed' "$MEMORY"
+
+# Foregrounding repairs missing listeners, backgrounding drops stale pointer
+# capture, and newer mainline host FDs are explicitly close-on-exec.
+grep -Fq 'UIApplicationWillEnterForegroundNotification' "$LIFECYCLE"
+grep -Fq 'listener_restart=' "$LIFECYCLE"
+grep -Fq 'gamepadFD' "$LIFECYCLE"
+grep -Fq 'persistentLogHandle' "$LIFECYCLE"
+grep -Fq 'FD_CLOEXEC' "$LIFECYCLE"
 
 # Launches must not split quoted arguments, mutate the UIKit process cwd, or
 # silently lose process-group/CLOEXEC semantics. Failures after server startup
@@ -109,7 +134,7 @@ grep -Fq 'unlink(outputPath.fileSystemRepresentation)' "$ZIP"
 grep -Fq 'large_size = 48 * 1024 * 1024' "$ZIP_TEST"
 grep -Fq 'local-crc-mismatch' "$ZIP_TEST"
 
-for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLaunchHardening.m; do
+for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuiceWindowsDataImport.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLifecycleHardening.m JuiceLaunchHardening.m; do
   grep -Fq "app/$source" "$BUILD" || { echo "build-app.sh does not compile $source" >&2; exit 3; }
 done
 
