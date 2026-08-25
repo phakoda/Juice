@@ -15,6 +15,11 @@
 #define JUICE_DISPLAY_FRAME 5u
 #define JUICE_DISPLAY_DIRTY 0x20000000u
 #define JUICE_DISPLAY_MAX_BYTES (128u * 1024u * 1024u)
+#define JUICE_DISPLAY_MAX_DESKTOP_DIMENSION 8192
+#define JUICE_DISPLAY_MAX_DESKTOP_PIXELS (4096ULL * 4096ULL)
+#define JUICE_DISPLAY_MAX_WINDOW_DIMENSION 8192
+#define JUICE_DISPLAY_MAX_WINDOW_PIXELS (4096ULL * 4096ULL)
+#define JUICE_DISPLAY_MAX_WINDOW_ORIGIN 131072
 
 typedef struct
 {
@@ -88,9 +93,34 @@ static BOOL JuiceDisplayReadAll(int fd,void *buffer,size_t length)
     return YES;
 }
 
+static BOOL JuiceDimensionsValid(int32_t width,int32_t height,int32_t maxDimension,uint64_t maxPixels)
+{
+    if(width<=0||height<=0||width>maxDimension||height>maxDimension)return NO;
+    return (uint64_t)(uint32_t)width*(uint32_t)height<=maxPixels;
+}
+
+static BOOL JuiceDesktopGeometryValid(JuiceDisplayMsg message)
+{
+    return JuiceDimensionsValid(message.width,message.height,
+                                JUICE_DISPLAY_MAX_DESKTOP_DIMENSION,
+                                JUICE_DISPLAY_MAX_DESKTOP_PIXELS);
+}
+
+static BOOL JuiceWindowGeometryValid(JuiceDisplayMsg message)
+{
+    if(message.width<=0&&message.height<=0)return YES;
+    if(!JuiceDimensionsValid(message.width,message.height,
+                             JUICE_DISPLAY_MAX_WINDOW_DIMENSION,
+                             JUICE_DISPLAY_MAX_WINDOW_PIXELS))return NO;
+    return message.x>=-JUICE_DISPLAY_MAX_WINDOW_ORIGIN&&message.x<=JUICE_DISPLAY_MAX_WINDOW_ORIGIN&&
+           message.y>=-JUICE_DISPLAY_MAX_WINDOW_ORIGIN&&message.y<=JUICE_DISPLAY_MAX_WINDOW_ORIGIN;
+}
+
 static BOOL JuiceFullHeaderValid(JuiceDisplayMsg message)
 {
-    if(message.width<=0||message.height<=0)return NO;
+    if(!JuiceDimensionsValid(message.width,message.height,
+                             JUICE_DISPLAY_MAX_WINDOW_DIMENSION,
+                             JUICE_DISPLAY_MAX_WINDOW_PIXELS))return NO;
     if((uint64_t)(uint32_t)message.width*4u>message.stride)return NO;
     uint64_t expected=(uint64_t)message.stride*(uint32_t)message.height;
     return expected==message.size&&expected<=JUICE_DISPLAY_MAX_BYTES;
@@ -98,7 +128,9 @@ static BOOL JuiceFullHeaderValid(JuiceDisplayMsg message)
 
 static BOOL JuiceDirtyHeaderValid(JuiceDisplayMsg message)
 {
-    if(message.width<=0||message.height<=0||message.x<0||message.y<0)return NO;
+    if(!JuiceDimensionsValid(message.width,message.height,
+                             JUICE_DISPLAY_MAX_WINDOW_DIMENSION,
+                             JUICE_DISPLAY_MAX_WINDOW_PIXELS)||message.x<0||message.y<0)return NO;
     uint64_t row=(uint64_t)(uint32_t)message.width*4u;
     if(row>message.stride)return NO;
     uint64_t expected=(uint64_t)message.stride*(uint32_t)message.height;
@@ -268,16 +300,42 @@ static void JuiceHardenedReadClient(id self,SEL _cmd,int fd)
         {
             JuiceDisplayMsg message;
             if(!JuiceDisplayReadAll(fd,&message,sizeof(message)))break;
-            if(message.magic!=JUICE_DISPLAY_MAGIC)break;
+            if(message.magic!=JUICE_DISPLAY_MAGIC)
+            {
+                JuiceDisplayAppend(self,[NSString stringWithFormat:@"DISPLAY_PROTOCOL_REJECTED fd=%d reason=magic\n",fd]);
+                break;
+            }
             BOOL fixed=message.type==JUICE_DISPLAY_HELLO||message.type==JUICE_DISPLAY_WINDOW||
                        message.type==JUICE_DISPLAY_DESTROY;
-            if(fixed&&message.size)break;
+            if(fixed&&message.size)
+            {
+                JuiceDisplayAppend(self,[NSString stringWithFormat:@"DISPLAY_PROTOCOL_REJECTED fd=%d reason=fixed-payload type=%u bytes=%u\n",fd,message.type,message.size]);
+                break;
+            }
             if(message.type==JUICE_DISPLAY_FRAME)
             {
                 BOOL dirty=(message.flags&JUICE_DISPLAY_DIRTY)!=0;
-                if(dirty?!JuiceDirtyHeaderValid(message):!JuiceFullHeaderValid(message))break;
+                if(dirty?!JuiceDirtyHeaderValid(message):!JuiceFullHeaderValid(message))
+                {
+                    JuiceDisplayAppend(self,[NSString stringWithFormat:@"DISPLAY_PROTOCOL_REJECTED fd=%d reason=frame-geometry rect=%d,%d %dx%d stride=%u bytes=%u\n",fd,message.x,message.y,message.width,message.height,message.stride,message.size]);
+                    break;
+                }
             }
-            else if(!fixed)break;
+            else if(!fixed)
+            {
+                JuiceDisplayAppend(self,[NSString stringWithFormat:@"DISPLAY_PROTOCOL_REJECTED fd=%d reason=unknown-type type=%u\n",fd,message.type]);
+                break;
+            }
+            if(message.type==JUICE_DISPLAY_HELLO&&!JuiceDesktopGeometryValid(message))
+            {
+                JuiceDisplayAppend(self,[NSString stringWithFormat:@"DISPLAY_GEOMETRY_REJECTED kind=desktop fd=%d size=%dx%d\n",fd,message.width,message.height]);
+                break;
+            }
+            if(message.type==JUICE_DISPLAY_WINDOW&&!JuiceWindowGeometryValid(message))
+            {
+                JuiceDisplayAppend(self,[NSString stringWithFormat:@"DISPLAY_GEOMETRY_REJECTED kind=window fd=%d hwnd=0x%llx rect=%d,%d %dx%d\n",fd,(unsigned long long)message.hwnd,message.x,message.y,message.width,message.height]);
+                break;
+            }
 
             NSMutableData *data=nil;
             if(message.size)
@@ -291,11 +349,10 @@ static void JuiceHardenedReadClient(id self,SEL _cmd,int fd)
                 JuiceDisplayAppend(self,[NSString stringWithFormat:
                     @"DISPLAY_EVENT HELLO fd=%d pid=%d desktop=%dx%d dpi=%u\n",
                     fd,peerPID,message.width,message.height,message.stride]);
-                if(message.width>0&&message.height>0)
-                    dispatch_async(dispatch_get_main_queue(),^{
-                        JuiceDisplaySetValue(self,@"wineDesktopSize",
-                            [NSValue valueWithCGSize:CGSizeMake(message.width,message.height)]);
-                    });
+                dispatch_async(dispatch_get_main_queue(),^{
+                    JuiceDisplaySetValue(self,@"wineDesktopSize",
+                        [NSValue valueWithCGSize:CGSizeMake(message.width,message.height)]);
+                });
             }
             else if(message.type==JUICE_DISPLAY_WINDOW)
             {
@@ -342,7 +399,7 @@ static void JuiceHardenedReadClient(id self,SEL _cmd,int fd)
     });
 }
 
-__attribute__((constructor))
+__attribute__((constructor(300)))
 static void JuiceInstallDisplayTransportHardening(void)
 {
     signal(SIGPIPE,SIG_IGN);
