@@ -14,28 +14,27 @@
 #ifndef CS_DEBUGGED
 #define CS_DEBUGGED 0x10000000u
 #endif
+#ifndef POSIX_SPAWN_START_SUSPENDED
+/* Darwin's spawn extension is present on supported devices even when an older
+ * public SDK does not expose the constant in spawn.h. */
+#define POSIX_SPAWN_START_SUSPENDED 0x0080
+#endif
 
 /*
  * StikDebug JIT coordinator.
  *
- * Juice's JIT lives in the Wine/FEX process, not the UIKit host.  Interpose the
+ * Juice's JIT lives in the Wine/FEX process, not the UIKit host. Interpose the
  * one posix_spawn used for the Grape trace parent, start that exact process
- * suspended, ask StikDebug to attach to its PID, and resume only after the
- * kernel reports CS_DEBUGGED.  This preserves the PID across the trace-parent
- * exec chain and prevents FEX's iOS 26 breakpoint protocol from running before
- * StikDebug's script is actually attached.
+ * suspended, ask StikDebug to attach to its PID with the universal script, and
+ * resume only after the kernel reports CS_DEBUGGED. This preserves the PID
+ * across the trace-parent exec chain and prevents FEX's breakpoint protocol
+ * from running before StikDebug's script is actually attached.
  */
 
 typedef int (*JuicePosixSpawnFn)(pid_t *, const char *,
                                  const posix_spawn_file_actions_t *,
                                  const posix_spawnattr_t *,
                                  char *const [], char *const []);
-
-typedef uint32_t JuiceIOObject;
-typedef JuiceIOObject (*JuiceIORegistryEntryFromPathFn)(uint32_t, const char *);
-typedef int (*JuiceIORegistryEntryCreateCFPropertiesFn)(JuiceIOObject, CFMutableDictionaryRef *, CFAllocatorRef, uint32_t);
-typedef int (*JuiceIOObjectReleaseFn)(JuiceIOObject);
-
 typedef CFTypeRef (*JuiceSecTaskCreateFromSelfFn)(CFAllocatorRef);
 typedef CFTypeRef (*JuiceSecTaskCopyValueForEntitlementFn)(CFTypeRef, CFStringRef, CFErrorRef *);
 typedef int (*JuiceCSOpsFn)(pid_t, unsigned int, void *, size_t);
@@ -50,12 +49,11 @@ static JuicePosixSpawnFn JuiceRealPosixSpawn(void)
     return function;
 }
 
-static BOOL JuiceHasEnvironmentFlag(char *const envp[], const char *prefix)
+static BOOL JuiceHasEnvironmentEntry(char *const envp[], const char *entry)
 {
-    if (!envp || !prefix) return NO;
-    size_t length = strlen(prefix);
+    if (!envp || !entry) return NO;
     for (size_t index = 0; envp[index]; ++index)
-        if (!strncmp(envp[index], prefix, length)) return YES;
+        if (!strcmp(envp[index], entry)) return YES;
     return NO;
 }
 
@@ -65,13 +63,26 @@ static BOOL JuiceIsFEXLaunch(const char *path, char *const envp[])
     const char *name = strrchr(path, '/');
     name = name ? name + 1 : path;
     if (strcmp(name, "grape-trace-parent")) return NO;
-    return JuiceHasEnvironmentFlag(envp, "HODLL=libwow64fex.dll") ||
-           JuiceHasEnvironmentFlag(envp, "HODLL64=libarm64ecfex.dll");
+    return JuiceHasEnvironmentEntry(envp, "HODLL=libwow64fex.dll") ||
+           JuiceHasEnvironmentEntry(envp, "HODLL64=libarm64ecfex.dll");
 }
 
 static BOOL JuiceStikDebugDisabled(char *const envp[])
 {
-    return JuiceHasEnvironmentFlag(envp, "JUICE_DISABLE_STIKDEBUG_JIT=1");
+    return JuiceHasEnvironmentEntry(envp, "JUICE_DISABLE_STIKDEBUG_JIT=1");
+}
+
+/* MeloNX detects TXM from the same preboot firmware marker. Keep that exact
+ * signal as the primary check; only use the OS-major fallback if preboot is not
+ * readable from the current installation. */
+static NSString *JuiceFirstEntryOfLength(NSString *directory, NSUInteger length)
+{
+    NSError *error = nil;
+    NSArray<NSString *> *entries = [NSFileManager.defaultManager contentsOfDirectoryAtPath:directory error:&error];
+    if (!entries) return nil;
+    for (NSString *entry in entries)
+        if (entry.length == length) return [directory stringByAppendingPathComponent:entry];
+    return nil;
 }
 
 static BOOL JuiceTXMPresent(void)
@@ -79,38 +90,34 @@ static BOOL JuiceTXMPresent(void)
     static NSInteger cached = -1;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        BOOL present = NO;
         BOOL resolved = NO;
-        void *handle = dlopen("/System/Library/Frameworks/IOKit.framework/IOKit", RTLD_LAZY | RTLD_LOCAL);
-        if (handle)
+        BOOL present = NO;
+        NSString *firmware = nil;
+
+        NSString *bootUUID = JuiceFirstEntryOfLength(@"/System/Volumes/Preboot", 36);
+        if (bootUUID)
         {
-            JuiceIORegistryEntryFromPathFn entryFromPath =
-                (JuiceIORegistryEntryFromPathFn)dlsym(handle, "IORegistryEntryFromPath");
-            JuiceIORegistryEntryCreateCFPropertiesFn createProperties =
-                (JuiceIORegistryEntryCreateCFPropertiesFn)dlsym(handle, "IORegistryEntryCreateCFProperties");
-            JuiceIOObjectReleaseFn releaseObject =
-                (JuiceIOObjectReleaseFn)dlsym(handle, "IOObjectRelease");
-            if (entryFromPath && createProperties && releaseObject)
-            {
-                JuiceIOObject entry = entryFromPath(0, "IODeviceTree:/chosen/memory-map");
-                if (entry)
-                {
-                    CFMutableDictionaryRef properties = NULL;
-                    if (createProperties(entry, &properties, kCFAllocatorDefault, 0) == 0 && properties)
-                    {
-                        present = CFDictionaryContainsKey(properties, CFSTR("TXM"));
-                        resolved = YES;
-                        CFRelease(properties);
-                    }
-                    releaseObject(entry);
-                }
-            }
-            dlclose(handle);
+            NSString *boot = [bootUUID stringByAppendingPathComponent:@"boot"];
+            NSString *manifest = JuiceFirstEntryOfLength(boot, 96);
+            if (manifest)
+                firmware = [manifest stringByAppendingPathComponent:@"usr/standalone/firmware/FUD/Ap,TrustedExecutionMonitor.img4"];
+        }
+        if (!firmware)
+        {
+            NSString *manifest = JuiceFirstEntryOfLength(@"/private/preboot", 96);
+            if (manifest)
+                firmware = [manifest stringByAppendingPathComponent:@"usr/standalone/firmware/FUD/Ap,TrustedExecutionMonitor.img4"];
         }
 
-        /* If IOKit probing is unavailable, fail closed on iOS 26+: the
-         * universal protocol is safe while the debugger script is attached,
-         * whereas assuming TXM is absent can leave every FEX page non-executable. */
+        if (firmware)
+        {
+            resolved = YES;
+            present = access(firmware.fileSystemRepresentation, F_OK) == 0;
+        }
+
+        /* Failing closed is safer than attempting the legacy executable-memory
+         * path on a TXM device. The universal StikDebug script is selected for
+         * every launch either way. */
         if (!resolved)
         {
             NSOperatingSystemVersion version = NSProcessInfo.processInfo.operatingSystemVersion;
@@ -164,12 +171,11 @@ static BOOL JuiceRequestStikDebug(pid_t pid, NSString *scheme, BOOL txm)
     NSURLComponents *components = [[NSURLComponents alloc] init];
     components.scheme = scheme;
     components.host = @"enable-jit";
-    NSMutableArray<NSURLQueryItem *> *items = [NSMutableArray arrayWithObjects:
+    components.queryItems = @[
         [NSURLQueryItem queryItemWithName:@"bundle-id" value:bundleID],
-        [NSURLQueryItem queryItemWithName:@"pid" value:[NSString stringWithFormat:@"%d", pid]], nil];
-    if (txm)
-        [items addObject:[NSURLQueryItem queryItemWithName:@"script-name" value:@"universal.js"]];
-    components.queryItems = items;
+        [NSURLQueryItem queryItemWithName:@"pid" value:[NSString stringWithFormat:@"%d", pid]],
+        [NSURLQueryItem queryItemWithName:@"script-name" value:@"universal.js"]
+    ];
     NSURL *url = components.URL;
     if (!url) return NO;
 
@@ -178,6 +184,12 @@ static BOOL JuiceRequestStikDebug(pid_t pid, NSString *scheme, BOOL txm)
             fprintf(stderr, "STIKDEBUG_JIT_OPEN pid=%d scheme=%s txm=%d accepted=%d\n",
                     pid, scheme.UTF8String, txm, success);
             fflush(stderr);
+            if (!success)
+            {
+                /* The child was intentionally born suspended. Never strand it
+                 * if iOS rejects the StikDebug handoff. */
+                kill(pid, SIGTERM);
+            }
         }];
     };
     if (NSThread.isMainThread) openRequest();
@@ -200,9 +212,9 @@ static BOOL JuiceProcessIsDebugged(pid_t pid)
 static void JuiceResumeAfterStikDebug(pid_t pid)
 {
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-        /* Juice is normally suspended while StikDebug is foreground.  Use a
-         * generous bound so that foreground suspension does not turn a normal
-         * user round-trip into an accidental timeout. */
+        /* Juice is normally suspended while StikDebug is foreground. Use a
+         * generous bound so foreground suspension does not turn a normal user
+         * round-trip into an accidental timeout. */
         const unsigned int pollUsec = 100000;
         const unsigned int maxPolls = 18000; /* 30 minutes of active wall time. */
         for (unsigned int poll = 0; poll < maxPolls; ++poll)
@@ -262,10 +274,6 @@ static int JuiceSpawnSuspended(JuicePosixSpawnFn realSpawn, pid_t *pid, const ch
                                const posix_spawnattr_t *sourceAttributes,
                                char *const argv[], char *const envp[])
 {
-#ifndef POSIX_SPAWN_START_SUSPENDED
-    (void)pid; (void)path; (void)actions; (void)sourceAttributes; (void)argv; (void)envp;
-    return ENOTSUP;
-#else
     posix_spawnattr_t attributes;
     int result = posix_spawnattr_init(&attributes);
     if (result) return result;
@@ -279,18 +287,23 @@ static int JuiceSpawnSuspended(JuicePosixSpawnFn realSpawn, pid_t *pid, const ch
     {
         pid_t pgroup = 0;
         sigset_t mask, defaults;
+        struct sched_param schedulingParameters;
+        int schedulingPolicy = 0;
         if (!posix_spawnattr_getpgroup(sourceAttributes, &pgroup))
             result = posix_spawnattr_setpgroup(&attributes, pgroup);
         if (!result && !posix_spawnattr_getsigmask(sourceAttributes, &mask))
             result = posix_spawnattr_setsigmask(&attributes, &mask);
         if (!result && !posix_spawnattr_getsigdefault(sourceAttributes, &defaults))
             result = posix_spawnattr_setsigdefault(&attributes, &defaults);
+        if (!result && !posix_spawnattr_getschedparam(sourceAttributes, &schedulingParameters))
+            result = posix_spawnattr_setschedparam(&attributes, &schedulingParameters);
+        if (!result && !posix_spawnattr_getschedpolicy(sourceAttributes, &schedulingPolicy))
+            result = posix_spawnattr_setschedpolicy(&attributes, schedulingPolicy);
     }
 
     if (!result) result = realSpawn(pid, path, actions, &attributes, argv, envp);
     posix_spawnattr_destroy(&attributes);
     return result;
-#endif
 }
 
 int posix_spawn(pid_t *pid, const char *path,
@@ -309,10 +322,13 @@ int posix_spawn(pid_t *pid, const char *path,
     {
         fprintf(stderr, "STIKDEBUG_JIT_UNAVAILABLE reason=scheme\n");
         fflush(stderr);
-        return realSpawn(pid, path, fileActions, attributes, argv, envp);
+        return ENOENT;
     }
     if (!JuiceHasGetTaskAllow())
     {
+        /* The packaged Wine child is independently signed with get-task-allow;
+         * this host-side check catches a mismatched Juice installation before
+         * starting a child that StikDebug cannot service. */
         fprintf(stderr, "STIKDEBUG_JIT_UNAVAILABLE reason=get-task-allow\n");
         fflush(stderr);
         return EACCES;
@@ -335,8 +351,7 @@ int posix_spawn(pid_t *pid, const char *path,
         return EIO;
     }
 
-    fprintf(stderr, "STIKDEBUG_JIT_REQUESTED pid=%d txm=%d script=%s\n",
-            targetPID, txm, txm ? "universal.js" : "none");
+    fprintf(stderr, "STIKDEBUG_JIT_REQUESTED pid=%d txm=%d script=universal.js\n", targetPID, txm);
     fflush(stderr);
     JuiceResumeAfterStikDebug(targetPID);
     return 0;
