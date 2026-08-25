@@ -22,7 +22,8 @@ static NSData *JuiceReadLogTail(NSString *path)
     if(!path.length)return nil;
     NSFileHandle *handle=[NSFileHandle fileHandleForReadingAtPath:path];
     if(!handle)return nil;
-    unsigned long long size=[NSFileManager.defaultManager attributesOfItemAtPath:path error:nil].fileSize;
+    NSNumber *sizeNumber=[NSFileManager.defaultManager attributesOfItemAtPath:path error:nil][NSFileSize];
+    unsigned long long size=sizeNumber.unsignedLongLongValue;
     unsigned long long start=size>JuiceLogExportTailBytes?size-JuiceLogExportTailBytes:0;
     NSData *data=nil;
     @try
