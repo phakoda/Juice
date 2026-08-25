@@ -28,6 +28,8 @@ jobs:
         run: bash scripts/verify-installer-text-hardening.sh
       - name: Verify pointer and socket hardening
         run: bash scripts/verify-pointer-socket-hardening.sh
+      - name: Verify host wire I/O hardening
+        run: bash scripts/verify-host-io-hardening.sh
 
   app-build:
     runs-on: macos-latest
