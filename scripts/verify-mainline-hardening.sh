@@ -12,16 +12,19 @@ SOCKET="$ROOT/app/JuiceSocketHardening.m"
 HOSTIO="$ROOT/app/JuiceHostIOHardening.m"
 RECONNECT="$ROOT/app/JuiceReconnectGrace.m"
 DATA_IMPORT="$ROOT/app/JuiceWindowsDataImport.m"
+TEXT_INPUT="$ROOT/app/JuiceTextInputHardening.m"
 POINTER="$ROOT/app/JuicePointerInput.m"
 MEMORY="$ROOT/app/JuiceMemoryPressure.m"
 LIFECYCLE="$ROOT/app/JuiceLifecycleHardening.m"
+LOG_HARDENING="$ROOT/app/JuiceLogHardening.m"
+LOG_EXPORT="$ROOT/app/JuiceLogExport.m"
 CLI_INPUT="$ROOT/app/JuiceCLIInputHardening.m"
 LAUNCH="$ROOT/app/JuiceLaunchHardening.m"
 TRACE_PARENT="$ROOT/launcher/grape-trace-parent.c"
 ZIP="$ROOT/app/JuiceZip.m"
 ZIP_TEST="$ROOT/scripts/test-zip-extractor-host.sh"
 
-for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$MULTI" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$DATA_IMPORT" "$POINTER" "$MEMORY" "$LIFECYCLE" "$CLI_INPUT" "$LAUNCH" "$TRACE_PARENT" "$ZIP" "$ZIP_TEST"; do
+for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$MULTI" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$DATA_IMPORT" "$TEXT_INPUT" "$POINTER" "$MEMORY" "$LIFECYCLE" "$LOG_HARDENING" "$LOG_EXPORT" "$CLI_INPUT" "$LAUNCH" "$TRACE_PARENT" "$ZIP" "$ZIP_TEST"; do
   test -f "$path" || { echo "Missing mainline hardening source: $path" >&2; exit 2; }
 done
 
@@ -50,12 +53,20 @@ grep -Fq 'ipc_fd==fd&&ipc_generation==generation' "$IPC_C"
 
 # Preserve current main's viewport and desktop-coordinate drag fixes while
 # collapsing multiple HWND redraws into one pending full-viewport composite.
+# Drawing/hover order must not steal the selected keyboard/text route: only a
+# pointer button-down calls JuiceSelectInputRoute.
 grep -Fq 'INPUT_COORDS_DESKTOP' "$MULTI"
 grep -Fq 'JuiceCapturedViewportKey' "$MULTI"
 grep -Fq 'JuiceRenderCompositeWineDesktop' "$MULTI"
 grep -Fq 'JuiceCompositeScheduledKey' "$MULTI"
 grep -Fq 'MULTI_WINDOW_COMPOSITE_COALESCED' "$MULTI"
 grep -Fq 'dispatch_get_main_queue()' "$MULTI"
+grep -Fq 'JuiceSelectedRoutingState' "$MULTI"
+grep -Fq 'JuiceSelectInputRoute' "$MULTI"
+test "$(grep -Fc 'JuiceSelectInputRoute(self,canvas,hwnd,client);' "$MULTI")" -eq 1 || {
+  echo "Multi-window input selection should change exactly once, on button-down." >&2
+  exit 3
+}
 
 # UIKit must validate/cap payloads and geometry before allocation/compositing,
 # then coalesce producer frames before rendering.
@@ -108,6 +119,18 @@ if grep -Fq 'juice_forceTranslatedRuntimeForNextLaunch' "$DATA_IMPORT"; then
   exit 3
 fi
 
+# Text input must stay below wineios.drv's 64 KiB message ceiling and prevent a
+# huge clipboard from monopolizing the socket. Explicit iOS clipboard paste and
+# physical Command-V use the same selected HWND/client route.
+grep -Fq '#define JUICE_TEXT_CHUNK_BYTES (60u * 1024u)' "$TEXT_INPUT"
+grep -Fq '#define JUICE_TEXT_MAX_PASTE_BYTES (1024u * 1024u)' "$TEXT_INPUT"
+grep -Fq 'sendMessage:payload:toFD:' "$TEXT_INPUT"
+grep -Fq 'UIPasteboard.generalPasteboard.string' "$TEXT_INPUT"
+grep -Fq 'UIKeyModifierCommand' "$TEXT_INPUT"
+grep -Fq 'keyCommands' "$TEXT_INPUT"
+grep -Fq 'source=%@ utf16_units=' "$TEXT_INPUT"
+grep -Fq 'msg.size>64u*1024u' "$IPC_C"
+
 # iPad pointer hardware should behave like desktop input without stealing finger
 # pans: hover, secondary button and vertical/horizontal scroll are transported.
 grep -Fq 'UIHoverGestureRecognizer' "$POINTER"
@@ -137,6 +160,19 @@ grep -Fq 'FD_CLOEXEC' "$LIFECYCLE"
 grep -Fq 'SO_ACCEPTCONN' "$LIFECYCLE"
 grep -Fq 'JuiceListenerOwnsFD' "$LIFECYCLE"
 grep -Fq 'reused_fd=' "$LIFECYCLE"
+
+# Persistent diagnostic output is bounded to a current + previous 8 MiB segment;
+# rotation preserves CLOEXEC. Export combines only bounded tails and removes
+# stale temporary staging directories before presenting a new snapshot.
+grep -Fq 'JuicePersistentLogSegmentBytes=8ull*1024ull*1024ull' "$LOG_HARDENING"
+grep -Fq 'JuiceRotatePersistentLog' "$LOG_HARDENING"
+grep -Fq 'stringByAppendingString:@".previous"' "$LOG_HARDENING"
+grep -Fq 'FD_CLOEXEC' "$LOG_HARDENING"
+grep -Fq 'LOG_RETENTION_READY' "$LOG_HARDENING"
+grep -Fq 'JuiceLogExportTailBytes=8ull*1024ull*1024ull' "$LOG_EXPORT"
+grep -Fq 'JuiceCombinedLogContents' "$LOG_EXPORT"
+grep -Fq 'JuiceCleanupLogExportStaging' "$LOG_EXPORT"
+grep -Fq 'retained_segments=2 bounded=1' "$LOG_EXPORT"
 
 # CLI stdin uses the same exact-write semantics as socket I/O: EINTR retries and
 # hard failures close/invalidate the child pipe rather than reusing a dead fd.
@@ -178,7 +214,7 @@ grep -Fq 'unlink(outputPath.fileSystemRepresentation)' "$ZIP"
 grep -Fq 'large_size = 48 * 1024 * 1024' "$ZIP_TEST"
 grep -Fq 'local-crc-mismatch' "$ZIP_TEST"
 
-for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuiceWindowsDataImport.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLifecycleHardening.m JuiceCLIInputHardening.m JuiceLaunchHardening.m; do
+for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuiceWindowsDataImport.m JuiceTextInputHardening.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLifecycleHardening.m JuiceLogHardening.m JuiceCLIInputHardening.m JuiceLaunchHardening.m; do
   grep -Fq "app/$source" "$BUILD" || { echo "build-app.sh does not compile $source" >&2; exit 3; }
 done
 
