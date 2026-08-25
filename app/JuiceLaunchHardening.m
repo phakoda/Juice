@@ -133,25 +133,33 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     NSString *server=[build stringByAppendingPathComponent:@"server/wineserver"];
     NSString *tracer=[grape stringByAppendingPathComponent:@"tools/grape-trace-parent"];
     NSString *exe=JuiceLaunchCallObject(self,@"resolveExe");NSArray<NSString *> *environment=JuiceLaunchCallObject(self,@"environment");
+    NSString *cwd=exe.stringByDeletingLastPathComponent;
     NSFileManager *files=NSFileManager.defaultManager;
-    if(!grape.length||!exe.length||!environment.count||![files isExecutableFileAtPath:loader]||
-       ![files isExecutableFileAtPath:server]||![files isExecutableFileAtPath:tracer]||![files fileExistsAtPath:exe])
-    {JuiceLaunchReject(self,@"The selected Wine runtime or executable is incomplete.");return;}
+    if(!grape.length||!exe.length||!environment.count||!cwd.length||![files isExecutableFileAtPath:loader]||
+       ![files isExecutableFileAtPath:server]||![files isExecutableFileAtPath:tracer]||![files fileExistsAtPath:exe]||
+       ![files fileExistsAtPath:cwd])
+    {JuiceLaunchReject(self,@"The selected Wine runtime, executable, or working directory is incomplete.");return;}
 
-    char **env=JuiceCopyStrings(environment);char **serverArgv=JuiceCopyStrings(@[server,@"-f"]);
-    if(!env||!serverArgv){JuiceFreeStrings(env);JuiceFreeStrings(serverArgv);JuiceLaunchReject(self,@"Juice ran out of memory preparing wineserver arguments.");return;}
+    char **serverEnv=JuiceCopyStrings(environment);char **serverArgv=JuiceCopyStrings(@[server,@"-f"]);
+    if(!serverEnv||!serverArgv){JuiceFreeStrings(serverEnv);JuiceFreeStrings(serverArgv);JuiceLaunchReject(self,@"Juice ran out of memory preparing wineserver arguments.");return;}
     posix_spawn_file_actions_t serverActions;int serverActionError=posix_spawn_file_actions_init(&serverActions);BOOL serverActionsReady=serverActionError==0;
     if(!serverActionError)serverActionError=posix_spawn_file_actions_addopen(&serverActions,1,"/dev/null",O_WRONLY,0);
     if(!serverActionError)serverActionError=posix_spawn_file_actions_adddup2(&serverActions,1,2);
     posix_spawnattr_t serverAttributes;int serverAttributeError=JuiceSpawnAttributes(&serverAttributes);BOOL serverAttributesReady=serverAttributeError==0;pid_t serverPID=-1;
     int serverResult=serverActionError?serverActionError:(serverAttributeError?serverAttributeError:
-                     posix_spawn(&serverPID,server.fileSystemRepresentation,&serverActions,&serverAttributes,serverArgv,env));
-    if(serverActionsReady)posix_spawn_file_actions_destroy(&serverActions);if(serverAttributesReady)posix_spawnattr_destroy(&serverAttributes);JuiceFreeStrings(serverArgv);
-    if(serverResult){JuiceFreeStrings(env);JuiceLaunchSetValue(self,@"server",@(-1));JuiceLaunchReject(self,[NSString stringWithFormat:@"Juice could not start wineserver: %s",strerror(serverResult)]);return;}
+                     posix_spawn(&serverPID,server.fileSystemRepresentation,&serverActions,&serverAttributes,serverArgv,serverEnv));
+    if(serverActionsReady)posix_spawn_file_actions_destroy(&serverActions);if(serverAttributesReady)posix_spawnattr_destroy(&serverAttributes);
+    JuiceFreeStrings(serverArgv);JuiceFreeStrings(serverEnv);
+    if(serverResult){JuiceLaunchSetValue(self,@"server",@(-1));JuiceLaunchReject(self,[NSString stringWithFormat:@"Juice could not start wineserver: %s",strerror(serverResult)]);return;}
     JuiceLaunchSetValue(self,@"server",@(serverPID));JuiceLaunchAppend(self,[NSString stringWithFormat:@"Wine server: 0 pid=%d pgid=%d hardened=1\n",serverPID,serverPID]);usleep(200000);
 
-    NSMutableArray<NSString *> *arguments=[NSMutableArray arrayWithObjects:tracer,loader,exe,nil];[arguments addObjectsFromArray:parts];char **argv=JuiceCopyStrings(arguments);
-    if(!argv){JuiceFreeStrings(env);JuiceLaunchFailAfterServer(self,@"Juice ran out of memory preparing launch arguments.");return;}
+    NSMutableArray<NSString *> *childEnvironment=[environment mutableCopy];
+    [childEnvironment addObject:[@"JUICE_LAUNCH_CWD=" stringByAppendingString:cwd]];
+    char **env=JuiceCopyStrings(childEnvironment);
+    NSMutableArray<NSString *> *arguments=[NSMutableArray arrayWithObjects:tracer,loader,exe,nil];[arguments addObjectsFromArray:parts];
+    char **argv=JuiceCopyStrings(arguments);
+    if(!env||!argv){JuiceFreeStrings(env);JuiceFreeStrings(argv);JuiceLaunchFailAfterServer(self,@"Juice ran out of memory preparing launch arguments.");return;}
+
     int outputPipe[2]={-1,-1},inputPipe[2]={-1,-1};
     if(pipe(outputPipe)||pipe(inputPipe))
     {
@@ -167,10 +175,6 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     if(!actionError)actionError=posix_spawn_file_actions_addclose(&actions,outputPipe[0]);
     if(!actionError&&inputPipe[0]!=0)actionError=posix_spawn_file_actions_addclose(&actions,inputPipe[0]);
     if(!actionError&&outputPipe[1]!=1&&outputPipe[1]!=2)actionError=posix_spawn_file_actions_addclose(&actions,outputPipe[1]);
-    NSString *cwd=exe.stringByDeletingLastPathComponent;
-#if defined(__APPLE__)
-    if(!actionError&&[exe containsString:@"/"]&&cwd.length)actionError=posix_spawn_file_actions_addchdir_np(&actions,cwd.fileSystemRepresentation);
-#endif
     posix_spawnattr_t attributes;int attributeError=JuiceSpawnAttributes(&attributes);BOOL attributesReady=attributeError==0;pid_t child=-1;
     int result=actionError?actionError:(attributeError?attributeError:
                posix_spawn(&child,tracer.fileSystemRepresentation,&actions,&attributes,argv,env));
@@ -185,7 +189,7 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     JuiceLaunchSetValue(self,@"child",@(child));JuiceLaunchSetValue(self,@"childInput",@(inputPipe[1]));
     uint64_t generation=[JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]+1;JuiceLaunchSetValue(self,@"launchGeneration",@(generation));
     UISegmentedControl *mode=JuiceLaunchValue(self,@"mode");UIView *canvas=JuiceLaunchValue(self,@"canvas");BOOL cli=mode.selectedSegmentIndex==1;canvas.hidden=cli;
-    JuiceLaunchAppend(self,[NSString stringWithFormat:@"\n%@ launch %@: 0 pid=%d pgid=%d generation=%llu argc=%lu cwd=%@ hardened=1\n",cli?@"CLI":@"GUI",exe,child,child,(unsigned long long)generation,(unsigned long)arguments.count,cwd]);
+    JuiceLaunchAppend(self,[NSString stringWithFormat:@"\n%@ launch %@: 0 pid=%d pgid=%d generation=%llu argc=%lu cwd=%@ cwd_transport=trace-parent hardened=1\n",cli?@"CLI":@"GUI",exe,child,child,(unsigned long long)generation,(unsigned long)arguments.count,cwd]);
     JuiceConsumeOutput(self,outputPipe[0],child,generation,inputPipe[1]);
 }
 
