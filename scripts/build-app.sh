@@ -49,7 +49,7 @@ mkdir -p "$OUT"
   "$ROOT/app/JuiceDisplayTransportHardening.m" "$ROOT/app/JuiceReconnectGrace.m" \
   "$ROOT/app/JuiceWindowsDataImport.m" "$ROOT/app/JuicePointerInput.m" \
   "$ROOT/app/JuiceMemoryPressure.m" "$ROOT/app/JuiceLifecycleHardening.m" \
-  "$ROOT/app/JuiceLaunchHardening.m" \
+  "$ROOT/app/JuiceCLIInputHardening.m" "$ROOT/app/JuiceLaunchHardening.m" \
   -framework UIKit -framework Foundation -framework QuartzCore -framework GameController \
   -framework CoreGraphics -framework Metal -lz -o "$OUT/Juice"
 cp "$ROOT/config/Info.plist" "$OUT/Info.plist"
