@@ -1,0 +1,33 @@
+name: Simulator probe
+
+on:
+  push:
+    branches:
+      - feature/stikdebug-jit
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe remote iPhone simulator tunnel
+        shell: bash
+        env:
+          SIMULATOR_URL: https://f81b-64-93-169-237.ngrok-free.app
+        run: |
+          set -euo pipefail
+          for path in / /health /status /api /api/health /api/status; do
+            echo "===== $path ====="
+            code="$(curl --connect-timeout 10 --max-time 20 -sS -L \
+              -H 'ngrok-skip-browser-warning: 1' \
+              -H 'User-Agent: Juice-GitHub-Simulator-Probe/1.0' \
+              -o response.txt -w '%{http_code}' "${SIMULATOR_URL}${path}" || true)"
+            echo "HTTP $code"
+            if test -s response.txt; then
+              head -c 12000 response.txt
+              echo
+            fi
+          done
