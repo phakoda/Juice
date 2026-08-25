@@ -39,18 +39,19 @@ mkdir -p "$OUT"
 
 "$CC" "${target_flags[@]}" -fobjc-arc -fblocks -O2 \
   "$ROOT/app/main.m" "$ROOT/app/JuiceZip.m" "$ROOT/app/JuiceStoragePaths.m" \
-  "$ROOT/app/JuiceSocketHardening.m" "$ROOT/app/JuicePrefixRepair.m" \
-  "$ROOT/app/JuiceApiSetBootstrap.m" "$ROOT/app/JuiceWin32Bootstrap.m" \
-  "$ROOT/app/JuiceArchitectureRouting.m" "$ROOT/app/JuiceControlLaunchRouting.m" \
-  "$ROOT/app/JuiceCompatibilityLabels.m" "$ROOT/app/JuiceHardwareKeyboard.m" \
-  "$ROOT/app/JuicePointerInput.m" "$ROOT/app/JuiceTextInputHardening.m" \
-  "$ROOT/app/JuiceMSIImport.m" "$ROOT/app/JuiceScriptImport.m" \
-  "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
-  "$ROOT/app/JuiceWindowActivation.m" "$ROOT/app/JuiceFramebufferFix.m" \
-  "$ROOT/app/JuiceBootProgress.m" "$ROOT/app/JuiceBootOverlayVisibility.m" \
-  "$ROOT/app/JuiceRuntimeHardening.m" "$ROOT/app/JuiceReconnectGrace.m" \
-  "$ROOT/app/JuiceGeometryHardening.m" "$ROOT/app/JuiceMemoryPressure.m" \
-  "$ROOT/app/JuiceAppLifecycle.m" "$ROOT/app/JuiceLaunchHardening.m" \
+  "$ROOT/app/JuiceSocketHardening.m" "$ROOT/app/JuiceHostIOHardening.m" \
+  "$ROOT/app/JuicePrefixRepair.m" "$ROOT/app/JuiceApiSetBootstrap.m" \
+  "$ROOT/app/JuiceWin32Bootstrap.m" "$ROOT/app/JuiceArchitectureRouting.m" \
+  "$ROOT/app/JuiceControlLaunchRouting.m" "$ROOT/app/JuiceCompatibilityLabels.m" \
+  "$ROOT/app/JuiceHardwareKeyboard.m" "$ROOT/app/JuicePointerInput.m" \
+  "$ROOT/app/JuiceTextInputHardening.m" "$ROOT/app/JuiceMSIImport.m" \
+  "$ROOT/app/JuiceScriptImport.m" "$ROOT/app/JuiceLogExport.m" \
+  "$ROOT/app/JuiceMultiWindowFix.m" "$ROOT/app/JuiceWindowActivation.m" \
+  "$ROOT/app/JuiceFramebufferFix.m" "$ROOT/app/JuiceBootProgress.m" \
+  "$ROOT/app/JuiceBootOverlayVisibility.m" "$ROOT/app/JuiceRuntimeHardening.m" \
+  "$ROOT/app/JuiceReconnectGrace.m" "$ROOT/app/JuiceGeometryHardening.m" \
+  "$ROOT/app/JuiceMemoryPressure.m" "$ROOT/app/JuiceAppLifecycle.m" \
+  "$ROOT/app/JuiceLaunchHardening.m" \
   -framework UIKit -framework Foundation -framework QuartzCore \
   -framework CoreGraphics -framework CoreFoundation -lz -o "$OUT/Juice"
 cp "$ROOT/config/Info.plist" "$OUT/Info.plist"
