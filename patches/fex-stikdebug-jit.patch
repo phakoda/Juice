@@ -116,7 +116,7 @@ diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Inter
 -    }
  
      FEXCore::Allocator::VirtualName("FEXMemJIT", reinterpret_cast<void*>(Ptr), Size);
-@@ -386,5 +393,12 @@ namespace CPU {
+@@ -387,5 +393,12 @@ namespace CPU {
    }
  
    CodeBuffer::~CodeBuffer() {
