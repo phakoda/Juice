@@ -3,9 +3,11 @@ set -euo pipefail
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 PATCH="$ROOT/patches/wine-ios.patch"
+HARDENING_PATCH="$ROOT/patches/wine-ios-runtime-hardening.patch"
 BASE_FILE="$ROOT/config/wine-base.txt"
 
 test -s "$PATCH" || { echo "Missing Wine patch: $PATCH" >&2; exit 2; }
+test -s "$HARDENING_PATCH" || { echo "Missing Wine runtime hardening patch: $HARDENING_PATCH" >&2; exit 2; }
 test -s "$BASE_FILE" || { echo "Missing Wine base revision: $BASE_FILE" >&2; exit 2; }
 base="$(tr -d '[:space:]' < "$BASE_FILE")"
 case "$base" in
@@ -14,9 +16,18 @@ case "$base" in
   *) echo "Invalid Wine base commit: $base" >&2; exit 2;;
 esac
 
+# wine-ios.patch remains the audited base iOS delta. The mainline-hardening PR
+# intentionally changes only three files already introduced by that patch, so
+# keep those changes in a small incremental patch rather than rewriting the
+# historical 25+ path audit artifact. Verify both layers independently.
 (
   cd "$ROOT"
-  git apply --reverse --check --directory=wine patches/wine-ios.patch
+  git apply --reverse --check --directory=wine \
+    --exclude='dlls/wineios.drv/iosdrv.c' \
+    --exclude='dlls/wineios.drv/ipc.c' \
+    --exclude='dlls/wineios.drv/ipc.h' \
+    patches/wine-ios.patch
+  git apply --reverse --check --directory=wine patches/wine-ios-runtime-hardening.patch
 )
 
 path_count="$(grep -c '^diff --git a/' "$PATCH")"
@@ -35,4 +46,20 @@ for path in Makefile.in dllmain.c iosdrv.c iosdrv.h ipc.c ipc.h; do
   }
 done
 
-echo "JUICE_WINE_PATCH_VERIFY_OK base=$base paths=$path_count"
+hardening_path_count="$(grep -c '^diff --git a/' "$HARDENING_PATCH")"
+test "$hardening_path_count" -eq 3 || {
+  echo "Wine runtime hardening patch must contain exactly 3 paths; found $hardening_path_count." >&2
+  exit 3
+}
+for path in iosdrv.c ipc.c ipc.h; do
+  grep -Fq "diff --git a/dlls/wineios.drv/$path b/dlls/wineios.drv/$path" "$HARDENING_PATCH" || {
+    echo "Wine runtime hardening patch is missing dlls/wineios.drv/$path" >&2
+    exit 3
+  }
+done
+if grep '^diff --git a/' "$HARDENING_PATCH" | grep -Ev '^diff --git a/dlls/wineios\.drv/(iosdrv\.c|ipc\.c|ipc\.h) b/' >/dev/null; then
+  echo "Wine runtime hardening patch unexpectedly touches another Wine path." >&2
+  exit 3
+fi
+
+echo "JUICE_WINE_PATCH_VERIFY_OK base=$base paths=$path_count hardening_paths=$hardening_path_count"
