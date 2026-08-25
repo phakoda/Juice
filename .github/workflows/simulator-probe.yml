@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Discover remote simulator API
+      - name: Inspect remote simulator client protocol
         shell: bash
         env:
           SIMULATOR_URL: https://f81b-64-93-169-237.ngrok-free.app
@@ -21,11 +21,13 @@ jobs:
           set -euo pipefail
           hdr=(-H 'ngrok-skip-browser-warning: 1' -H 'User-Agent: Juice-GitHub-Simulator-Probe/1.0')
           curl --connect-timeout 10 --max-time 20 -fsSL "${hdr[@]}" "${SIMULATOR_URL}/static/app.js" -o app.js
-          echo '===== API paths ====='
-          grep -Eo '/api/[A-Za-z0-9_./?=&${}:-]+' app.js | sed -E 's/[`"'"'"'()]$//' | sort -u || true
-          echo '===== auth/token references ====='
-          grep -nEi 'authorization|bearer|access.?token|auth.?token|x-[a-z-]*token' app.js | head -80 || true
-          echo '===== fetch/websocket references ====='
-          grep -nE 'fetch\(|WebSocket\(|EventSource\(' app.js | head -120 || true
-          echo '===== likely app/install/control references ====='
-          grep -nEi 'install|launch|terminate|apps|screenshot|shell|console|crash|upload|ipa|tipa' app.js | head -180 || true
+          echo '===== api helper lines 90-125 ====='
+          sed -n '90,125p' app.js
+          echo '===== websocket/auth setup lines 125-220 ====='
+          sed -n '125,220p' app.js
+          echo '===== install client lines 470-505 ====='
+          sed -n '470,505p' app.js
+          echo '===== app launch client lines 625-645 ====='
+          sed -n '625,645p' app.js
+          echo '===== settings/auth lines 1210-1240 ====='
+          sed -n '1210,1240p' app.js
