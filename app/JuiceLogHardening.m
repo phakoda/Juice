@@ -100,10 +100,9 @@ static void JuiceLogViewDidLoad(id self,SEL _cmd)
     objc_setAssociatedObject(self,&JuiceLogRotationsKey,@0,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     JuiceLogMarkCloexec(JuiceLogValue(self,@"persistentLogHandle"));
 
-    if(JuiceLogOriginalAppend)
-        JuiceLogOriginalAppend(self,NSSelectorFromString(@"append:"),
-            [NSString stringWithFormat:@"LOG_RETENTION_READY segment_bytes=%llu segments=2 max_bytes=%llu\n",
-             JuicePersistentLogSegmentBytes,JuicePersistentLogSegmentBytes*2ull]);
+    JuiceBoundedAppend(self,NSSelectorFromString(@"append:"),
+        [NSString stringWithFormat:@"LOG_RETENTION_READY segment_bytes=%llu segments=2 max_bytes=%llu\n",
+         JuicePersistentLogSegmentBytes,JuicePersistentLogSegmentBytes*2ull]);
 }
 
 __attribute__((constructor(430)))
