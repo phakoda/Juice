@@ -58,11 +58,11 @@ else
   git -C "$SOURCE" apply --check "$PATCH"
   git -C "$SOURCE" apply "$PATCH"
 fi
-if git -C "$SOURCE" apply --reverse --check "$STIKDEBUG_PATCH" 2>/dev/null; then
+if git -C "$SOURCE" apply --recount --reverse --check "$STIKDEBUG_PATCH" 2>/dev/null; then
   :
 else
-  git -C "$SOURCE" apply --check "$STIKDEBUG_PATCH"
-  git -C "$SOURCE" apply "$STIKDEBUG_PATCH"
+  git -C "$SOURCE" apply --recount --check "$STIKDEBUG_PATCH"
+  git -C "$SOURCE" apply --recount "$STIKDEBUG_PATCH"
 fi
 if git -C "$RPMALLOC_SOURCE" apply --reverse --check "$RPMALLOC_PATCH" 2>/dev/null; then
   :
