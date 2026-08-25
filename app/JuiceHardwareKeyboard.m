@@ -4,6 +4,10 @@
 
 #define JUICE_KEYBOARD_MAGIC 0x4a554943u
 #define JUICE_KEYBOARD_TEXT 101u
+#define JUICE_KEYBOARD_KEY 102u
+#define JUICE_KEY_SHIFT   0x00010000u
+#define JUICE_KEY_CONTROL 0x00020000u
+#define JUICE_KEY_ALT     0x00040000u
 
 typedef struct
 {
@@ -51,7 +55,16 @@ static void JuiceMarkHardwareKeyboardActive(id self)
     if ([objc_getAssociatedObject(self, &JuiceHardwareKeyboardLoggedKey) boolValue]) return;
     objc_setAssociatedObject(self, &JuiceHardwareKeyboardLoggedKey, @YES,
                              OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    JuiceHardwareAppend(self, @"HARDWARE_KEYBOARD_ACTIVE forwarding=wine\n");
+    JuiceHardwareAppend(self, @"HARDWARE_KEYBOARD_ACTIVE forwarding=wine modifiers=1\n");
+}
+
+static BOOL JuiceBroadcastKeyboardMessage(id self, JuiceKeyboardMsg *message, NSData *payload)
+{
+    if (!JuiceHasWineKeyboardTarget(self)) return NO;
+    SEL selector = NSSelectorFromString(@"broadcastMessage:payload:");
+    if (![self respondsToSelector:selector]) return NO;
+    return ((BOOL (*)(id, SEL, JuiceKeyboardMsg *, id))objc_msgSend)
+        (self, selector, message, payload);
 }
 
 static BOOL JuiceSendWineText(id self, NSString *text)
@@ -64,19 +77,23 @@ static BOOL JuiceSendWineText(id self, NSString *text)
     if (!payload.length || payload.length > UINT32_MAX) return NO;
 
     JuiceKeyboardMsg message = {JUICE_KEYBOARD_MAGIC, JUICE_KEYBOARD_TEXT, 0, hwnd, 0, 0, 0, 0, 0, 0};
-    SEL selector = NSSelectorFromString(@"broadcastMessage:payload:");
-    if (![self respondsToSelector:selector]) return NO;
-    return ((BOOL (*)(id, SEL, JuiceKeyboardMsg *, id))objc_msgSend)
-        (self, selector, &message, payload);
+    return JuiceBroadcastKeyboardMessage(self, &message, payload);
 }
 
-static BOOL JuiceSendWineVirtualKey(id self, uint32_t vkey, NSString *name)
+static BOOL JuiceSendWineVirtualKey(id self, uint32_t vkey, uint32_t modifiers, NSString *name)
 {
-    if (!JuiceHasWineKeyboardTarget(self)) return NO;
-    SEL selector = NSSelectorFromString(@"sendVirtualKey:name:");
-    if (![self respondsToSelector:selector]) return NO;
-    ((void (*)(id, SEL, uint32_t, id))objc_msgSend)(self, selector, vkey, name);
-    return YES;
+    if (!JuiceHasWineKeyboardTarget(self) || !(vkey & 0xffffu)) return NO;
+    id canvas = JuiceKeyboardValue(self, @"canvas");
+    uint64_t hwnd = [JuiceKeyboardValue(canvas, @"hwnd") unsignedLongLongValue];
+    JuiceKeyboardMsg message = {
+        JUICE_KEYBOARD_MAGIC, JUICE_KEYBOARD_KEY, 0, hwnd,
+        0, 0, 0, 0, 0, (vkey & 0xffffu) | modifiers
+    };
+    BOOL delivered = JuiceBroadcastKeyboardMessage(self, &message, nil);
+    JuiceHardwareAppend(self, [NSString stringWithFormat:
+        @"HARDWARE_KEY_SENT hwnd=0x%llx key=%@ vk=0x%x modifiers=0x%x delivered=%d\n",
+        (unsigned long long)hwnd, name ?: @"key", vkey, modifiers, delivered]);
+    return delivered;
 }
 
 static BOOL JuicePasteIOSClipboard(id self)
@@ -92,12 +109,36 @@ static uint32_t JuiceVirtualKeyForHID(NSInteger hid, NSString **name)
 {
     uint32_t key = 0;
     NSString *label = nil;
-    switch (hid)
+
+    if (hid >= 0x04 && hid <= 0x1d)
     {
+        key = 0x41u + (uint32_t)(hid - 0x04);
+        label = [NSString stringWithFormat:@"%C", (unichar)('A' + hid - 0x04)];
+    }
+    else if (hid >= 0x1e && hid <= 0x26)
+    {
+        key = 0x31u + (uint32_t)(hid - 0x1e);
+        label = [NSString stringWithFormat:@"%C", (unichar)('1' + hid - 0x1e)];
+    }
+    else switch (hid)
+    {
+        case 0x27: key = 0x30; label = @"0"; break;
         case 0x28: key = 0x0d; label = @"enter"; break;
         case 0x29: key = 0x1b; label = @"escape"; break;
         case 0x2a: key = 0x08; label = @"backspace"; break;
         case 0x2b: key = 0x09; label = @"tab"; break;
+        case 0x2c: key = 0x20; label = @"space"; break;
+        case 0x2d: key = 0xbd; label = @"minus"; break;
+        case 0x2e: key = 0xbb; label = @"equals"; break;
+        case 0x2f: key = 0xdb; label = @"left-bracket"; break;
+        case 0x30: key = 0xdd; label = @"right-bracket"; break;
+        case 0x31: key = 0xdc; label = @"backslash"; break;
+        case 0x33: key = 0xba; label = @"semicolon"; break;
+        case 0x34: key = 0xde; label = @"quote"; break;
+        case 0x35: key = 0xc0; label = @"grave"; break;
+        case 0x36: key = 0xbc; label = @"comma"; break;
+        case 0x37: key = 0xbe; label = @"period"; break;
+        case 0x38: key = 0xbf; label = @"slash"; break;
         case 0x39: key = 0x14; label = @"caps-lock"; break;
         case 0x3a: key = 0x70; label = @"f1"; break;
         case 0x3b: key = 0x71; label = @"f2"; break;
@@ -130,6 +171,26 @@ static uint32_t JuiceVirtualKeyForHID(NSInteger hid, NSString **name)
     return key;
 }
 
+static uint32_t JuiceWindowsModifiers(UIKeyModifierFlags modifiers)
+{
+    uint32_t result = 0;
+    if (modifiers & UIKeyModifierShift) result |= JUICE_KEY_SHIFT;
+    if (modifiers & (UIKeyModifierControl | UIKeyModifierCommand)) result |= JUICE_KEY_CONTROL;
+    if (modifiers & UIKeyModifierAlternate) result |= JUICE_KEY_ALT;
+    return result;
+}
+
+static BOOL JuiceCommandShortcutShouldReachWine(NSString *plain)
+{
+    static NSSet<NSString *> *aliases;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        aliases = [NSSet setWithArray:@[@"a", @"b", @"c", @"f", @"i", @"l", @"n", @"o",
+                                        @"p", @"r", @"s", @"t", @"u", @"w", @"x", @"y", @"z"]];
+    });
+    return [aliases containsObject:plain.lowercaseString];
+}
+
 static void JuiceHardwarePressesBegan(id self, SEL _cmd, NSSet<UIPress *> *presses,
                                       UIPressesEvent *event)
 {
@@ -152,7 +213,7 @@ static void JuiceHardwarePressesBegan(id self, SEL _cmd, NSSet<UIPress *> *press
         }
 
         UIKeyModifierFlags modifiers = key.modifierFlags;
-        NSString *plain = key.charactersIgnoringModifiers.lowercaseString;
+        NSString *plain = key.charactersIgnoringModifiers.lowercaseString ?: @"";
         if (modifiers == UIKeyModifierCommand && [plain isEqualToString:@"v"])
         {
             BOOL delivered = JuicePasteIOSClipboard(self);
@@ -161,20 +222,23 @@ static void JuiceHardwarePressesBegan(id self, SEL _cmd, NSSet<UIPress *> *press
             continue;
         }
 
-        if (modifiers & (UIKeyModifierCommand | UIKeyModifierControl | UIKeyModifierAlternate))
+        BOOL command = (modifiers & UIKeyModifierCommand) != 0;
+        BOOL controlOrAlt = (modifiers & (UIKeyModifierControl | UIKeyModifierAlternate)) != 0;
+        BOOL commandAlias = command && JuiceCommandShortcutShouldReachWine(plain);
+        if (command && !commandAlias && !controlOrAlt)
         {
-            /* The current wire protocol represents a virtual-key tap, not a
-               held modifier chord. Leave other command/control/option
-               combinations to UIKit rather than emitting incorrect shortcuts. */
+            /* Preserve iPadOS-level shortcuts such as Command-Tab, Command-Space
+               and Command-H instead of converting every Command chord to Ctrl. */
             shouldForwardOriginal = YES;
             continue;
         }
 
         NSString *name = nil;
         uint32_t vkey = JuiceVirtualKeyForHID((NSInteger)key.keyCode, &name);
-        if (vkey)
+        if (controlOrAlt || commandAlias)
         {
-            BOOL delivered = JuiceSendWineVirtualKey(self, vkey, name ?: @"key");
+            BOOL delivered = vkey && JuiceSendWineVirtualKey(self, vkey,
+                JuiceWindowsModifiers(modifiers), name ?: plain ?: @"key");
             handledAny |= delivered;
             shouldForwardOriginal |= !delivered;
             continue;
@@ -185,6 +249,15 @@ static void JuiceHardwarePressesBegan(id self, SEL _cmd, NSSet<UIPress *> *press
             [characters rangeOfCharacterFromSet:NSCharacterSet.controlCharacterSet].location == NSNotFound)
         {
             BOOL delivered = JuiceSendWineText(self, characters);
+            handledAny |= delivered;
+            shouldForwardOriginal |= !delivered;
+            continue;
+        }
+
+        if (vkey)
+        {
+            BOOL delivered = JuiceSendWineVirtualKey(self, vkey,
+                JuiceWindowsModifiers(modifiers), name ?: @"key");
             handledAny |= delivered;
             shouldForwardOriginal |= !delivered;
             continue;
