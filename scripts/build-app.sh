@@ -46,7 +46,8 @@ mkdir -p "$OUT"
   "$ROOT/app/JuiceFramebufferFix.m" "$ROOT/app/JuiceBootProgress.m" \
   "$ROOT/app/JuiceBootOverlayVisibility.m" "$ROOT/app/JuiceSmokePath.m" \
   "$ROOT/app/JuiceSocketHardening.m" "$ROOT/app/JuiceHostIOHardening.m" \
-  "$ROOT/app/JuiceDisplayTransportHardening.m" "$ROOT/app/JuicePointerInput.m" \
+  "$ROOT/app/JuiceDisplayTransportHardening.m" "$ROOT/app/JuiceReconnectGrace.m" \
+  "$ROOT/app/JuicePointerInput.m" "$ROOT/app/JuiceMemoryPressure.m" \
   "$ROOT/app/JuiceLaunchHardening.m" \
   -framework UIKit -framework Foundation -framework QuartzCore -framework GameController \
   -framework CoreGraphics -framework Metal -lz -o "$OUT/Juice"
