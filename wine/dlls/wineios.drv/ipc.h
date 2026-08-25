@@ -19,6 +19,12 @@
  * Win32 mouse-wheel units, where WHEEL_DELTA (120) is one detent. */
 #define JUICE_IOS_WHEEL 0x10u
 #define JUICE_IOS_HWHEEL 0x20u
+/* KEY messages keep the Win32 virtual key in the low 16 bits. These modifier
+ * bits request an atomic modifier-down, key-down/up, modifier-up chord. Plain
+ * low-16-bit KEY messages retain the original single-key tap behavior. */
+#define JUICE_IOS_KEY_SHIFT   0x00010000u
+#define JUICE_IOS_KEY_CONTROL 0x00020000u
+#define JUICE_IOS_KEY_ALT     0x00040000u
 /* x/y are Wine desktop coordinates instead of window-local coordinates. */
 #define JUICE_IOS_COORDS_DESKTOP 0x40000000u
 /* FRAME payload contains only the packed BGRA dirty rectangle. x/y locate the
