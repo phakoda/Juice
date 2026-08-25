@@ -124,6 +124,10 @@ static BOOL connect_ipc_locked(void)
  addr.sun_family=AF_UNIX;
  strcpy(addr.sun_path,ipc_path);
  if((fd=socket(AF_UNIX,SOCK_STREAM,0))<0) return FALSE;
+ {
+  int flags=fcntl(fd,F_GETFD);
+  if(flags>=0) fcntl(fd,F_SETFD,flags|FD_CLOEXEC);
+ }
 #ifdef SO_NOSIGPIPE
  setsockopt(fd,SOL_SOCKET,SO_NOSIGPIPE,&one,sizeof(one));
 #else
@@ -312,10 +316,21 @@ BOOL ios_ipc_process_input(void)
    if(msg.flags&JUICE_IOS_LEFT_UP) input.mi.dwFlags|=MOUSEEVENTF_LEFTUP;
    if(msg.flags&JUICE_IOS_RIGHT_DOWN) input.mi.dwFlags|=MOUSEEVENTF_RIGHTDOWN;
    if(msg.flags&JUICE_IOS_RIGHT_UP) input.mi.dwFlags|=MOUSEEVENTF_RIGHTUP;
+   if(msg.flags&JUICE_IOS_WHEEL)
+   {
+    input.mi.dwFlags|=MOUSEEVENTF_WHEEL;
+    input.mi.mouseData=(DWORD)msg.height;
+   }
+   else if(msg.flags&JUICE_IOS_HWHEEL)
+   {
+    input.mi.dwFlags|=MOUSEEVENTF_HWHEEL;
+    input.mi.mouseData=(DWORD)msg.width;
+   }
    sent=NtUserSendHardwareInput(target,0,&input,0);
    if(up) pointer_down=FALSE;
-   fprintf(stderr,"[JuiceInput] dispatched surface=%p target=%p coords=%s wire=%d,%d desktop=%d,%d flags=%x sent=%u\n",
-           hwnd,target,desktop_coords?"desktop":"local",msg.x,msg.y,input.mi.dx,input.mi.dy,input.mi.dwFlags,sent);
+   fprintf(stderr,"[JuiceInput] dispatched surface=%p target=%p coords=%s wire=%d,%d desktop=%d,%d flags=%x mouseData=%d sent=%u\n",
+           hwnd,target,desktop_coords?"desktop":"local",msg.x,msg.y,input.mi.dx,input.mi.dy,
+           input.mi.dwFlags,(INT)input.mi.mouseData,sent);
   }
   else if(msg.type==JUICE_IOS_TEXT&&msg.size&&!(msg.size%sizeof(WCHAR)))
   {
