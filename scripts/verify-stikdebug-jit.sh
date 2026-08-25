@@ -20,9 +20,10 @@ bash -n \
   "$ROOT/scripts/fetch-fex-linux.sh" \
   "$ROOT/scripts/verify-fex-patch.sh"
 
-# --numstat parses the complete unified diff without requiring an FEX checkout,
-# catching malformed hunk counts and missing terminal newlines in normal CI.
-git -C "$ROOT" apply --numstat "$ROOT/patches/fex-stikdebug-jit.patch" >/dev/null
+# Parse the complete hand-edited unified diff without requiring an FEX checkout.
+# --recount derives hunk sizes from the actual patch lines while still rejecting
+# malformed syntax such as incomplete hunks or a missing terminal newline.
+git -C "$ROOT" apply --recount --numstat "$ROOT/patches/fex-stikdebug-jit.patch" >/dev/null
 
 # Verify the small Wine overlay against either a clean source checkout or a
 # source tree that has already been prepared for an incremental build.
@@ -77,8 +78,8 @@ fi
 # must apply both, and the verifier must know how to temporarily remove only
 # the StikDebug overlay before comparing the established base patch.
 grep -Fq 'STIKDEBUG_PATCH="$ROOT/patches/fex-stikdebug-jit.patch"' "$ROOT/scripts/fetch-fex-linux.sh"
-grep -Fq 'git -C "$SOURCE" apply "$STIKDEBUG_PATCH"' "$ROOT/scripts/fetch-fex-linux.sh"
+grep -Fq 'git -C "$SOURCE" apply --recount "$STIKDEBUG_PATCH"' "$ROOT/scripts/fetch-fex-linux.sh"
 grep -Fq 'STIKDEBUG_PATCH="$ROOT/patches/fex-stikdebug-jit.patch"' "$ROOT/scripts/verify-fex-patch.sh"
-grep -Fq 'apply --reverse "$STIKDEBUG_PATCH"' "$ROOT/scripts/verify-fex-patch.sh"
+grep -Fq 'apply --recount --reverse "$STIKDEBUG_PATCH"' "$ROOT/scripts/verify-fex-patch.sh"
 
 echo "JUICE_STIKDEBUG_JIT_VERIFY_OK"
