@@ -3,6 +3,7 @@
 #import <fcntl.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import <string.h>
 #import <sys/socket.h>
 #import <sys/un.h>
 #import <unistd.h>
