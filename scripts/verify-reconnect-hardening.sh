@@ -21,10 +21,10 @@ grep -Fq 'surface_has_baseline_locked' "$ROOT/wine/dlls/wineios.drv/ipc.c"
 grep -Fq 'available==0' "$ROOT/wine/dlls/wineios.drv/ipc.c"
 grep -Fq 'writev_all' "$ROOT/wine/dlls/wineios.drv/ipc.c"
 
-# Backspace/Tab/Enter are virtual keys, so they need hardware key down/up rather
-# than WM_CHAR injection for focus traversal and default-button behavior.
+# Virtual keys are real hardware key down/up events. Modifier-capable messages
+# extend that path without changing ordinary low-16-bit key taps.
 grep -Fq 'input.type=INPUT_KEYBOARD' "$ROOT/wine/dlls/wineios.drv/ipc.c"
 grep -Fq 'KEYEVENTF_KEYUP' "$ROOT/wine/dlls/wineios.drv/ipc.c"
-grep -Fq 'send_virtual_key(target,vkey)' "$ROOT/wine/dlls/wineios.drv/ipc.c"
+grep -Fq 'send_virtual_key(target,vkey,msg.flags)' "$ROOT/wine/dlls/wineios.drv/ipc.c"
 
 echo "JUICE_RECONNECT_HARDENING_VERIFY_OK"
