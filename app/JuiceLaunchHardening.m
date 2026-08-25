@@ -14,6 +14,8 @@ static void JuiceLaunchAppend(id self,NSString *line){SEL s=NSSelectorFromString
 static id JuiceLaunchCallObject(id self,NSString *name){SEL s=NSSelectorFromString(name);return [self respondsToSelector:s]?((id(*)(id,SEL))objc_msgSend)(self,s):nil;}
 static void JuiceLaunchCallVoid(id self,NSString *name){SEL s=NSSelectorFromString(name);if([self respondsToSelector:s])((void(*)(id,SEL))objc_msgSend)(self,s);}
 static void JuiceLaunchReject(id self,NSString *message){SEL s=NSSelectorFromString(@"rejectLaunch:");if([self respondsToSelector:s])((void(*)(id,SEL,id))objc_msgSend)(self,s,message);else JuiceLaunchAppend(self,message);}
+static void JuiceLaunchStop(id self,NSString *reason){SEL s=NSSelectorFromString(@"stopAllWineProcesses:");if([self respondsToSelector:s])((void(*)(id,SEL,id))objc_msgSend)(self,s,reason);}
+static void JuiceLaunchFailAfterServer(id self,NSString *message){JuiceLaunchStop(self,@"launch-setup-failed");JuiceLaunchReject(self,message);}
 
 static char **JuiceCopyStrings(NSArray<NSString *> *strings)
 {
@@ -68,16 +70,17 @@ static NSArray<NSString *> *JuiceParseArguments(NSString *line,NSString **failur
     return arguments;
 }
 
-static BOOL JuiceSpawnAttributes(posix_spawnattr_t *attributes)
+static int JuiceSpawnAttributes(posix_spawnattr_t *attributes)
 {
-    if(posix_spawnattr_init(attributes))return NO;
+    int error=posix_spawnattr_init(attributes);if(error)return error;
     short flags=POSIX_SPAWN_SETPGROUP;
 #ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
     flags|=POSIX_SPAWN_CLOEXEC_DEFAULT;
 #endif
-    if(posix_spawnattr_setpgroup(attributes,0)||posix_spawnattr_setflags(attributes,flags))
-    {posix_spawnattr_destroy(attributes);return NO;}
-    return YES;
+    error=posix_spawnattr_setpgroup(attributes,0);
+    if(!error)error=posix_spawnattr_setflags(attributes,flags);
+    if(error)posix_spawnattr_destroy(attributes);
+    return error;
 }
 
 static NSString *JuiceDecodeOutput(NSData *data)
@@ -103,13 +106,14 @@ static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generatio
         if(pending.length)JuiceLaunchAppend(self,JuiceDecodeOutput(pending));
     }close(readFD);
     int status=0;pid_t waited;do{waited=waitpid(child,&status,0);}while(waited<0&&errno==EINTR);
+    int waitError=waited<0?errno:0;
     dispatch_async(dispatch_get_main_queue(),^{
         if([JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation)return;
         if([JuiceLaunchValue(self,@"child") intValue]==child)JuiceLaunchSetValue(self,@"child",@(-1));
         if([JuiceLaunchValue(self,@"childInput") intValue]==inputFD&&inputFD>=0){close(inputFD);JuiceLaunchSetValue(self,@"childInput",@(-1));}
         NSString *result=waited==child&&WIFEXITED(status)?[NSString stringWithFormat:@"exit=%d",WEXITSTATUS(status)]:
                          waited==child&&WIFSIGNALED(status)?[NSString stringWithFormat:@"signal=%d",WTERMSIG(status)]:
-                         [NSString stringWithFormat:@"wait=%d errno=%d",waited,errno];
+                         [NSString stringWithFormat:@"wait=%d errno=%d",waited,waitError];
         JuiceLaunchAppend(self,[NSString stringWithFormat:@"PROCESS_GROUP_EXITED pgid=%d %@\n",child,result]);
     });});
 }
@@ -117,8 +121,7 @@ static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generatio
 static void JuiceHardenedLaunch(id self,SEL _cmd)
 {
     (void)_cmd;
-    SEL stop=NSSelectorFromString(@"stopAllWineProcesses:");
-    if([self respondsToSelector:stop])((void(*)(id,SEL,id))objc_msgSend)(self,stop,@"new-launch");
+    JuiceLaunchStop(self,@"new-launch");
     JuiceLaunchCallVoid(self,@"preparePrefix");
 
     UITextField *argsField=JuiceLaunchValue(self,@"argsField");NSString *failure=nil;
@@ -130,30 +133,33 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     NSString *server=[build stringByAppendingPathComponent:@"server/wineserver"];
     NSString *tracer=[grape stringByAppendingPathComponent:@"tools/grape-trace-parent"];
     NSString *exe=JuiceLaunchCallObject(self,@"resolveExe");NSArray<NSString *> *environment=JuiceLaunchCallObject(self,@"environment");
-    if(!grape.length||!exe.length||!environment.count||![NSFileManager.defaultManager isExecutableFileAtPath:loader]||![NSFileManager.defaultManager isExecutableFileAtPath:tracer])
-    {JuiceLaunchReject(self,@"The selected Wine runtime is incomplete or not executable.");return;}
+    NSFileManager *files=NSFileManager.defaultManager;
+    if(!grape.length||!exe.length||!environment.count||![files isExecutableFileAtPath:loader]||
+       ![files isExecutableFileAtPath:server]||![files isExecutableFileAtPath:tracer]||![files fileExistsAtPath:exe])
+    {JuiceLaunchReject(self,@"The selected Wine runtime or executable is incomplete.");return;}
 
     char **env=JuiceCopyStrings(environment);char **serverArgv=JuiceCopyStrings(@[server,@"-f"]);
     if(!env||!serverArgv){JuiceFreeStrings(env);JuiceFreeStrings(serverArgv);JuiceLaunchReject(self,@"Juice ran out of memory preparing wineserver arguments.");return;}
-    posix_spawn_file_actions_t serverActions;BOOL serverActionsReady=posix_spawn_file_actions_init(&serverActions)==0;int serverActionError=serverActionsReady?0:ENOMEM;
+    posix_spawn_file_actions_t serverActions;int serverActionError=posix_spawn_file_actions_init(&serverActions);BOOL serverActionsReady=serverActionError==0;
     if(!serverActionError)serverActionError=posix_spawn_file_actions_addopen(&serverActions,1,"/dev/null",O_WRONLY,0);
     if(!serverActionError)serverActionError=posix_spawn_file_actions_adddup2(&serverActions,1,2);
-    posix_spawnattr_t serverAttributes;BOOL serverAttributesReady=JuiceSpawnAttributes(&serverAttributes);pid_t serverPID=-1;
-    int serverResult=serverActionError?:posix_spawn(&serverPID,server.fileSystemRepresentation,serverActionsReady?&serverActions:NULL,serverAttributesReady?&serverAttributes:NULL,serverArgv,env);
+    posix_spawnattr_t serverAttributes;int serverAttributeError=JuiceSpawnAttributes(&serverAttributes);BOOL serverAttributesReady=serverAttributeError==0;pid_t serverPID=-1;
+    int serverResult=serverActionError?serverActionError:(serverAttributeError?serverAttributeError:
+                     posix_spawn(&serverPID,server.fileSystemRepresentation,&serverActions,&serverAttributes,serverArgv,env));
     if(serverActionsReady)posix_spawn_file_actions_destroy(&serverActions);if(serverAttributesReady)posix_spawnattr_destroy(&serverAttributes);JuiceFreeStrings(serverArgv);
     if(serverResult){JuiceFreeStrings(env);JuiceLaunchSetValue(self,@"server",@(-1));JuiceLaunchReject(self,[NSString stringWithFormat:@"Juice could not start wineserver: %s",strerror(serverResult)]);return;}
     JuiceLaunchSetValue(self,@"server",@(serverPID));JuiceLaunchAppend(self,[NSString stringWithFormat:@"Wine server: 0 pid=%d pgid=%d hardened=1\n",serverPID,serverPID]);usleep(200000);
 
     NSMutableArray<NSString *> *arguments=[NSMutableArray arrayWithObjects:tracer,loader,exe,nil];[arguments addObjectsFromArray:parts];char **argv=JuiceCopyStrings(arguments);
-    if(!argv){JuiceFreeStrings(env);JuiceLaunchReject(self,@"Juice ran out of memory preparing launch arguments.");return;}
+    if(!argv){JuiceFreeStrings(env);JuiceLaunchFailAfterServer(self,@"Juice ran out of memory preparing launch arguments.");return;}
     int outputPipe[2]={-1,-1},inputPipe[2]={-1,-1};
     if(pipe(outputPipe)||pipe(inputPipe))
     {
         int saved=errno;for(int i=0;i<2;i++){if(outputPipe[i]>=0)close(outputPipe[i]);if(inputPipe[i]>=0)close(inputPipe[i]);}
-        JuiceFreeStrings(argv);JuiceFreeStrings(env);JuiceLaunchReject(self,[NSString stringWithFormat:@"Juice could not create process pipes: %s",strerror(saved)]);return;
+        JuiceFreeStrings(argv);JuiceFreeStrings(env);JuiceLaunchFailAfterServer(self,[NSString stringWithFormat:@"Juice could not create process pipes: %s",strerror(saved)]);return;
     }
     fcntl(outputPipe[0],F_SETFD,FD_CLOEXEC);fcntl(inputPipe[1],F_SETFD,FD_CLOEXEC);
-    posix_spawn_file_actions_t actions;BOOL actionsReady=posix_spawn_file_actions_init(&actions)==0;int actionError=actionsReady?0:ENOMEM;
+    posix_spawn_file_actions_t actions;int actionError=posix_spawn_file_actions_init(&actions);BOOL actionsReady=actionError==0;
     if(!actionError)actionError=posix_spawn_file_actions_adddup2(&actions,inputPipe[0],0);
     if(!actionError)actionError=posix_spawn_file_actions_adddup2(&actions,outputPipe[1],1);
     if(!actionError)actionError=posix_spawn_file_actions_adddup2(&actions,outputPipe[1],2);
@@ -161,18 +167,20 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     if(!actionError)actionError=posix_spawn_file_actions_addclose(&actions,outputPipe[0]);
     if(!actionError&&inputPipe[0]!=0)actionError=posix_spawn_file_actions_addclose(&actions,inputPipe[0]);
     if(!actionError&&outputPipe[1]!=1&&outputPipe[1]!=2)actionError=posix_spawn_file_actions_addclose(&actions,outputPipe[1]);
+    NSString *cwd=exe.stringByDeletingLastPathComponent;
 #if defined(__APPLE__)
-    NSString *cwd=exe.stringByDeletingLastPathComponent;
     if(!actionError&&[exe containsString:@"/"]&&cwd.length)actionError=posix_spawn_file_actions_addchdir_np(&actions,cwd.fileSystemRepresentation);
-#else
-    NSString *cwd=exe.stringByDeletingLastPathComponent;
 #endif
-    posix_spawnattr_t attributes;BOOL attributesReady=JuiceSpawnAttributes(&attributes);pid_t child=-1;
-    int result=actionError?:posix_spawn(&child,tracer.fileSystemRepresentation,actionsReady?&actions:NULL,attributesReady?&attributes:NULL,argv,env);
+    posix_spawnattr_t attributes;int attributeError=JuiceSpawnAttributes(&attributes);BOOL attributesReady=attributeError==0;pid_t child=-1;
+    int result=actionError?actionError:(attributeError?attributeError:
+               posix_spawn(&child,tracer.fileSystemRepresentation,&actions,&attributes,argv,env));
     if(actionsReady)posix_spawn_file_actions_destroy(&actions);if(attributesReady)posix_spawnattr_destroy(&attributes);
     close(inputPipe[0]);close(outputPipe[1]);JuiceFreeStrings(argv);JuiceFreeStrings(env);
     if(result)
-    {close(inputPipe[1]);close(outputPipe[0]);JuiceLaunchSetValue(self,@"child",@(-1));JuiceLaunchSetValue(self,@"childInput",@(-1));JuiceLaunchReject(self,[NSString stringWithFormat:@"Wine could not start %@: %s",exe.lastPathComponent,strerror(result)]);return;}
+    {
+        close(inputPipe[1]);close(outputPipe[0]);JuiceLaunchSetValue(self,@"child",@(-1));JuiceLaunchSetValue(self,@"childInput",@(-1));
+        JuiceLaunchFailAfterServer(self,[NSString stringWithFormat:@"Wine could not start %@: %s",exe.lastPathComponent,strerror(result)]);return;
+    }
 
     JuiceLaunchSetValue(self,@"child",@(child));JuiceLaunchSetValue(self,@"childInput",@(inputPipe[1]));
     uint64_t generation=[JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]+1;JuiceLaunchSetValue(self,@"launchGeneration",@(generation));
@@ -181,7 +189,7 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     JuiceConsumeOutput(self,outputPipe[0],child,generation,inputPipe[1]);
 }
 
-__attribute__((constructor))
+__attribute__((constructor(450)))
 static void JuiceInstallLaunchHardening(void)
 {
     Class cls=NSClassFromString(@"JuiceController");if(!cls)return;
