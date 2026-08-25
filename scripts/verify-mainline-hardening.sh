@@ -6,6 +6,7 @@ BUILD="$ROOT/scripts/build-app.sh"
 IPC_H="$ROOT/wine/dlls/wineios.drv/ipc.h"
 IPC_C="$ROOT/wine/dlls/wineios.drv/ipc.c"
 IOSDRV="$ROOT/wine/dlls/wineios.drv/iosdrv.c"
+MULTI="$ROOT/app/JuiceMultiWindowFix.m"
 DISPLAY="$ROOT/app/JuiceDisplayTransportHardening.m"
 SOCKET="$ROOT/app/JuiceSocketHardening.m"
 HOSTIO="$ROOT/app/JuiceHostIOHardening.m"
@@ -14,11 +15,12 @@ DATA_IMPORT="$ROOT/app/JuiceWindowsDataImport.m"
 POINTER="$ROOT/app/JuicePointerInput.m"
 MEMORY="$ROOT/app/JuiceMemoryPressure.m"
 LIFECYCLE="$ROOT/app/JuiceLifecycleHardening.m"
+CLI_INPUT="$ROOT/app/JuiceCLIInputHardening.m"
 LAUNCH="$ROOT/app/JuiceLaunchHardening.m"
 ZIP="$ROOT/app/JuiceZip.m"
 ZIP_TEST="$ROOT/scripts/test-zip-extractor-host.sh"
 
-for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$DATA_IMPORT" "$POINTER" "$MEMORY" "$LIFECYCLE" "$LAUNCH" "$ZIP" "$ZIP_TEST"; do
+for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$MULTI" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$DATA_IMPORT" "$POINTER" "$MEMORY" "$LIFECYCLE" "$CLI_INPUT" "$LAUNCH" "$ZIP" "$ZIP_TEST"; do
   test -f "$path" || { echo "Missing mainline hardening source: $path" >&2; exit 2; }
 done
 
@@ -41,6 +43,15 @@ grep -Fq 'ipc_generation' "$IPC_C"
 grep -Fq 'connect_ipc_locked' "$IPC_C"
 grep -Fq 'writev_all' "$IPC_C"
 grep -Fq 'surface_has_baseline_locked' "$IPC_C"
+
+# Preserve current main's viewport and desktop-coordinate drag fixes while
+# collapsing multiple HWND redraws into one pending full-viewport composite.
+grep -Fq 'INPUT_COORDS_DESKTOP' "$MULTI"
+grep -Fq 'JuiceCapturedViewportKey' "$MULTI"
+grep -Fq 'JuiceRenderCompositeWineDesktop' "$MULTI"
+grep -Fq 'JuiceCompositeScheduledKey' "$MULTI"
+grep -Fq 'MULTI_WINDOW_COMPOSITE_COALESCED' "$MULTI"
+grep -Fq 'dispatch_get_main_queue()' "$MULTI"
 
 # UIKit must validate/cap payloads and geometry before allocation/compositing,
 # then coalesce producer frames before rendering.
@@ -110,6 +121,13 @@ grep -Fq 'gamepadFD' "$LIFECYCLE"
 grep -Fq 'persistentLogHandle' "$LIFECYCLE"
 grep -Fq 'FD_CLOEXEC' "$LIFECYCLE"
 
+# CLI stdin uses the same exact-write semantics as socket I/O: EINTR retries and
+# hard failures close/invalidate the child pipe rather than reusing a dead fd.
+grep -Fq 'JuiceCLIWriteAll' "$CLI_INPUT"
+grep -Fq 'errno==EINTR' "$CLI_INPUT"
+grep -Fq 'CLI_STDIN_FAILED' "$CLI_INPUT"
+grep -Fq 'childInput",@(-1)' "$CLI_INPUT"
+
 # Launches must not split quoted arguments, mutate the UIKit process cwd, or
 # silently lose process-group/CLOEXEC semantics. Failures after server startup
 # must invoke the existing mainline shutdown path so no wineserver is stranded.
@@ -134,7 +152,7 @@ grep -Fq 'unlink(outputPath.fileSystemRepresentation)' "$ZIP"
 grep -Fq 'large_size = 48 * 1024 * 1024' "$ZIP_TEST"
 grep -Fq 'local-crc-mismatch' "$ZIP_TEST"
 
-for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuiceWindowsDataImport.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLifecycleHardening.m JuiceLaunchHardening.m; do
+for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuiceWindowsDataImport.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLifecycleHardening.m JuiceCLIInputHardening.m JuiceLaunchHardening.m; do
   grep -Fq "app/$source" "$BUILD" || { echo "build-app.sh does not compile $source" >&2; exit 3; }
 done
 
