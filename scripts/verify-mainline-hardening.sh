@@ -17,10 +17,11 @@ MEMORY="$ROOT/app/JuiceMemoryPressure.m"
 LIFECYCLE="$ROOT/app/JuiceLifecycleHardening.m"
 CLI_INPUT="$ROOT/app/JuiceCLIInputHardening.m"
 LAUNCH="$ROOT/app/JuiceLaunchHardening.m"
+TRACE_PARENT="$ROOT/launcher/grape-trace-parent.c"
 ZIP="$ROOT/app/JuiceZip.m"
 ZIP_TEST="$ROOT/scripts/test-zip-extractor-host.sh"
 
-for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$MULTI" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$DATA_IMPORT" "$POINTER" "$MEMORY" "$LIFECYCLE" "$CLI_INPUT" "$LAUNCH" "$ZIP" "$ZIP_TEST"; do
+for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$MULTI" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$DATA_IMPORT" "$POINTER" "$MEMORY" "$LIFECYCLE" "$CLI_INPUT" "$LAUNCH" "$TRACE_PARENT" "$ZIP" "$ZIP_TEST"; do
   test -f "$path" || { echo "Missing mainline hardening source: $path" >&2; exit 2; }
 done
 
@@ -128,16 +129,25 @@ grep -Fq 'errno==EINTR' "$CLI_INPUT"
 grep -Fq 'CLI_STDIN_FAILED' "$CLI_INPUT"
 grep -Fq 'childInput",@(-1)' "$CLI_INPUT"
 
-# Launches must not split quoted arguments, mutate the UIKit process cwd, or
-# silently lose process-group/CLOEXEC semantics. Failures after server startup
-# must invoke the existing mainline shutdown path so no wineserver is stranded.
+# Launches must not split quoted arguments or mutate UIKit's process cwd. The
+# dedicated trace helper consumes JUICE_LAUNCH_CWD, chdirs only itself, removes
+# the private variable, then spawns Wine. This avoids iOS-private spawn actions.
 grep -Fq 'JuiceParseArguments' "$LAUNCH"
 grep -Fq 'POSIX_SPAWN_CLOEXEC_DEFAULT' "$LAUNCH"
-grep -Fq 'posix_spawn_file_actions_addchdir_np' "$LAUNCH"
+grep -Fq 'JUICE_LAUNCH_CWD=' "$LAUNCH"
+grep -Fq 'cwd_transport=trace-parent' "$LAUNCH"
 grep -Fq 'launch-setup-failed' "$LAUNCH"
 grep -Fq 'JuiceLaunchStop(self,@"new-launch")' "$LAUNCH"
+grep -Fq 'apply_launch_directory' "$TRACE_PARENT"
+grep -Fq 'getenv("JUICE_LAUNCH_CWD")' "$TRACE_PARENT"
+grep -Fq 'unsetenv("JUICE_LAUNCH_CWD")' "$TRACE_PARENT"
+grep -Fq 'chdir(copy)' "$TRACE_PARENT"
+if grep -Fq 'posix_spawn_file_actions_addchdir_np' "$LAUNCH"; then
+  echo "UIKit launch code must not depend on unavailable iOS spawn cwd extensions." >&2
+  exit 3
+fi
 if grep -Fq 'chdir(' "$LAUNCH"; then
-  echo "Launch hardening must use spawn-time cwd, not process-wide chdir()." >&2
+  echo "UIKit launch hardening must never change the host process cwd." >&2
   exit 3
 fi
 
