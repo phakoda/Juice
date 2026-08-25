@@ -26,6 +26,8 @@ jobs:
         run: bash scripts/verify-lifecycle-hardening.sh
       - name: Verify MSI and bounded text input
         run: bash scripts/verify-installer-text-hardening.sh
+      - name: Verify pointer and socket hardening
+        run: bash scripts/verify-pointer-socket-hardening.sh
 
   app-build:
     runs-on: macos-latest
