@@ -42,14 +42,14 @@ diff --git a/dlls/ntdll/unix/unix_private.h b/dlls/ntdll/unix/unix_private.h
 diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
-@@ -139,6 +139,7 @@ struct file_view
+@@ -139,5 +139,6 @@ struct file_view
  #define VPROT_PLACEHOLDER      0x0400
  #define VPROT_FREE_PLACEHOLDER 0x0800
 +#define VPROT_JUICE_JIT        0x1000  /* StikDebug dual-mapped JIT view */
  
  /* Conversion from VPROT_* to Win32 flags */
  static const BYTE VIRTUAL_Win32Flags[16] =
-@@ -5697,6 +5698,200 @@ NTSTATUS WINAPI NtAllocateVirtualMemory( HANDLE process, PVOID *ret, ULONG_PTR z
+@@ -5697,6 +5698,203 @@ NTSTATUS WINAPI NtAllocateVirtualMemory( HANDLE process, PVOID *ret, ULONG_PTR z
      return STATUS_SUCCESS;
  }
  
