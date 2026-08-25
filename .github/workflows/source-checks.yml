@@ -14,3 +14,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify source tree and Wine patch
         run: make verify
+      - name: Verify mainline runtime hardening
+        run: bash scripts/verify-mainline-hardening.sh
+
+  app-build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Juice for iPhoneOS
+        run: make app
