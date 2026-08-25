@@ -65,10 +65,14 @@ static void disconnect_ipc_locked(void)
  ipc_fd=-1;
 }
 
-static void disconnect_ipc_fd(int fd)
+/* File descriptor numbers may be reused immediately after another thread
+ * reconnects. Match the connection generation as well as the integer fd so an
+ * old input reader can never tear down a newer socket that received the same
+ * descriptor number. */
+static void disconnect_ipc_fd(int fd,unsigned int generation)
 {
  pthread_mutex_lock(&ipc_lock);
- if(ipc_fd==fd) disconnect_ipc_locked();
+ if(ipc_fd==fd&&ipc_generation==generation) disconnect_ipc_locked();
  pthread_mutex_unlock(&ipc_lock);
 }
 
@@ -198,10 +202,12 @@ BOOL ios_ipc_process_input(void)
   BOOL redrawn=FALSE,presented=FALSE;
   ssize_t available;
   int fd;
+  unsigned int generation;
 
   pthread_mutex_lock(&ipc_lock);
   if(ipc_fd<0) connect_ipc_locked();
   fd=ipc_fd;
+  generation=ipc_generation;
   pthread_mutex_unlock(&ipc_lock);
   if(fd<0) break;
   ios_ipc_register_queue();
@@ -209,25 +215,25 @@ BOOL ios_ipc_process_input(void)
   available=recv(fd,&msg,sizeof(msg),MSG_PEEK|MSG_DONTWAIT);
   if(available==0)
   {
-   disconnect_ipc_fd(fd);
+   disconnect_ipc_fd(fd,generation);
    break;
   }
   if(available<0)
   {
    if(errno==EINTR) continue;
-   if(errno!=EAGAIN&&errno!=EWOULDBLOCK) disconnect_ipc_fd(fd);
+   if(errno!=EAGAIN&&errno!=EWOULDBLOCK) disconnect_ipc_fd(fd,generation);
    break;
   }
   if(available<(ssize_t)sizeof(msg)) break;
   if(!read_all(fd,&msg,sizeof(msg)))
   {
-   disconnect_ipc_fd(fd);
+   disconnect_ipc_fd(fd,generation);
    break;
   }
   if(msg.size>64u*1024u)
   {
    fprintf(stderr,"[JuiceInput] rejected oversized message type=%u size=%u\n",msg.type,msg.size);
-   disconnect_ipc_fd(fd);
+   disconnect_ipc_fd(fd,generation);
    break;
   }
   if(msg.size)
@@ -236,7 +242,7 @@ BOOL ios_ipc_process_input(void)
    if(!payload||!read_all(fd,payload,msg.size))
    {
     free(payload);
-    disconnect_ipc_fd(fd);
+    disconnect_ipc_fd(fd,generation);
     break;
    }
   }
