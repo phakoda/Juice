@@ -25,6 +25,41 @@ extern int ptrace(
 #define PT_DETACH 11
 #endif
 
+static volatile sig_atomic_t forwarded_signal;
+static volatile sig_atomic_t wine_child = -1;
+
+static void forward_termination_signal(int signal_number)
+{
+    pid_t child = (pid_t)wine_child;
+
+    forwarded_signal = signal_number;
+    if (child > 0)
+        kill(child, signal_number);
+}
+
+static int install_signal_policy(void)
+{
+    static const int forwarded[] = { SIGHUP, SIGINT, SIGTERM, SIGQUIT };
+    struct sigaction action;
+    size_t index;
+
+    /* Logging goes to a pipe owned by the UIKit host. If that reader closes
+       during shutdown, diagnostics must not kill the supervisor and orphan
+       the Wine process. */
+    if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+        return -1;
+
+    memset(&action, 0, sizeof(action));
+    action.sa_handler = forward_termination_signal;
+    sigemptyset(&action.sa_mask);
+
+    for (index = 0; index < sizeof(forwarded) / sizeof(forwarded[0]); index++)
+        if (sigaction(forwarded[index], &action, NULL) == -1)
+            return -1;
+
+    return 0;
+}
+
 /*
  * The Linux-built TIPA carries target-side libraries (currently FreeType) in
  * Juice.app/Libraries.  The UIKit launcher starts this tracer, which in turn
@@ -174,6 +209,18 @@ int main(int argc, char **argv)
         return 64;
     }
 
+    if (install_signal_policy() == -1)
+    {
+        fprintf(
+            stderr,
+            "[JuiceWine parent] could not install signal policy: "
+            "errno=%d (%s)\n",
+            errno,
+            strerror(errno)
+        );
+        return 70;
+    }
+
     prepend_bundle_libraries(argv[1]);
 
     fprintf(
@@ -204,6 +251,10 @@ int main(int argc, char **argv)
         return 65;
     }
 
+    wine_child = child;
+    if (forwarded_signal)
+        kill(child, forwarded_signal);
+
     fprintf(
         stderr,
         "[JuiceWine parent] child PID=%d\n",
@@ -233,6 +284,7 @@ int main(int argc, char **argv)
             );
 
             kill(child, SIGKILL);
+            wine_child = -1;
             return 66;
         }
 
@@ -258,6 +310,7 @@ int main(int argc, char **argv)
                 if (ptrace_detach(child) == -1)
                 {
                     kill(child, SIGKILL);
+                    wine_child = -1;
                     return 67;
                 }
 
@@ -268,6 +321,12 @@ int main(int argc, char **argv)
                     "[JuiceWine parent] child now running "
                     "untraced\n"
                 );
+
+                /* A Stop request can race the PT_TRACE_ME handshake. Re-send
+                   it after detach so a signal delivered while the child was
+                   stopped cannot be lost behind the tracing transition. */
+                if (forwarded_signal)
+                    kill(child, forwarded_signal);
 
                 continue;
             }
@@ -283,6 +342,7 @@ int main(int argc, char **argv)
                 if (ptrace_continue(child, 0) == -1)
                 {
                     kill(child, SIGKILL);
+                    wine_child = -1;
                     return 68;
                 }
 
@@ -296,6 +356,7 @@ int main(int argc, char **argv)
             );
 
             kill(child, SIGKILL);
+            wine_child = -1;
             return 69;
         }
 
@@ -303,6 +364,7 @@ int main(int argc, char **argv)
         {
             int result = WEXITSTATUS(status);
 
+            wine_child = -1;
             fprintf(
                 stderr,
                 "[JuiceWine parent] child exited with %d\n",
@@ -316,6 +378,7 @@ int main(int argc, char **argv)
         {
             int signal_number = WTERMSIG(status);
 
+            wine_child = -1;
             fprintf(
                 stderr,
                 "[JuiceWine parent] child terminated by "

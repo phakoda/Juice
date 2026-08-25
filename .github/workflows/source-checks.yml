@@ -14,3 +14,28 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify source tree and Wine patch
         run: make verify
+      - name: Verify runtime hardening invariants
+        run: bash scripts/verify-runtime-hardening.sh
+      - name: Verify reconnect and keyboard invariants
+        run: bash scripts/verify-reconnect-hardening.sh
+      - name: Verify sandbox storage invariants
+        run: bash scripts/verify-storage-hardening.sh
+      - name: Verify hardware keyboard and architecture routing
+        run: bash scripts/verify-input-architecture-hardening.sh
+      - name: Verify lifecycle and control routing
+        run: bash scripts/verify-lifecycle-hardening.sh
+      - name: Verify MSI and bounded text input
+        run: bash scripts/verify-installer-text-hardening.sh
+      - name: Verify pointer and socket hardening
+        run: bash scripts/verify-pointer-socket-hardening.sh
+
+  app-build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Juice for iPhoneOS
+        run: make app
+      - name: Compile launcher helpers for iPhoneOS
+        run: make launchers
+      - name: Run ZIP extractor regressions
+        run: bash scripts/test-zip-extractor-host.sh

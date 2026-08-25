@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 #import <objc/message.h>
+#import <unistd.h>
 
 /*
  * Prefix health check for the UIKit launcher.
@@ -32,6 +33,17 @@ static void JuiceAppend(id self, NSString *text)
         ((void (*)(id, SEL, id))objc_msgSend)(self, selector, text);
 }
 
+static NSString *JuicePrefixRepairDocuments(void)
+{
+    NSString *legacy = @"/var/mobile/Documents";
+    if (access(legacy.fileSystemRepresentation, W_OK) == 0) return legacy;
+
+    NSArray<NSString *> *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,
+                                                                      NSUserDomainMask, YES);
+    NSString *documents = paths.firstObject;
+    return documents.length ? documents : [NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+}
+
 static BOOL JuiceDirectoryContainsManifest(NSString *directory)
 {
     NSFileManager *files = NSFileManager.defaultManager;
@@ -50,7 +62,8 @@ static void JuiceRepairPrefixIfNeeded(id self)
 {
     BOOL usingX64 = [JuiceValue(self, @"usingX64") boolValue];
     NSString *prefixName = usingX64 ? @"GrapePrefix-x86_64" : @"GrapePrefix";
-    NSString *prefix = [@"/var/mobile/Documents/JuiceData" stringByAppendingPathComponent:prefixName];
+    NSString *base = [JuicePrefixRepairDocuments() stringByAppendingPathComponent:@"JuiceData"];
+    NSString *prefix = [base stringByAppendingPathComponent:prefixName];
     NSString *ready = [prefix stringByAppendingPathComponent:@".juice-prefix-ready"];
     NSString *manifests = [prefix stringByAppendingPathComponent:@"drive_c/windows/winsxs/manifests"];
     NSFileManager *files = NSFileManager.defaultManager;
@@ -62,7 +75,8 @@ static void JuiceRepairPrefixIfNeeded(id self)
     if ([files removeItemAtPath:ready error:&error])
     {
         JuiceAppend(self, [NSString stringWithFormat:
-            @"PREFIX_REPAIR_REQUIRED reason=missing-winsxs-manifests prefix=%@\n", prefix]);
+            @"PREFIX_REPAIR_REQUIRED reason=missing-winsxs-manifests prefix=%@ storage_root=%@\n",
+            prefix, base]);
     }
     else
     {
@@ -78,7 +92,10 @@ static void JuicePreparePrefixWithRepair(id self, SEL _cmd)
     ((void (*)(id, SEL))OriginalPreparePrefix)(self, _cmd);
 }
 
-__attribute__((constructor))
+/* Storage-path selection installs at priority 150. Run this after it but before
+ * default-priority prefix decorators, so the ready marker is invalidated before
+ * preparePrefix computes prefixNeedsInitialization. */
+__attribute__((constructor(250)))
 static void JuiceInstallPrefixRepairHook(void)
 {
     Class cls = NSClassFromString(@"JuiceController");
