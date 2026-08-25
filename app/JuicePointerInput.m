@@ -20,6 +20,7 @@ typedef struct
 
 static void (*JuicePointerOriginalViewDidLoad)(id,SEL);
 static void (*JuicePointerOriginalCanvasSend)(id,SEL,UITouch *,uint32_t);
+static void (*JuicePointerOriginalTouchesBegan)(id,SEL,NSSet *,UIEvent *);
 static char JuicePointerSecondaryDownKey;
 static char JuicePointerInstalledKey;
 
@@ -62,19 +63,25 @@ static void JuicePointerScroll(id self,SEL _cmd,UIPanGestureRecognizer *scroll)
     if(vertical)JuicePointerDispatch(self,canvas,point,JUICE_POINTER_WHEEL,0,vertical);
     if(horizontal)JuicePointerDispatch(self,canvas,point,JUICE_POINTER_HWHEEL,horizontal,0);
 }
+static NSUInteger JuicePointerButtonMask(UIEvent *event)
+{
+    if(!event)return 0;
+    SEL selector=NSSelectorFromString(@"buttonMask");
+    if(![event respondsToSelector:selector])return 0;
+    return ((NSUInteger(*)(id,SEL))objc_msgSend)(event,selector);
+}
+static void JuicePointerTouchesBegan(id self,SEL _cmd,NSSet *touches,UIEvent *event)
+{
+    BOOL secondary=NO;
+    if(@available(iOS 13.4,*))secondary=(JuicePointerButtonMask(event)&UIEventButtonMaskSecondary)!=0;
+    objc_setAssociatedObject(self,&JuicePointerSecondaryDownKey,@(secondary),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if(JuicePointerOriginalTouchesBegan)JuicePointerOriginalTouchesBegan(self,_cmd,touches,event);
+}
 static void JuicePointerCanvasSend(id self,SEL _cmd,UITouch *touch,uint32_t flags)
 {
     if(!JuicePointerOriginalCanvasSend)return;
     BOOL secondary=[objc_getAssociatedObject(self,&JuicePointerSecondaryDownKey) boolValue];
-    BOOL down=(flags&JUICE_POINTER_LEFT_DOWN)!=0,up=(flags&JUICE_POINTER_LEFT_UP)!=0;
-    if(@available(iOS 13.4,*))
-    {
-        if(down&&touch.type==UITouchTypeIndirectPointer)
-        {
-            secondary=(touch.buttonMask&UIEventButtonMaskSecondary)!=0;
-            objc_setAssociatedObject(self,&JuicePointerSecondaryDownKey,@(secondary),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        }
-    }
+    BOOL up=(flags&JUICE_POINTER_LEFT_UP)!=0;
     BOOL old=[JuicePointerValue(self,@"rightClick") boolValue];
     if(secondary)@try{[self setValue:@YES forKey:@"rightClick"];}@catch(__unused NSException *e){}
     JuicePointerOriginalCanvasSend(self,_cmd,touch,flags);
@@ -108,6 +115,8 @@ static void JuiceInstallPointerInput(void)
     }
     if(canvas)
     {
+        Method began=class_getInstanceMethod(canvas,@selector(touchesBegan:withEvent:));
+        if(began)JuicePointerOriginalTouchesBegan=(void(*)(id,SEL,NSSet *,UIEvent *))method_setImplementation(began,(IMP)JuicePointerTouchesBegan);
         Method send=class_getInstanceMethod(canvas,NSSelectorFromString(@"send:flags:"));if(send)JuicePointerOriginalCanvasSend=(void(*)(id,SEL,UITouch *,uint32_t))method_setImplementation(send,(IMP)JuicePointerCanvasSend);
     }
 }
