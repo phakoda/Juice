@@ -48,7 +48,7 @@ grep -Fq 'ipc_generation' "$IPC_C"
 grep -Fq 'connect_ipc_locked' "$IPC_C"
 grep -Fq 'writev_all' "$IPC_C"
 grep -Fq 'surface_has_baseline_locked' "$IPC_C"
-grep -Fq 'disconnect_ipc_connection' "$IPC_C"
+grep -Fq 'disconnect_ipc_fd' "$IPC_C"
 grep -Fq 'ipc_fd==fd&&ipc_generation==generation' "$IPC_C"
 
 # Preserve current main's viewport and desktop-coordinate drag fixes while
@@ -132,14 +132,20 @@ grep -Fq 'source=%@ utf16_units=' "$TEXT_INPUT"
 grep -Fq 'msg.size>64u*1024u' "$IPC_C"
 
 # iPad pointer hardware should behave like desktop input without stealing finger
-# pans: hover, secondary button and vertical/horizontal scroll are transported.
+# pans. Secondary-click state comes from the UIEvent button mask (not a UITouch
+# property), while hover and vertical/horizontal scroll are transported.
 grep -Fq 'UIHoverGestureRecognizer' "$POINTER"
-grep -Fq 'UITouchTypeIndirectPointer' "$POINTER"
+grep -Fq 'JuicePointerButtonMask' "$POINTER"
+grep -Fq 'touchesBegan:withEvent:' "$POINTER"
 grep -Fq 'UIEventButtonMaskSecondary' "$POINTER"
 grep -Fq 'allowedScrollTypesMask=UIScrollTypeMaskAll' "$POINTER"
 grep -Fq 'allowedTouchTypes=@[]' "$POINTER"
 grep -Fq 'JUICE_POINTER_WHEEL' "$POINTER"
 grep -Fq 'JUICE_POINTER_HWHEEL' "$POINTER"
+if grep -Fq 'touch.buttonMask' "$POINTER"; then
+  echo "Physical secondary-click detection must use UIEvent, not UITouch.buttonMask." >&2
+  exit 3
+fi
 grep -Fq 'MOUSEEVENTF_WHEEL' "$IPC_C"
 grep -Fq 'MOUSEEVENTF_HWHEEL' "$IPC_C"
 
