@@ -41,8 +41,11 @@ static int JuiceTextClientForHWND(id self,uint64_t hwnd)
     if(hwnd&&[windows isKindOfClass:NSDictionary.class])
     {
         id state=windows[@(hwnd)];
-        int fd=[JuiceTextValue(state,@"clientFD") intValue];
-        if(JuiceTextFDConnected(self,fd))return fd;
+        if(state)
+        {
+            int fd=[JuiceTextValue(state,@"clientFD") intValue];
+            return JuiceTextFDConnected(self,fd)?fd:-1;
+        }
     }
     int active=[JuiceTextValue(self,@"activeClient") intValue];
     return JuiceTextFDConnected(self,active)?active:-1;
