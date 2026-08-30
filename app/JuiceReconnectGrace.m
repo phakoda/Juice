@@ -11,10 +11,11 @@
  * image at (0,0) until another WINDOW message arrives.
  *
  * A host fd number is not a connection identity: accept() may reuse the same
- * integer for a replacement connection. Tag states with the Wine peer PID seen
- * on frame presentation and keep extending the grace while that process is
- * alive. Input FDs are still invalidated immediately; only inert geometry/image
- * state is retained until the peer reconnects/updates it or actually exits. */
+ * integer for a replacement connection. Retained states therefore have their
+ * clientFD invalidated immediately and are tagged with the Wine peer PID seen
+ * on frame presentation. Input routing cannot reuse the dead descriptor; a real
+ * reconnect explicitly reclaims the state by assigning its current fd. The
+ * geometry grace is extended only while the original Wine process is alive. */
 
 typedef struct
 {
@@ -71,9 +72,14 @@ static NSDictionary *JuiceReconnectSnapshot(id self,int fd)
     return snapshot;
 }
 
+/* A retained state is unchanged only while it is still disconnected. Any
+ * WINDOW or FRAME from a real reconnect sets clientFD back to a live value and
+ * makes the old grace snapshot ineligible for pruning, even if the new socket
+ * happens to reuse the exact same numeric fd. */
 static BOOL JuiceReconnectUnchanged(id state,NSDictionary *before,int fd)
 {
-    if(!state||state!=before[@"state"]||[JuiceReconnectValue(state,@"clientFD") intValue]!=fd)return NO;
+    (void)fd;
+    if(!state||state!=before[@"state"]||[JuiceReconnectValue(state,@"clientFD") intValue]!=-1)return NO;
     id image=JuiceReconnectValue(state,@"image")?:NSNull.null;
     if(image!=before[@"image"])return NO;
     id frame=JuiceReconnectValue(state,@"frame")?:NSNull.null;
@@ -137,12 +143,20 @@ static void JuiceReconnectRemoveWindows(id self,SEL _cmd,int fd)
         return;
     }
 
+    /* Geometry/image state may survive; transport ownership may not. Clear the
+     * dead fd on every retained state before another accept() can reuse it. */
+    [snapshot enumerateKeysAndObjectsUsingBlock:^(NSNumber *key,NSDictionary *before,BOOL *stop){
+        (void)key;(void)stop;
+        id state=before[@"state"];
+        if([JuiceReconnectValue(state,@"clientFD") intValue]==fd)
+            JuiceReconnectSetValue(state,@"clientFD",@(-1));
+    }];
     if([JuiceReconnectValue(self,@"inputClient") intValue]==fd)
     {JuiceReconnectSetValue(self,@"inputClient",@(-1));JuiceReconnectSetValue(self,@"inputHwnd",@0);}
     if([JuiceReconnectValue(self,@"activeClient") intValue]==fd)JuiceReconnectSetValue(self,@"activeClient",@(-1));
 
     JuiceReconnectAppend(self,[NSString stringWithFormat:
-        @"DISPLAY_RECONNECT_GRACE fd=%d windows=%lu seconds=%.1f peer_liveness=1\n",
+        @"DISPLAY_RECONNECT_GRACE fd=%d windows=%lu seconds=%.1f peer_liveness=1 state_fds_cleared=1\n",
         fd,(unsigned long)snapshot.count,JuiceReconnectGraceSeconds]);
     JuiceReconnectSchedulePrune(self,_cmd,fd,snapshot,1);
 }
