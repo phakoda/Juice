@@ -49,17 +49,20 @@ static BOOL JuiceKeyboardFDConnected(id self,int fd)
 }
 
 /* Resolve the client from the selected HWND rather than relying only on the
- * controller's last active fd. This keeps hardware keys aligned with the same
- * window selection used by multi-window text/pointer routing and also rejects
- * stale descriptors that have already left the live client set. */
+ * controller's last active fd. If the selected HWND is tracked but currently
+ * disconnected, return -1 instead of falling through to some unrelated active
+ * client whose numeric fd may have been reused. */
 static int JuiceKeyboardClientForHWND(id self,uint64_t hwnd)
 {
     NSDictionary *windows=JuiceKeyboardValue(self,@"wineWindows");
     if(hwnd&&[windows isKindOfClass:NSDictionary.class])
     {
         id state=windows[@(hwnd)];
-        int fd=[JuiceKeyboardValue(state,@"clientFD") intValue];
-        if(JuiceKeyboardFDConnected(self,fd))return fd;
+        if(state)
+        {
+            int fd=[JuiceKeyboardValue(state,@"clientFD") intValue];
+            return JuiceKeyboardFDConnected(self,fd)?fd:-1;
+        }
     }
     int active=[JuiceKeyboardValue(self,@"activeClient") intValue];
     return JuiceKeyboardFDConnected(self,active)?active:-1;
