@@ -13,6 +13,7 @@ HOSTIO="$ROOT/app/JuiceHostIOHardening.m"
 RECONNECT="$ROOT/app/JuiceReconnectGrace.m"
 DATA_IMPORT="$ROOT/app/JuiceWindowsDataImport.m"
 TEXT_INPUT="$ROOT/app/JuiceTextInputHardening.m"
+KEYBOARD="$ROOT/app/JuiceKeyboardRoutingHardening.m"
 POINTER="$ROOT/app/JuicePointerInput.m"
 MEMORY="$ROOT/app/JuiceMemoryPressure.m"
 LIFECYCLE="$ROOT/app/JuiceLifecycleHardening.m"
@@ -24,7 +25,7 @@ TRACE_PARENT="$ROOT/launcher/grape-trace-parent.c"
 ZIP="$ROOT/app/JuiceZip.m"
 ZIP_TEST="$ROOT/scripts/test-zip-extractor-host.sh"
 
-for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$MULTI" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$DATA_IMPORT" "$TEXT_INPUT" "$POINTER" "$MEMORY" "$LIFECYCLE" "$LOG_HARDENING" "$LOG_EXPORT" "$CLI_INPUT" "$LAUNCH" "$TRACE_PARENT" "$ZIP" "$ZIP_TEST"; do
+for path in "$BUILD" "$IPC_H" "$IPC_C" "$IOSDRV" "$MULTI" "$DISPLAY" "$SOCKET" "$HOSTIO" "$RECONNECT" "$DATA_IMPORT" "$TEXT_INPUT" "$KEYBOARD" "$POINTER" "$MEMORY" "$LIFECYCLE" "$LOG_HARDENING" "$LOG_EXPORT" "$CLI_INPUT" "$LAUNCH" "$TRACE_PARENT" "$ZIP" "$ZIP_TEST"; do
   test -f "$path" || { echo "Missing mainline hardening source: $path" >&2; exit 2; }
 done
 
@@ -131,6 +132,22 @@ grep -Fq 'keyCommands' "$TEXT_INPUT"
 grep -Fq 'source=%@ utf16_units=' "$TEXT_INPUT"
 grep -Fq 'msg.size>64u*1024u' "$IPC_C"
 
+# Raw HID and on-screen virtual keys must use the selected live Wine client,
+# never broadcast keyboard traffic to every display socket. Preserve the scan
+# code/extended/repeat fields while resolving the FD from the selected HWND.
+grep -Fq 'JuiceKeyboardClientForHWND' "$KEYBOARD"
+grep -Fq 'sendMessage:payload:toFD:' "$KEYBOARD"
+grep -Fq 'JUICE_KEYBOARD_HARDWARE' "$KEYBOARD"
+grep -Fq 'JUICE_KEYBOARD_EXTENDED' "$KEYBOARD"
+grep -Fq 'JUICE_KEYBOARD_REPEAT' "$KEYBOARD"
+grep -Fq 'sendHardwareKey:down:repeat:fallback:' "$KEYBOARD"
+grep -Fq 'sendVirtualKey:name:' "$KEYBOARD"
+grep -Fq 'selected_only=1' "$KEYBOARD"
+if grep -Fq 'broadcastMessage' "$KEYBOARD"; then
+  echo "Keyboard routing hardening must never broadcast keys to every Wine client." >&2
+  exit 3
+fi
+
 # iPad pointer hardware should behave like desktop input without stealing finger
 # pans. Secondary-click state comes from the UIEvent button mask (not a UITouch
 # property), while hover and vertical/horizontal scroll are transported.
@@ -220,7 +237,7 @@ grep -Fq 'unlink(outputPath.fileSystemRepresentation)' "$ZIP"
 grep -Fq 'large_size = 48 * 1024 * 1024' "$ZIP_TEST"
 grep -Fq 'local-crc-mismatch' "$ZIP_TEST"
 
-for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuiceWindowsDataImport.m JuiceTextInputHardening.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLifecycleHardening.m JuiceLogHardening.m JuiceCLIInputHardening.m JuiceLaunchHardening.m; do
+for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuiceWindowsDataImport.m JuiceTextInputHardening.m JuiceKeyboardRoutingHardening.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLifecycleHardening.m JuiceLogHardening.m JuiceCLIInputHardening.m JuiceLaunchHardening.m; do
   grep -Fq "app/$source" "$BUILD" || { echo "build-app.sh does not compile $source" >&2; exit 3; }
 done
 
