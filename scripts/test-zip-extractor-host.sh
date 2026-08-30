@@ -4,12 +4,14 @@ set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 WORK="${JUICE_ZIP_HOST_TEST_DIR:-$ROOT/build/zip-host-test}"
 TEST="$WORK/JuiceZipTest"
-CC="${CC:-$(xcrun --find clang)}"
+SDK="${MACOS_SDK:-$(xcrun --sdk macosx --show-sdk-path)}"
+CC="${CC:-$(xcrun --sdk macosx --find clang)}"
 
 rm -rf "$WORK"
 mkdir -p "$WORK"
+test -d "$SDK" || { echo "Missing macOS SDK: $SDK" >&2; exit 2; }
 
-"$CC" -fobjc-arc -O2 -I"$ROOT/app" \
+"$CC" -fobjc-arc -O2 -isysroot "$SDK" -I"$ROOT/app" \
   "$ROOT/app/JuiceZip.m" "$ROOT/app/tests/ZipExtractorTests.m" \
   -framework Foundation -framework CoreFoundation -lz -o "$TEST"
 
