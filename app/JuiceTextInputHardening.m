@@ -28,6 +28,25 @@ static void JuiceTextAppend(id self,NSString *line)
     SEL selector=NSSelectorFromString(@"append:");
     if([self respondsToSelector:selector])((void(*)(id,SEL,id))objc_msgSend)(self,selector,line);
 }
+static BOOL JuiceTextFDConnected(id self,int fd)
+{
+    if(fd<0)return NO;
+    id clients=JuiceTextValue(self,@"clients");
+    if(![clients isKindOfClass:NSArray.class])return YES;
+    @synchronized(clients){return [clients containsObject:@(fd)];}
+}
+static int JuiceTextClientForHWND(id self,uint64_t hwnd)
+{
+    NSDictionary *windows=JuiceTextValue(self,@"wineWindows");
+    if(hwnd&&[windows isKindOfClass:NSDictionary.class])
+    {
+        id state=windows[@(hwnd)];
+        int fd=[JuiceTextValue(state,@"clientFD") intValue];
+        if(JuiceTextFDConnected(self,fd))return fd;
+    }
+    int active=[JuiceTextValue(self,@"activeClient") intValue];
+    return JuiceTextFDConnected(self,active)?active:-1;
+}
 static BOOL JuiceTextSendMessage(id self,JuiceTextMsg *message,NSData *payload,int fd)
 {
     SEL selector=NSSelectorFromString(@"sendMessage:payload:toFD:");
@@ -56,11 +75,12 @@ static BOOL JuiceSendText(id self,NSString *text,NSString *source)
     if(!text.length)return NO;
     id canvas=JuiceTextValue(self,@"canvas");
     uint64_t hwnd=[JuiceTextValue(canvas,@"hwnd") unsignedLongLongValue];
-    int client=[JuiceTextValue(self,@"activeClient") intValue];
+    int client=JuiceTextClientForHWND(self,hwnd);
     if(!hwnd||client<0)
     {
         JuiceTextAppend(self,[NSString stringWithFormat:
-            @"GUI_TEXT_REJECTED reason=no-window source=%@\n",source?:@"unknown"]);
+            @"GUI_TEXT_REJECTED reason=no-selected-client source=%@ hwnd=0x%llx fd=%d\n",
+            source?:@"unknown",(unsigned long long)hwnd,client]);
         return NO;
     }
 
@@ -77,7 +97,7 @@ static BOOL JuiceSendText(id self,NSString *text,NSString *source)
     NSUInteger chunks=0;
     BOOL delivered=JuiceSendTextPayload(self,payload,hwnd,client,&chunks);
     JuiceTextAppend(self,[NSString stringWithFormat:
-        @"GUI_TEXT_SENT hwnd=0x%llx fd=%d source=%@ utf16_units=%lu bytes=%lu chunks=%lu delivered=%d\n",
+        @"GUI_TEXT_SENT hwnd=0x%llx fd=%d source=%@ utf16_units=%lu bytes=%lu chunks=%lu delivered=%d selected_only=1\n",
         (unsigned long long)hwnd,client,source?:@"unknown",
         (unsigned long)(payload.length/2),(unsigned long)payload.length,
         (unsigned long)chunks,delivered]);
