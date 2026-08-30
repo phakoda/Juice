@@ -99,11 +99,19 @@ grep -Fq 'errno==EINTR' "$HOSTIO"
 grep -Fq '@synchronized(clients)' "$HOSTIO"
 
 # Short transport interruptions retain window geometry but never keep a closed
-# descriptor as an input target. Unrecovered windows are pruned after grace.
+# descriptor as an input target. A retained state is tagged with its Wine peer
+# PID and the grace is extended only while that process is actually alive, so a
+# reused host fd cannot make a live reconnect look like the old dead connection.
 grep -Fq 'DISPLAY_RECONNECT_GRACE' "$RECONNECT"
 grep -Fq 'DISPLAY_RECONNECT_GRACE_END' "$RECONNECT"
+grep -Fq 'DISPLAY_RECONNECT_GRACE_EXTEND' "$RECONNECT"
 grep -Fq 'inputClient",@(-1)' "$RECONNECT"
 grep -Fq 'JuiceReconnectUnchanged' "$RECONNECT"
+grep -Fq 'JuiceReconnectPeerAlive' "$RECONNECT"
+grep -Fq 'kill(peerPID,0)' "$RECONNECT"
+grep -Fq 'JuiceReconnectPeerPIDKey' "$RECONNECT"
+grep -Fq 'presentFrameMessage:data:client:peerPID:first:' "$RECONNECT"
+grep -Fq 'peer_liveness=1' "$RECONNECT"
 
 # Imported MSI/BAT/CMD/REG files launch through current main's helper/runtime
 # flags, not the obsolete force-translation hook from the old branch.
@@ -121,15 +129,18 @@ if grep -Fq 'juice_forceTranslatedRuntimeForNextLaunch' "$DATA_IMPORT"; then
 fi
 
 # Text input must stay below wineios.drv's 64 KiB message ceiling and prevent a
-# huge clipboard from monopolizing the socket. Explicit iOS clipboard paste and
-# physical Command-V use the same selected HWND/client route.
+# huge clipboard from monopolizing the socket. Clipboard/typed text resolves the
+# selected HWND's current live client instead of trusting a stale active fd.
 grep -Fq '#define JUICE_TEXT_CHUNK_BYTES (60u * 1024u)' "$TEXT_INPUT"
 grep -Fq '#define JUICE_TEXT_MAX_PASTE_BYTES (1024u * 1024u)' "$TEXT_INPUT"
+grep -Fq 'JuiceTextClientForHWND' "$TEXT_INPUT"
+grep -Fq 'JuiceTextFDConnected' "$TEXT_INPUT"
 grep -Fq 'sendMessage:payload:toFD:' "$TEXT_INPUT"
 grep -Fq 'UIPasteboard.generalPasteboard.string' "$TEXT_INPUT"
 grep -Fq 'UIKeyModifierCommand' "$TEXT_INPUT"
 grep -Fq 'keyCommands' "$TEXT_INPUT"
 grep -Fq 'source=%@ utf16_units=' "$TEXT_INPUT"
+grep -Fq 'selected_only=1' "$TEXT_INPUT"
 grep -Fq 'msg.size>64u*1024u' "$IPC_C"
 
 # Raw HID and on-screen virtual keys must use the selected live Wine client,
