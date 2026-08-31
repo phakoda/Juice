@@ -101,6 +101,25 @@ static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generatio
         }
         if(pending.length)JuiceLaunchAppend(self,JuiceDecodeOutput(pending));
     }close(readFD);
+
+    /* stopAllWineProcesses increments launchGeneration before it signals the
+     * old process group, then keeps the numeric PGID for a one-second SIGKILL
+     * fence. Do not reap an exited stale tracer before that fence completes:
+     * leaving it as a zombie prevents its PID/PGID from being recycled into a
+     * replacement launch that the delayed kill could otherwise target. The
+     * existing termination block performs the final WNOHANG reap. */
+    __block BOOL staleGeneration=NO;
+    dispatch_sync(dispatch_get_main_queue(),^{
+        staleGeneration=[JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation;
+    });
+    if(staleGeneration)
+    {
+        JuiceLaunchAppend(self,[NSString stringWithFormat:
+            @"PROCESS_GROUP_REAP_DEFERRED pgid=%d generation=%llu pid_reuse_fence=1\n",
+            child,(unsigned long long)generation]);
+        return;
+    }
+
     int status=0;pid_t waited;do{waited=waitpid(child,&status,0);}while(waited<0&&errno==EINTR);
     int waitError=waited<0?errno:0;
     dispatch_async(dispatch_get_main_queue(),^{
