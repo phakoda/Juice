@@ -31,8 +31,10 @@ static char **JuiceCopyStrings(NSArray<NSString *> *strings)
 static void JuiceFreeStrings(char **strings){if(!strings)return;for(NSUInteger i=0;strings[i];i++)free(strings[i]);free(strings);}
 static BOOL JuiceWhitespace(unichar c){static NSCharacterSet *set;static dispatch_once_t once;dispatch_once(&once,^{set=NSCharacterSet.whitespaceAndNewlineCharacterSet;});return [set characterIsMember:c];}
 
-/* Parse the UIKit argument field without a shell. Quotes group whitespace;
- * ordinary Windows path backslashes remain literal. */
+/* Parse the UIKit argument field without a shell. Quotes only group whitespace;
+ * Windows backslashes are always literal. In particular, never collapse UNC
+ * prefixes (\\server\share) or a quoted path ending in a backslash. A doubled
+ * quote inside the same quoted group emits one literal quote. */
 static NSArray<NSString *> *JuiceParseArguments(NSString *line,NSString **failure)
 {
     if(!line.length)return @[];
@@ -43,11 +45,11 @@ static NSArray<NSString *> *JuiceParseArguments(NSString *line,NSString **failur
         unichar c=[line characterAtIndex:i];
         if(quote)
         {
-            if(c==quote){quote=0;started=YES;continue;}
-            if(c=='\\'&&i+1<line.length)
+            if(c==quote)
             {
-                unichar next=[line characterAtIndex:i+1];
-                if(next==quote||next=='\\'){[current appendFormat:@"%C",next];i++;started=YES;continue;}
+                if(i+1<line.length&&[line characterAtIndex:i+1]==quote)
+                {[current appendFormat:@"%C",quote];i++;started=YES;continue;}
+                quote=0;started=YES;continue;
             }
             [current appendFormat:@"%C",c];started=YES;continue;
         }
@@ -56,12 +58,6 @@ static NSArray<NSString *> *JuiceParseArguments(NSString *line,NSString **failur
         {
             if(started){[arguments addObject:[current copy]];[current setString:@""];started=NO;}
             continue;
-        }
-        if(c=='\\'&&i+1<line.length)
-        {
-            unichar next=[line characterAtIndex:i+1];
-            if(JuiceWhitespace(next)||next=='"'||next=='\''||next=='\\')
-            {[current appendFormat:@"%C",next];i++;started=YES;continue;}
         }
         [current appendFormat:@"%C",c];started=YES;
     }
