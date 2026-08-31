@@ -154,11 +154,13 @@ fi
 # Text input must stay below wineios.drv's 64 KiB message ceiling and prevent a
 # huge clipboard from monopolizing the socket. Clipboard/typed text resolves the
 # selected HWND's current live client instead of trusting a stale active fd; a
-# tracked-but-disconnected HWND must fail closed rather than fall through.
+# nonzero selected HWND that is missing or disconnected must fail closed rather
+# than sending that stale HWND over a still-live active client.
 grep -Fq '#define JUICE_TEXT_CHUNK_BYTES (60u * 1024u)' "$TEXT_INPUT"
 grep -Fq '#define JUICE_TEXT_MAX_PASTE_BYTES (1024u * 1024u)' "$TEXT_INPUT"
 grep -Fq 'JuiceTextClientForHWND' "$TEXT_INPUT"
 grep -Fq 'JuiceTextFDConnected' "$TEXT_INPUT"
+grep -Fq 'if(!state)return -1;' "$TEXT_INPUT"
 grep -Fq 'return JuiceTextFDConnected(self,fd)?fd:-1;' "$TEXT_INPUT"
 grep -Fq 'sendMessage:payload:toFD:' "$TEXT_INPUT"
 grep -Fq 'UIPasteboard.generalPasteboard.string' "$TEXT_INPUT"
@@ -169,9 +171,11 @@ grep -Fq 'selected_only=1' "$TEXT_INPUT"
 grep -Fq 'msg.size>64u*1024u' "$IPC_C"
 
 # Raw HID and on-screen virtual keys must use the selected live Wine client,
-# never broadcast keyboard traffic to every display socket. Preserve the scan
-# code/extended/repeat fields and fail closed for a tracked disconnected HWND.
+# never broadcast keyboard traffic to every display socket. A nonzero selected
+# HWND that is missing or disconnected must fail closed; preserve scan-code,
+# extended and repeat fields for live targets.
 grep -Fq 'JuiceKeyboardClientForHWND' "$KEYBOARD"
+grep -Fq 'if(!state)return -1;' "$KEYBOARD"
 grep -Fq 'return JuiceKeyboardFDConnected(self,fd)?fd:-1;' "$KEYBOARD"
 grep -Fq 'sendMessage:payload:toFD:' "$KEYBOARD"
 grep -Fq 'JUICE_KEYBOARD_HARDWARE' "$KEYBOARD"
