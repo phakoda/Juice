@@ -29,8 +29,9 @@ static NSString *JuiceDataImportRoot(void)
 
 static NSString *JuiceDataCopyImport(NSURL *url,NSError **error)
 {
+    NSError *localError=nil;NSError **resultError=error?:&localError;
     NSString *root=JuiceDataImportRoot();
-    if(![NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:error])return nil;
+    if(![NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:resultError])return nil;
     NSString *name=url.lastPathComponent.length?url.lastPathComponent:@"windows-file";
     NSString *destination=[root stringByAppendingPathComponent:name];
     if([NSFileManager.defaultManager fileExistsAtPath:destination])
@@ -39,13 +40,32 @@ static NSString *JuiceDataCopyImport(NSURL *url,NSError **error)
         NSString *unique=extension.length?[NSString stringWithFormat:@"%@-%@.%@",stem,NSUUID.UUID.UUIDString,extension]:[NSString stringWithFormat:@"%@-%@",stem,NSUUID.UUID.UUIDString];
         destination=[root stringByAppendingPathComponent:unique];
     }
-    [NSFileManager.defaultManager copyItemAtURL:url toURL:[NSURL fileURLWithPath:destination] error:error];
-    return *error?nil:destination;
+    if(![NSFileManager.defaultManager copyItemAtURL:url toURL:[NSURL fileURLWithPath:destination] error:resultError])return nil;
+
+    NSDictionary *attributes=[NSFileManager.defaultManager attributesOfItemAtPath:destination error:resultError];
+    if(!attributes||![attributes[NSFileType] isEqualToString:NSFileTypeRegular])
+    {
+        [NSFileManager.defaultManager removeItemAtPath:destination error:nil];
+        if(!*resultError)
+            *resultError=[NSError errorWithDomain:@"JuiceWindowsDataImport" code:1
+                userInfo:@{NSLocalizedDescriptionKey:@"The selected Windows data item is not a regular file."}];
+        return nil;
+    }
+    return destination;
 }
 
 static NSString *JuiceDataWindowsPath(NSString *path)
 {
     return [@"Z:" stringByAppendingString:[path stringByReplacingOccurrencesOfString:@"/" withString:@"\\"]];
+}
+
+/* JuiceParseArguments uses doubled quote characters for a literal quote inside
+ * a quoted argument. Always encode generated helper paths with that convention
+ * so a legal filename containing `"` cannot split the path or inject options. */
+static NSString *JuiceDataQuotedArgument(NSString *value)
+{
+    NSString *escaped=[value stringByReplacingOccurrencesOfString:@"\"" withString:@"\"\""];
+    return [NSString stringWithFormat:@"\"%@\"",escaped];
 }
 
 static BOOL JuiceDataTranslatedRuntimeSafe(id self,NSString **detail)
@@ -106,7 +126,7 @@ static void JuiceDataLaunchHelper(id self,NSString *helper,NSString *arguments,N
     BOOL translated=[JuiceDataValue(self,@"experimentalX64") boolValue];
     if(!JuiceDataConfigureHelperRuntime(self,translated))return;
     exe.text=helper;args.text=arguments;if([mode isKindOfClass:UISegmentedControl.class])mode.selectedSegmentIndex=0;
-    JuiceDataAppend(self,[NSString stringWithFormat:@"WINDOWS_DATA_IMPORT_READY kind=%@ local=%@ windows=%@ helper=%@ translated=%d wow64=%d\n",kind,local,windowsPath,helper,translated,translated]);
+    JuiceDataAppend(self,[NSString stringWithFormat:@"WINDOWS_DATA_IMPORT_READY kind=%@ local=%@ windows=%@ helper=%@ translated=%d wow64=%d regular_file=1 quoted_path=1\n",kind,local,windowsPath,helper,translated,translated]);
     SEL launch=NSSelectorFromString(@"launchTapped");
     if([self respondsToSelector:launch])((void(*)(id,SEL))objc_msgSend)(self,launch);
     int server=[JuiceDataValue(self,@"server") intValue];
@@ -137,12 +157,13 @@ static void JuiceDataPicked(id self,SEL _cmd,UIDocumentPickerViewController *con
     }
 
     NSString *windows=JuiceDataWindowsPath(destination);
+    NSString *quoted=JuiceDataQuotedArgument(windows);
     if(msi)
-        JuiceDataLaunchHelper(self,@"msiexec.exe",[NSString stringWithFormat:@"/i \"%@\"",windows],@"msi",destination,windows);
+        JuiceDataLaunchHelper(self,@"msiexec.exe",[NSString stringWithFormat:@"/i %@",quoted],@"msi",destination,windows);
     else if(batch)
-        JuiceDataLaunchHelper(self,@"cmd.exe",[NSString stringWithFormat:@"/c \"%@\"",windows],@"batch",destination,windows);
+        JuiceDataLaunchHelper(self,@"cmd.exe",[NSString stringWithFormat:@"/c %@",quoted],@"batch",destination,windows);
     else
-        JuiceDataLaunchHelper(self,@"reg.exe",[NSString stringWithFormat:@"import \"%@\"",windows],@"registry",destination,windows);
+        JuiceDataLaunchHelper(self,@"reg.exe",[NSString stringWithFormat:@"import %@",quoted],@"registry",destination,windows);
 }
 
 static void JuiceRenameDataPickerButton(UIView *view)
