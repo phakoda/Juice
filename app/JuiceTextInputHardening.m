@@ -38,14 +38,13 @@ static BOOL JuiceTextFDConnected(id self,int fd)
 static int JuiceTextClientForHWND(id self,uint64_t hwnd)
 {
     NSDictionary *windows=JuiceTextValue(self,@"wineWindows");
-    if(hwnd&&[windows isKindOfClass:NSDictionary.class])
+    if(hwnd)
     {
+        if(![windows isKindOfClass:NSDictionary.class])return -1;
         id state=windows[@(hwnd)];
-        if(state)
-        {
-            int fd=[JuiceTextValue(state,@"clientFD") intValue];
-            return JuiceTextFDConnected(self,fd)?fd:-1;
-        }
+        if(!state)return -1;
+        int fd=[JuiceTextValue(state,@"clientFD") intValue];
+        return JuiceTextFDConnected(self,fd)?fd:-1;
     }
     int active=[JuiceTextValue(self,@"activeClient") intValue];
     return JuiceTextFDConnected(self,active)?active:-1;
