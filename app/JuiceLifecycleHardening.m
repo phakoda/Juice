@@ -83,15 +83,18 @@ static void JuiceEnteredForeground(id self)
 
 static void JuiceWillTerminate(id self)
 {
-    NSArray<NSString *> *fdKeys=@[@"listenFD",@"controlListenFD"];
-    NSArray<NSString *> *pathKeys=@[@"socketPath",@"controlSocketPath"];
-    for(NSUInteger i=0;i<fdKeys.count;i++)
+    @synchronized(self)
     {
-        int fd=[JuiceLifecycleValue(self,fdKeys[i]) intValue];NSString *path=JuiceLifecycleValue(self,pathKeys[i]);
-        BOOL owned=JuiceListenerOwnsFD(fd,path);if(owned)close(fd);
-        JuiceLifecycleSetValue(self,fdKeys[i],@(-1));if(path.length)unlink(path.fileSystemRepresentation);
+        NSArray<NSString *> *fdKeys=@[@"listenFD",@"controlListenFD"];
+        NSArray<NSString *> *pathKeys=@[@"socketPath",@"controlSocketPath"];
+        for(NSUInteger i=0;i<fdKeys.count;i++)
+        {
+            int fd=[JuiceLifecycleValue(self,fdKeys[i]) intValue];NSString *path=JuiceLifecycleValue(self,pathKeys[i]);
+            BOOL owned=JuiceListenerOwnsFD(fd,path);if(owned)close(fd);
+            JuiceLifecycleSetValue(self,fdKeys[i],@(-1));if(path.length)unlink(path.fileSystemRepresentation);
+        }
+        JuiceLifecycleAppend(self,@"APP_LIFECYCLE terminate listeners_closed=1 serialized=1\n");
     }
-    JuiceLifecycleAppend(self,@"APP_LIFECYCLE terminate listeners_closed=1\n");
 }
 
 static void JuiceLifecycleViewDidLoad(id self,SEL _cmd)
