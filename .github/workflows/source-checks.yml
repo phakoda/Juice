@@ -16,6 +16,17 @@ jobs:
         run: make verify
       - name: Verify mainline runtime hardening
         run: bash scripts/verify-mainline-hardening.sh
+      - name: Verify private sockets and Windows argument literals
+        run: |
+          grep -Fq 'chmod(root.fileSystemRepresentation,S_IRWXU)' app/JuiceSocketHardening.m
+          grep -Fq 'chmod(wire,S_IRUSR|S_IWUSR)' app/JuiceSocketHardening.m
+          grep -Fq 'private_mode=0600 dir_mode=0700' app/JuiceSocketHardening.m
+          grep -Fq 'Windows backslashes are always literal' app/JuiceLaunchHardening.m
+          grep -Fq '[line characterAtIndex:i+1]==quote' app/JuiceLaunchHardening.m
+          if grep -Fq 'unichar next=' app/JuiceLaunchHardening.m; then
+            echo 'Launch argument parser must not reinterpret Windows backslashes as escapes.' >&2
+            exit 3
+          fi
 
   app-build:
     runs-on: macos-latest
