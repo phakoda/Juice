@@ -79,6 +79,20 @@ static NSMutableDictionary<NSNumber *,JuiceDisplayFramebuffer *> *JuiceDisplayFr
     return frames;
 }
 
+/* Full framebuffer copies can be tens of MiB. Keep exactly one snapshot worker
+ * so multiple HWNDs do not multiply peak copy pressure, and never perform the
+ * memcpy behind NSData -copy on UIKit's main thread. */
+static dispatch_queue_t JuiceDisplaySnapshotQueue(void)
+{
+    static dispatch_queue_t queue;static dispatch_once_t once;
+    dispatch_once(&once,^{
+        dispatch_queue_attr_t attributes=dispatch_queue_attr_make_with_qos_class(
+            DISPATCH_QUEUE_SERIAL,QOS_CLASS_USER_INITIATED,0);
+        queue=dispatch_queue_create("org.juice.display-snapshot",attributes);
+    });
+    return queue;
+}
+
 static BOOL JuiceDisplayReadAll(int fd,void *buffer,size_t length)
 {
     uint8_t *cursor=buffer;
@@ -250,40 +264,56 @@ static void JuiceScheduleFrame(id self,JuiceDisplayFramebuffer *frame,BOOL first
         if(!frame.scheduled){frame.scheduled=YES;schedule=YES;}
         else frame.coalesced++;
     }
-    if(schedule)dispatch_async(dispatch_get_main_queue(),^{JuiceDeliverFrame(self,frame);});
+    if(schedule)dispatch_async(JuiceDisplaySnapshotQueue(),^{JuiceDeliverFrame(self,frame);});
 }
 
 static void JuiceDeliverFrame(id self,JuiceDisplayFramebuffer *frame)
 {
-    NSData *snapshot;
-    uint64_t hwnd;
-    int32_t width,height;
-    uint32_t stride;
-    int fd;
-    pid_t peerPID;
-    NSUInteger generation;
-    BOOL first;
-    @synchronized(frame)
+    @autoreleasepool
     {
-        if(frame.invalidated){frame.scheduled=NO;return;}
-        snapshot=[frame.bytes copy];hwnd=frame.hwnd;width=frame.width;height=frame.height;
-        stride=frame.stride;fd=frame.clientFD;peerPID=frame.peerPID;
-        generation=frame.generation;first=frame.firstPending;frame.firstPending=NO;frame.rendered++;
+        NSData *snapshot;
+        uint64_t hwnd;
+        int32_t width,height;
+        uint32_t stride;
+        int fd;
+        pid_t peerPID;
+        NSUInteger generation;
+        BOOL first;
+        @synchronized(frame)
+        {
+            if(frame.invalidated){frame.scheduled=NO;return;}
+            snapshot=[frame.bytes copy];hwnd=frame.hwnd;width=frame.width;height=frame.height;
+            stride=frame.stride;fd=frame.clientFD;peerPID=frame.peerPID;
+            generation=frame.generation;first=frame.firstPending;frame.firstPending=NO;
+        }
+        if(!snapshot)
+        {
+            @synchronized(frame){frame.scheduled=NO;}
+            return;
+        }
+        JuiceDisplayMsg message={JUICE_DISPLAY_MAGIC,JUICE_DISPLAY_FRAME,(uint32_t)snapshot.length,
+                                 hwnd,0,0,width,height,stride,0};
+        dispatch_async(dispatch_get_main_queue(),^{
+            BOOL present=NO;
+            @synchronized(frame)
+            {
+                if(!frame.invalidated){frame.rendered++;present=YES;}
+            }
+            SEL selector=NSSelectorFromString(@"presentFrameMessage:data:client:peerPID:first:");
+            if(present&&[self respondsToSelector:selector])
+                ((void (*)(id,SEL,JuiceDisplayMsg,NSData *,int,pid_t,BOOL))objc_msgSend)
+                    (self,selector,message,snapshot,fd,peerPID,first);
+
+            BOOL again=NO;
+            @synchronized(frame)
+            {
+                if(frame.invalidated)frame.scheduled=NO;
+                else if(frame.generation!=generation)again=YES;
+                else frame.scheduled=NO;
+            }
+            if(again)dispatch_async(JuiceDisplaySnapshotQueue(),^{JuiceDeliverFrame(self,frame);});
+        });
     }
-    JuiceDisplayMsg message={JUICE_DISPLAY_MAGIC,JUICE_DISPLAY_FRAME,(uint32_t)snapshot.length,
-                             hwnd,0,0,width,height,stride,0};
-    SEL selector=NSSelectorFromString(@"presentFrameMessage:data:client:peerPID:first:");
-    if([self respondsToSelector:selector])
-        ((void (*)(id,SEL,JuiceDisplayMsg,NSData *,int,pid_t,BOOL))objc_msgSend)
-            (self,selector,message,snapshot,fd,peerPID,first);
-    BOOL again=NO;
-    @synchronized(frame)
-    {
-        if(frame.invalidated)frame.scheduled=NO;
-        else if(frame.generation!=generation)again=YES;
-        else frame.scheduled=NO;
-    }
-    if(again)dispatch_async(dispatch_get_main_queue(),^{JuiceDeliverFrame(self,frame);});
 }
 
 static void JuiceHardenedReadClient(id self,SEL _cmd,int fd)
