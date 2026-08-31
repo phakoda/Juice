@@ -4,7 +4,7 @@ REUSE_X64 ?= auto
 
 .DEFAULT_GOAL := all
 
-.PHONY: all verify preflight bootstrap pe-wrapper app launchers configure-wine build-wine runtime tipa install zip-test device source-archive installer-smokes arm64-smoke-build input-smoke-build input-smoke-device network-smokes graphics-smokes moltenvk x64-components x64-runtime x64-tipa win32-components win32-runtime win32-tipa win32-smoke-device reuse reuse-install verify-fex linux-x86_64 linux-x86_64-x64 linux-x86_64-deps linux-x86_64-sdk linux-x86_64-freetype linux-x86_64-network linux-x86_64-preflight linux-x86_64-ios-toolchain linux-x86_64-toolchain linux-x86_64-host-tools linux-x86_64-configure linux-x86_64-configure-pe linux-x86_64-build
+.PHONY: all verify preflight bootstrap pe-wrapper app launchers stikdebug-wine configure-wine build-wine runtime tipa install zip-test device source-archive installer-smokes arm64-smoke-build input-smoke-build input-smoke-device network-smokes graphics-smokes moltenvk x64-components x64-runtime x64-tipa win32-components win32-runtime win32-tipa win32-smoke-device reuse reuse-install verify-fex linux-x86_64 linux-x86_64-x64 linux-x86_64-deps linux-x86_64-sdk linux-x86_64-freetype linux-x86_64-network linux-x86_64-preflight linux-x86_64-ios-toolchain linux-x86_64-toolchain linux-x86_64-host-tools linux-x86_64-configure linux-x86_64-configure-pe linux-x86_64-build
 
 # Primary build: complete Juice TIPA from an x86_64 Linux host.
 all: linux-x86_64-x64
@@ -15,13 +15,14 @@ bootstrap: ; $(BASH) scripts/bootstrap-trust-carrier-device.sh
 pe-wrapper: ; $(BASH) scripts/build-pe-compiler-wrapper-device.sh
 app: ; $(BASH) scripts/build-app.sh
 launchers: ; $(BASH) scripts/build-launchers.sh
-configure-wine: ; $(BASH) scripts/configure-wine-device.sh
-build-wine: ; $(BASH) scripts/build-wine-device.sh
+stikdebug-wine: ; $(BASH) scripts/apply-wine-stikdebug-jit.sh
+configure-wine: stikdebug-wine ; $(BASH) scripts/configure-wine-device.sh
+build-wine: stikdebug-wine ; $(BASH) scripts/build-wine-device.sh
 runtime: ; $(BASH) scripts/assemble-runtime.sh
 tipa: ; $(BASH) scripts/package-tipa.sh
 install: ; $(BASH) scripts/install-tipa-device.sh
 zip-test: ; $(BASH) scripts/test-zip-extractor-device.sh
-device: ; $(BASH) scripts/build-all-device.sh
+device: stikdebug-wine ; $(BASH) scripts/build-all-device.sh
 source-archive: ; $(BASH) scripts/source-archive.sh
 installer-smokes: ; $(BASH) scripts/build-installer-smokes-device.sh
 arm64-smoke-build: ; $(BASH) scripts/build-arm64-smoke-linux.sh
@@ -30,7 +31,7 @@ input-smoke-device: ; $(BASH) scripts/run-input-smoke-device.sh
 network-smokes: ; $(BASH) scripts/build-network-smokes-linux.sh
 graphics-smokes: moltenvk linux-x86_64-toolchain ; $(BASH) scripts/build-graphics-smokes-linux.sh
 moltenvk: ; $(BASH) scripts/fetch-moltenvk-linux.sh
-x64-components: ; $(BASH) scripts/build-experimental-x86_64-linux.sh
+x64-components: stikdebug-wine ; $(BASH) scripts/build-experimental-x86_64-linux.sh
 x64-runtime: ; $(BASH) scripts/assemble-x86_64-runtime.sh
 x64-tipa: ; JUICE_X64_RUNTIME_STAGE="$(ROOT)/build/x86_64-runtime-stage" $(BASH) scripts/package-tipa.sh
 win32-components: ; $(BASH) scripts/build-experimental-win32-linux.sh
@@ -73,7 +74,7 @@ linux-x86_64-preflight: linux-x86_64-deps
 	 IOS_SDK="$$sdk" JUICE_IOS_TOOLCHAIN="$$toolchain" \
 	 JUICE_IOS_ROOTLESS_SYSROOT="$${JUICE_IOS_ROOTLESS_SYSROOT:-$(ROOT)/build/deps/rootless-sysroot}" \
 	 $(BASH) scripts/preflight-linux-x86_64.sh
-linux-x86_64-configure: linux-x86_64-preflight linux-x86_64-host-tools
+linux-x86_64-configure: stikdebug-wine linux-x86_64-preflight linux-x86_64-host-tools
 	@v="$${JUICE_IOS_SDK_VERSION:-16.5}"; \
 	 IOS_SDK="$${IOS_SDK:-$(ROOT)/build/deps/theos-sdks/iPhoneOS$$v.sdk}" \
 	 JUICE_IOS_ROOTLESS_SYSROOT="$${JUICE_IOS_ROOTLESS_SYSROOT:-$(ROOT)/build/deps/rootless-sysroot}" \
@@ -82,13 +83,13 @@ linux-x86_64-configure-pe: linux-x86_64-preflight linux-x86_64-host-tools linux-
 	@v="$${JUICE_IOS_SDK_VERSION:-16.5}"; \
 	 IOS_SDK="$${IOS_SDK:-$(ROOT)/build/deps/theos-sdks/iPhoneOS$$v.sdk}" \
 	 $(BASH) scripts/configure-wine-pe-linux.sh
-linux-x86_64-build: ; $(BASH) scripts/build-wine-linux.sh
-linux-x86_64: linux-x86_64-preflight
+linux-x86_64-build: stikdebug-wine ; $(BASH) scripts/build-wine-linux.sh
+linux-x86_64: stikdebug-wine linux-x86_64-preflight
 	@v="$${JUICE_IOS_SDK_VERSION:-16.5}"; \
 	 IOS_SDK="$${IOS_SDK:-$(ROOT)/build/deps/theos-sdks/iPhoneOS$$v.sdk}" \
 	 JUICE_IOS_ROOTLESS_SYSROOT="$${JUICE_IOS_ROOTLESS_SYSROOT:-$(ROOT)/build/deps/rootless-sysroot}" \
 	 $(BASH) scripts/build-all-linux-x86_64.sh
-linux-x86_64-x64: linux-x86_64-preflight
+linux-x86_64-x64: stikdebug-wine linux-x86_64-preflight
 	@v="$${JUICE_IOS_SDK_VERSION:-16.5}"; \
 	 IOS_SDK="$${IOS_SDK:-$(ROOT)/build/deps/theos-sdks/iPhoneOS$$v.sdk}" \
 	 JUICE_IOS_ROOTLESS_SYSROOT="$${JUICE_IOS_ROOTLESS_SYSROOT:-$(ROOT)/build/deps/rootless-sysroot}" \

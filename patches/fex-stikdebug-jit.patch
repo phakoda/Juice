@@ -1,0 +1,348 @@
+diff --git a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+--- a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
++++ b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+@@ -12,6 +12,7 @@ $end_info$
+ #endif
+ 
+ #include <new>
++#include <cstdlib>
+ #include <cstddef>
+ #include <cstdint>
+ #include <sys/types.h>
+@@ -120,6 +121,57 @@ inline bool VirtualProtect(void* Ptr, size_t Size, ProtectOptions options) {
+   DWORD old_prot {};
+   return ::VirtualProtect(Ptr, Size, prot, &old_prot) != 0;
+ }
++
++struct JuiceJITMapping {
++  void* Writable {};
++  void* Executable {};
++  bool DualMapped {};
++};
++
++#ifdef FEX_JUICE_IOS
++extern "C" long __stdcall NtWineAllocateJitMemory(void** WriteAddress, void** ExecAddress, size_t Size);
++extern "C" long __stdcall NtWineFreeJitMemory(void* WriteAddress, void* ExecAddress, size_t Size);
++extern "C" long __stdcall NtWineDetachJitDebugger(void);
++
++inline bool JuiceStikDebugJITEnabled() {
++  static const bool Enabled = []() {
++    const char* Value = std::getenv("JUICE_STIKDEBUG_JIT");
++    return Value && Value[0] == '1' && Value[1] == '\0';
++  }();
++  return Enabled;
++}
++
++inline JuiceJITMapping JuiceAllocateJITMapping(size_t Size) {
++  if (JuiceStikDebugJITEnabled()) {
++    void* Writable {};
++    void* Executable {};
++    const long Status = NtWineAllocateJitMemory(&Writable, &Executable, Size);
++    if (!Status && Writable && Executable) {
++      return {Writable, Executable, true};
++    }
++    return {};
++  }
++
++  void* Mapping = VirtualAllocECCode(Size, false);
++  return {Mapping, Mapping, false};
++}
++
++inline bool JuiceFreeJITMapping(JuiceJITMapping Mapping, size_t Size) {
++  if (!Mapping.Executable) return true;
++  if (Mapping.DualMapped) {
++    return NtWineFreeJitMemory(Mapping.Writable, Mapping.Executable, Size) == 0;
++  }
++  VirtualFree(Mapping.Executable, Size);
++  return true;
++}
++
++inline bool JuicePublishJITMapping(JuiceJITMapping Mapping, size_t Size) {
++  if (Mapping.DualMapped) return true;
++  return VirtualProtect(Mapping.Executable, Size, ProtectOptions::Read | ProtectOptions::Exec);
++}
++#else
++inline bool JuiceStikDebugJITEnabled() { return false; }
++#endif
+ 
+ FEX_DEFAULT_VISIBILITY extern VirtualNamePtr VirtualName;
+ FEX_DEFAULT_VISIBILITY extern VirtualTHPPtr VirtualTHPControl;
+diff --git a/FEXCore/Source/Interface/Core/CPUBackend.h b/FEXCore/Source/Interface/Core/CPUBackend.h
+--- a/FEXCore/Source/Interface/Core/CPUBackend.h
++++ b/FEXCore/Source/Interface/Core/CPUBackend.h
+@@ -43,5 +43,7 @@ namespace CPU {
+   struct CodeBuffer {
+     uint8_t* Ptr;
++    uint8_t* WritablePtr;
++    bool DualMapped {};
+     size_t AllocatedSize; // including guard page; see UsableSize()
+ 
+     fextl::unique_ptr<GuestToHostMap> LookupCache;
+diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+--- a/FEXCore/Source/Interface/Core/CPUBackend.cpp
++++ b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+@@ -367,20 +367,26 @@ namespace CPU {
+   CodeBuffer::CodeBuffer(size_t Size)
+     : AllocatedSize(Size) {
+ #ifdef FEX_JUICE_IOS
+-    /* iOS leaves anonymous mappings created RWX hardware-NX.  JIT.cpp
+-     * publishes generated blocks with an explicit RW -> RX transition. */
+-    Ptr = static_cast<uint8_t*>(FEXCore::Allocator::VirtualAllocECCode(Size, false));
++    auto Mapping = FEXCore::Allocator::JuiceAllocateJITMapping(Size);
++    Ptr = static_cast<uint8_t*>(Mapping.Executable);
++    WritablePtr = static_cast<uint8_t*>(Mapping.Writable);
++    DualMapped = Mapping.DualMapped;
+ #else
+     Ptr = static_cast<uint8_t*>(FEXCore::Allocator::VirtualAlloc(Size, true));
++    WritablePtr = Ptr;
+ #endif
+-    LOGMAN_THROW_A_FMT(!!Ptr, "Couldn't allocate code buffer");
++    LOGMAN_THROW_A_FMT(!!Ptr && !!WritablePtr, "Couldn't allocate code buffer");
+ 
+     // Protect the last page of the allocated buffer to trigger SIGSEGV on write access
+     uintptr_t LastPageAddr = AlignDown(reinterpret_cast<uintptr_t>(Ptr) + Size - 1, FEXCore::Utils::FEX_PAGE_SIZE);
++#ifdef FEX_JUICE_IOS
++    if (!DualMapped &&
++#else
++    if (
++#endif
++        !FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(LastPageAddr), FEXCore::Utils::FEX_PAGE_SIZE,
++                                            FEXCore::Allocator::ProtectOptions::None)) {
++      LogMan::Msg::EFmt("Failed to mprotect last page of code buffer.");
++    }
+-    if (!FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(LastPageAddr), FEXCore::Utils::FEX_PAGE_SIZE,
+-                                            FEXCore::Allocator::ProtectOptions::None)) {
+-      LogMan::Msg::EFmt("Failed to mprotect last page of code buffer.");
+-    }
+ 
+     FEXCore::Allocator::VirtualName("FEXMemJIT", reinterpret_cast<void*>(Ptr), Size);
+@@ -387,5 +393,12 @@ namespace CPU {
+   }
+ 
+   CodeBuffer::~CodeBuffer() {
++#ifdef FEX_JUICE_IOS
++    if (!FEXCore::Allocator::JuiceFreeJITMapping(
++          {WritablePtr, Ptr, DualMapped}, AllocatedSize)) {
++      LogMan::Msg::EFmt("Failed to release StikDebug JIT mapping write={:p} exec={:p}", WritablePtr, Ptr);
++    }
++#else
+     FEXCore::Allocator::VirtualFree(Ptr, AllocatedSize);
++#endif
+   }
+diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.h b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.h
+--- a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.h
++++ b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.h
+@@ -7,6 +7,7 @@
+ 
+ #include <FEXCore/Config/Config.h>
+ #include <FEXCore/fextl/memory.h>
++#include <FEXCore/Utils/AllocatorHooks.h>
+ 
+ #include <array>
+ #include <cstddef>
+@@ -54,5 +55,8 @@ protected:
+   JITCallback CallbackPtr;
+ private:
++  Dispatcher(FEXCore::Context::ContextImpl* ctx, FEXCore::Allocator::JuiceJITMapping Mapping);
++  FEXCore::Allocator::JuiceJITMapping JITMapping {};
++
+   /**
+    * @name Dispatch Helper functions
+    * @{ */
+diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
+--- a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
++++ b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
+@@ -27,4 +27,5 @@
+ #include <array>
+ #include <bit>
+ #include <cstring>
++#include <type_traits>
+ 
+@@ -36,26 +37,86 @@ static void SleepThread(FEXCore::Context::ContextImpl* CTX, FEXCore::Core::CpuSt
+ 
+ constexpr size_t MAX_DISPATCHER_CODE_SIZE = FEXCore::Utils::FEX_PAGE_SIZE * 4;
+ 
+-static void* AllocateDispatcherCode() {
++static FEXCore::Allocator::JuiceJITMapping AllocateDispatcherCode() {
+ #ifdef FEX_JUICE_IOS
+-  /* iOS accepts the RW -> RX transition but leaves a mapping created RWX
+-   * hardware-NX, even though mmap itself succeeds. */
+-  return FEXCore::Allocator::VirtualAllocECCode(MAX_DISPATCHER_CODE_SIZE, false);
++  return FEXCore::Allocator::JuiceAllocateJITMapping(MAX_DISPATCHER_CODE_SIZE);
+ #else
+-  return FEXCore::Allocator::VirtualAlloc(MAX_DISPATCHER_CODE_SIZE, true);
++  void* Mapping = FEXCore::Allocator::VirtualAlloc(MAX_DISPATCHER_CODE_SIZE, true);
++  return {Mapping, Mapping, false};
+ #endif
+ }
+ 
+ Dispatcher::Dispatcher(FEXCore::Context::ContextImpl* ctx)
+-  : Arm64Emitter(ctx, AllocateDispatcherCode(), MAX_DISPATCHER_CODE_SIZE)
+-  , CTX {ctx} {
++  : Dispatcher(ctx, AllocateDispatcherCode()) {}
++
++Dispatcher::Dispatcher(FEXCore::Context::ContextImpl* ctx, FEXCore::Allocator::JuiceJITMapping Mapping)
++  : Arm64Emitter(ctx, Mapping.Writable, MAX_DISPATCHER_CODE_SIZE)
++  , CTX {ctx}
++  , JITMapping {Mapping} {
++  LOGMAN_THROW_A_FMT(JITMapping.Writable && JITMapping.Executable, "Couldn't allocate dispatcher code");
+   EmitDispatcher();
+ 
+ #ifdef FEX_JUICE_IOS
+-  FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(GetBufferBase()), MAX_DISPATCHER_CODE_SIZE,
+-                                     FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec);
++  if (JITMapping.DualMapped) {
++    const uintptr_t WriteBase = reinterpret_cast<uintptr_t>(JITMapping.Writable);
++    const uintptr_t WriteEnd = WriteBase + MAX_DISPATCHER_CODE_SIZE;
++    const intptr_t Delta = reinterpret_cast<intptr_t>(JITMapping.Executable) - reinterpret_cast<intptr_t>(JITMapping.Writable);
++    auto Rebase = [&](uint64_t& Address) {
++      if (Address >= WriteBase && Address < WriteEnd) {
++        Address = static_cast<uint64_t>(static_cast<intptr_t>(Address) + Delta);
++      }
++    };
++    auto RebaseFunction = [&](auto& Function) {
++      const uintptr_t Address = reinterpret_cast<uintptr_t>(Function);
++      if (Address >= WriteBase && Address < WriteEnd) {
++        const uintptr_t Rebased = static_cast<uintptr_t>(static_cast<intptr_t>(Address) + Delta);
++        Function = reinterpret_cast<std::remove_reference_t<decltype(Function)>>(Rebased);
++      }
++    };
++
++    RebaseFunction(DispatchPtr);
++    RebaseFunction(CallbackPtr);
++    Rebase(ThreadStopHandlerAddress);
++    Rebase(ThreadStopHandlerAddressSpillSRA);
++    Rebase(AbsoluteLoopTopAddress);
++    Rebase(AbsoluteLoopTopAddressFillSRA);
++    Rebase(AbsoluteLoopTopAddressEnterEC);
++    Rebase(AbsoluteLoopTopAddressEnterECFillSRA);
++    Rebase(ThreadPauseHandlerAddress);
++    Rebase(ThreadPauseHandlerAddressSpillSRA);
++    Rebase(ExitFunctionLinkerAddress);
++    Rebase(SignalHandlerReturnAddress);
++    Rebase(SignalHandlerReturnAddressRT);
++    Rebase(GuestSignal_SIGILL);
++    Rebase(GuestSignal_SIGTRAP);
++    Rebase(GuestSignal_SIGSEGV);
++    Rebase(PauseReturnInstruction);
++    for (auto& Address : ABIPointers) Rebase(Address);
++    Rebase(Start);
++    Rebase(End);
++    Rebase(LUDIVHandlerAddress);
++    Rebase(LDIVHandlerAddress);
++    Rebase(F64SinHandlerAddress);
++    Rebase(F64CosHandlerAddress);
++    Rebase(F64TanHandlerAddress);
++    Rebase(F64F2XM1HandlerAddress);
++    Rebase(F64ScaleHandlerAddress);
++    Rebase(F64AtanHandlerAddress);
++    Rebase(F64FYL2XHandlerAddress);
++
++    ClearICache(JITMapping.Executable, MAX_DISPATCHER_CODE_SIZE);
++  } else {
++    LOGMAN_THROW_A_FMT(FEXCore::Allocator::JuicePublishJITMapping(JITMapping, MAX_DISPATCHER_CODE_SIZE),
++                       "Couldn't publish the iOS dispatcher as executable code");
++  }
+ #endif
+-  FEXCore::Allocator::VirtualName("FEXMem_Misc", reinterpret_cast<void*>(GetBufferBase()), MAX_DISPATCHER_CODE_SIZE);
++  FEXCore::Allocator::VirtualName("FEXMem_Misc", JITMapping.Executable, MAX_DISPATCHER_CODE_SIZE);
+ }
+ 
+ Dispatcher::~Dispatcher() {
+   auto BufferSize = GetBufferSize();
+   if (BufferSize) {
+-    FEXCore::Allocator::VirtualFree(GetBufferBase(), BufferSize);
++#ifdef FEX_JUICE_IOS
++    if (!FEXCore::Allocator::JuiceFreeJITMapping(JITMapping, BufferSize)) {
++      LogMan::Msg::EFmt("Failed to release StikDebug dispatcher mapping");
++    }
++#else
++    FEXCore::Allocator::VirtualFree(JITMapping.Executable, BufferSize);
++#endif
+   }
+ }
+diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+--- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+@@ -500,6 +500,13 @@ static void JuiceSetLinkPatchProtection(uintptr_t Begin, uintptr_t End, bool Wri
+   constexpr uintptr_t HostPageMask = HostPageSize - 1;
+   const uintptr_t ProtectStart = Begin & ~HostPageMask;
+   const uintptr_t ProtectEnd = (End + HostPageMask) & ~HostPageMask;
++
++  if (FEXCore::Allocator::JuiceStikDebugJITEnabled()) {
++    /* Dual-mapped executable pages remain RX forever.  Juice already disables
++     * direct FEX block backpatching on iOS, so reopening one is a bug. */
++    LOGMAN_THROW_A_FMT(!Writable, "Attempted to reopen a StikDebug JIT page for writing");
++    return;
++  }
+   const auto Protection = Writable ?
+     (FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Write) :
+     (FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec);
+@@ -1172,9 +1179,11 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
+       const uintptr_t CopyOffset = AlignedOffset;
+       ProtectStart = BufferBase + CopyOffset;
+       ProtectEnd = (BufferBase + CopyOffset + TempSize + JuiceHostPageMask) & ~JuiceHostPageMask;
+-      LOGMAN_THROW_A_FMT(
+-        FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(ProtectStart), ProtectEnd - ProtectStart,
+-                                           FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Write),
+-        "Couldn't make iOS JIT code buffer writable");
++      if (!CurrentCodeBuffer->DualMapped) {
++        LOGMAN_THROW_A_FMT(
++          FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(ProtectStart), ProtectEnd - ProtectStart,
++                                             FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Write),
++          "Couldn't make iOS JIT code buffer writable");
++      }
+ #endif
+ 
+       // NOTE: 16-byte alignment of the new cursor offset must be preserved for block linking records
+@@ -1201,23 +1210,23 @@ CPUBackend::CompiledCode Arm64JITCore::CompileCode(uint64_t Entry, uint64_t Size
+     }
+ 
+     // Copy over CodeBuffer contents
+-    auto CopyStart = GetCursorAddress<uint8_t*>();
++    auto CopyStart = GetCursorAddress<uint8_t*>();
+ #ifdef FEX_JUICE_IOS
+-    /*
+-     * The iOS host page is 16 KiB.  A mapping created RWX remains
+-     * hardware-NX on the supported device, while a RW -> RX transition is
+-     * executable.  Temporarily make only the pages receiving this block
+-     * writable, then publish them RX before returning to the dispatcher.
+-     */
+     LOGMAN_THROW_A_FMT(reinterpret_cast<uintptr_t>(CopyStart) >= ProtectStart &&
+                         reinterpret_cast<uintptr_t>(CopyStart) + TempSize <= ProtectEnd,
+                       "iOS JIT write interval doesn't cover generated block");
++    const auto CopyOffset = reinterpret_cast<uintptr_t>(CopyStart) - reinterpret_cast<uintptr_t>(CurrentCodeBuffer->Ptr);
++    auto WritableCopyStart = CurrentCodeBuffer->WritablePtr + CopyOffset;
++#else
++    auto WritableCopyStart = CopyStart;
+ #endif
+-    memcpy(CopyStart, TempCodeBuffer, TempSize);
++    memcpy(WritableCopyStart, TempCodeBuffer, TempSize);
+ #ifdef FEX_JUICE_IOS
+     ClearICache(CopyStart, TempSize);
+-    LOGMAN_THROW_A_FMT(
+-      FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(ProtectStart), ProtectEnd - ProtectStart,
+-                                         FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec),
+-      "Couldn't make iOS JIT code buffer executable");
++    if (!CurrentCodeBuffer->DualMapped) {
++      LOGMAN_THROW_A_FMT(
++        FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(ProtectStart), ProtectEnd - ProtectStart,
++                                           FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec),
++        "Couldn't make iOS JIT code buffer executable");
++    }
+ #endif
+     SetCursorOffset(CodeBuffers.LatestOffset + TempSize);
+ 
+diff --git a/Source/Windows/Defs/ntdll.def b/Source/Windows/Defs/ntdll.def
+--- a/Source/Windows/Defs/ntdll.def
++++ b/Source/Windows/Defs/ntdll.def
+@@ -345,6 +345,9 @@ EXPORTS
+   NtWriteVirtualMemory
+   NtYieldExecution
+   NtWineGetCurrentTebAccessor
++  NtWineAllocateJitMemory
++  NtWineFreeJitMemory
++  NtWineDetachJitDebugger
+   PfxFindPrefix PRIVATE
+   PfxInitialize PRIVATE
+   PfxInsertPrefix PRIVATE

@@ -5,6 +5,8 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 source "$ROOT/config/x86_64-build.env"
 SOURCE="${JUICE_FEX_SOURCE:-$ROOT/build/fex-source}"
 PATCH="$ROOT/patches/fex-juice-ios.patch"
+STIKDEBUG_PATCH="$ROOT/patches/fex-stikdebug-jit.patch"
+LIFECYCLE_PATCH="$ROOT/patches/fex-stikdebug-lifecycle.patch"
 RPMALLOC_PATCH="$ROOT/patches/fex-rpmalloc-juice-ios.patch"
 
 test "$(uname -s)" = Linux || { echo "FEX source preparation requires Linux." >&2; exit 2; }
@@ -16,6 +18,8 @@ case "$SOURCE" in
      };;
 esac
 test -s "$PATCH" || { echo "Missing FEX iOS patch: $PATCH" >&2; exit 2; }
+test -s "$STIKDEBUG_PATCH" || { echo "Missing FEX StikDebug JIT patch: $STIKDEBUG_PATCH" >&2; exit 2; }
+test -s "$LIFECYCLE_PATCH" || { echo "Missing FEX StikDebug lifecycle patch: $LIFECYCLE_PATCH" >&2; exit 2; }
 test -s "$RPMALLOC_PATCH" || { echo "Missing FEX rpmalloc iOS patch: $RPMALLOC_PATCH" >&2; exit 2; }
 
 if test ! -d "$SOURCE/.git"; then
@@ -56,6 +60,18 @@ else
   git -C "$SOURCE" apply --check "$PATCH"
   git -C "$SOURCE" apply "$PATCH"
 fi
+if git -C "$SOURCE" apply --recount --reverse --check "$STIKDEBUG_PATCH" 2>/dev/null; then
+  :
+else
+  git -C "$SOURCE" apply --recount --check "$STIKDEBUG_PATCH"
+  git -C "$SOURCE" apply --recount "$STIKDEBUG_PATCH"
+fi
+if git -C "$SOURCE" apply --recount --reverse --check "$LIFECYCLE_PATCH" 2>/dev/null; then
+  :
+else
+  git -C "$SOURCE" apply --recount --check "$LIFECYCLE_PATCH"
+  git -C "$SOURCE" apply --recount "$LIFECYCLE_PATCH"
+fi
 if git -C "$RPMALLOC_SOURCE" apply --reverse --check "$RPMALLOC_PATCH" 2>/dev/null; then
   :
 else
@@ -64,4 +80,4 @@ else
 fi
 git -C "$SOURCE" diff --check
 git -C "$RPMALLOC_SOURCE" diff --check
-echo "JUICE_FEX_SOURCE_OK path=$SOURCE revision=$JUICE_FEX_REVISION"
+echo "JUICE_FEX_SOURCE_OK path=$SOURCE revision=$JUICE_FEX_REVISION stikdebug_jit=1 lifecycle=1"

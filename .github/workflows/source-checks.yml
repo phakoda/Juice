@@ -14,3 +14,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify source tree and Wine patch
         run: make verify
+      - name: Verify StikDebug JIT integration
+        run: bash scripts/verify-stikdebug-jit.sh
