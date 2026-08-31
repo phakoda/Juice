@@ -212,7 +212,8 @@ grep -Fq 'hidden_images_trimmed' "$MEMORY"
 # Foregrounding repairs missing listeners, backgrounding drops stale pointer
 # capture, and newer mainline host FDs are explicitly close-on-exec. Lifecycle
 # recovery must delegate listener mutation to the serialized socket layer rather
-# than closing/unlinking a descriptor after an unlocked identity check.
+# than closing/unlinking a descriptor after an unlocked identity check. Terminal
+# listener cleanup may mutate state, but it must hold the same serialization lock.
 grep -Fq 'UIApplicationWillEnterForegroundNotification' "$LIFECYCLE"
 grep -Fq 'listener_restart=' "$LIFECYCLE"
 grep -Fq 'gamepadFD' "$LIFECYCLE"
@@ -228,6 +229,9 @@ if grep -Eq 'close\(|unlink\(|JuiceLifecycleSetValue' <<<"$restart_block"; then
   echo "Foreground listener recovery must not mutate listener fd/path state directly." >&2
   exit 3
 fi
+terminate_block="$(awk '/^static void JuiceWillTerminate/{capture=1} capture{print} capture&&/^}/{exit}' "$LIFECYCLE")"
+grep -Fq '@synchronized(self)' <<<"$terminate_block"
+grep -Fq 'serialized=1' <<<"$terminate_block"
 
 # Persistent diagnostic output is bounded to a current + previous 8 MiB segment;
 # rotation preserves CLOEXEC. Export combines only bounded tails and removes
