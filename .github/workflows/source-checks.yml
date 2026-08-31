@@ -35,6 +35,15 @@ jobs:
             echo 'Termination must invalidate listener retries before final listener cleanup.' >&2
             exit 3
           }
+          grep -Fq 'PROCESS_GROUP_REAP_DEFERRED' app/JuiceLaunchHardening.m
+          grep -Fq 'pid_reuse_fence=1' app/JuiceLaunchHardening.m
+          grep -Fq 'staleGeneration=[JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation;' app/JuiceLaunchHardening.m
+          stale_line="$(grep -nF 'if(staleGeneration)' app/JuiceLaunchHardening.m | cut -d: -f1)"
+          wait_line="$(grep -nF 'do{waited=waitpid(child,&status,0);}' app/JuiceLaunchHardening.m | cut -d: -f1)"
+          test -n "$stale_line" -a -n "$wait_line" -a "$stale_line" -lt "$wait_line" || {
+            echo 'Stale launch generations must defer reaping before blocking waitpid.' >&2
+            exit 3
+          }
           grep -Fq 'Windows backslashes are always literal' app/JuiceLaunchHardening.m
           grep -Fq '[line characterAtIndex:i+1]==quote' app/JuiceLaunchHardening.m
           if grep -Fq 'unichar next=' app/JuiceLaunchHardening.m; then
