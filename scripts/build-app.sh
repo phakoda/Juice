@@ -45,14 +45,17 @@ mkdir -p "$OUT"
   "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
   "$ROOT/app/JuiceFramebufferFix.m" "$ROOT/app/JuiceBootProgress.m" \
   "$ROOT/app/JuiceBootOverlayVisibility.m" "$ROOT/app/JuiceSmokePath.m" \
+  "$ROOT/app/JuiceSocketHardening.m" "$ROOT/app/JuiceHostIOHardening.m" \
+  "$ROOT/app/JuiceDisplayTransportHardening.m" "$ROOT/app/JuiceReconnectGrace.m" \
+  "$ROOT/app/JuiceWindowsDataImport.m" "$ROOT/app/JuiceTextInputHardening.m" \
+  "$ROOT/app/JuiceKeyboardRoutingHardening.m" "$ROOT/app/JuicePointerInput.m" \
+  "$ROOT/app/JuiceMemoryPressure.m" "$ROOT/app/JuiceLifecycleHardening.m" \
+  "$ROOT/app/JuiceLogHardening.m" "$ROOT/app/JuiceCLIInputHardening.m" \
+  "$ROOT/app/JuiceLaunchHardening.m" \
   -framework UIKit -framework Foundation -framework QuartzCore -framework GameController \
   -framework CoreGraphics -framework Metal -lz -o "$OUT/Juice"
 cp "$ROOT/config/Info.plist" "$OUT/Info.plist"
 
-# Generate the icon set from the compact canonical grape artwork data on every
-# build instead of copying pre-rendered PNGs. This avoids stale or partially
-# corrupted binary resources getting carried into a TIPA and guarantees plain
-# 8-bit RGB, non-interlaced PNG output for both the app icon and boot overlay.
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required to generate Juice app icons." >&2; exit 3; }
 python3 "$ROOT/scripts/generate-app-icons.py" "$OUT"
 shopt -s nullglob

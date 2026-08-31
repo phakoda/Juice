@@ -14,3 +14,59 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify source tree and Wine patch
         run: make verify
+      - name: Verify mainline runtime hardening
+        run: bash scripts/verify-mainline-hardening.sh
+      - name: Verify private sockets and Windows argument literals
+        run: |
+          grep -Fq 'chmod(root.fileSystemRepresentation,S_IRWXU)' app/JuiceSocketHardening.m
+          grep -Fq 'chmod(wire,S_IRUSR|S_IWUSR)' app/JuiceSocketHardening.m
+          grep -Fq 'private_mode=0600 dir_mode=0700' app/JuiceSocketHardening.m
+          grep -Fq 'JuiceSocketTerminatingKey' app/JuiceSocketHardening.m
+          grep -Fq 'if(!JuiceTransientListenerSetup(error)||JuiceSocketTerminating(self))return;' app/JuiceSocketHardening.m
+          grep -Fq 'if(JuiceSocketTerminating(self)||JuiceListenerGeneration(self,control)!=generation||' app/JuiceSocketHardening.m
+          grep -Fq 'JuiceBumpListenerGeneration(self,NO)' app/JuiceSocketHardening.m
+          grep -Fq 'JuiceBumpListenerGeneration(self,YES)' app/JuiceSocketHardening.m
+          grep -Fq 'class_addMethod(cls,NSSelectorFromString(@"juice_socketWillTerminate")' app/JuiceSocketHardening.m
+          grep -Fq 'SEL stop=NSSelectorFromString(@"juice_socketWillTerminate")' app/JuiceLifecycleHardening.m
+          grep -Fq 'retries_cancelled=1' app/JuiceLifecycleHardening.m
+          stop_line="$(grep -nF 'SEL stop=NSSelectorFromString(@"juice_socketWillTerminate")' app/JuiceLifecycleHardening.m | cut -d: -f1)"
+          lock_line="$(grep -nF '    @synchronized(self)' app/JuiceLifecycleHardening.m | cut -d: -f1)"
+          test -n "$stop_line" -a -n "$lock_line" -a "$stop_line" -lt "$lock_line" || {
+            echo 'Termination must invalidate listener retries before final listener cleanup.' >&2
+            exit 3
+          }
+          grep -Fq 'PROCESS_GROUP_REAP_DEFERRED' app/JuiceLaunchHardening.m
+          grep -Fq 'pid_reuse_fence=1' app/JuiceLaunchHardening.m
+          grep -Fq 'staleGeneration=[JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation;' app/JuiceLaunchHardening.m
+          stale_line="$(grep -nF 'if(staleGeneration)' app/JuiceLaunchHardening.m | cut -d: -f1)"
+          wait_line="$(grep -nF 'do{waited=waitpid(child,&status,0);}' app/JuiceLaunchHardening.m | cut -d: -f1)"
+          test -n "$stale_line" -a -n "$wait_line" -a "$stale_line" -lt "$wait_line" || {
+            echo 'Stale launch generations must defer reaping before blocking waitpid.' >&2
+            exit 3
+          }
+          grep -Fq 'Windows backslashes are always literal' app/JuiceLaunchHardening.m
+          grep -Fq '[line characterAtIndex:i+1]==quote' app/JuiceLaunchHardening.m
+          if grep -Fq 'unichar next=' app/JuiceLaunchHardening.m; then
+            echo 'Launch argument parser must not reinterpret Windows backslashes as escapes.' >&2
+            exit 3
+          fi
+          grep -Fq 'JuiceDataQuotedArgument' app/JuiceWindowsDataImport.m
+          grep -Fq 'NSFileTypeRegular' app/JuiceWindowsDataImport.m
+          grep -Fq 'regular_file=1 quoted_path=1' app/JuiceWindowsDataImport.m
+          grep -Fq 'JuiceDisplaySnapshotQueue' app/JuiceDisplayTransportHardening.m
+          grep -Fq 'dispatch_async(JuiceDisplaySnapshotQueue(),^{JuiceDeliverFrame(self,frame);})' app/JuiceDisplayTransportHardening.m
+          if grep -Fq 'if(schedule)dispatch_async(dispatch_get_main_queue(),^{JuiceDeliverFrame' app/JuiceDisplayTransportHardening.m; then
+            echo 'Full framebuffer snapshots must not run on UIKit main thread.' >&2
+            exit 3
+          fi
+
+  app-build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile Juice for iPhoneOS
+        run: make app
+      - name: Compile launcher helpers for iPhoneOS
+        run: make launchers
+      - name: Run ZIP extractor regressions
+        run: bash scripts/test-zip-extractor-host.sh

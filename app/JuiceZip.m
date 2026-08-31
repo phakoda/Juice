@@ -1,9 +1,16 @@
 #import "JuiceZip.h"
 
+#import <CoreFoundation/CoreFoundation.h>
+#import <errno.h>
+#import <fcntl.h>
 #import <limits.h>
+#import <stdlib.h>
+#import <string.h>
+#import <unistd.h>
 #import <zlib.h>
 
 static NSString *const JuiceZipErrorDomain = @"com.exocore.Juice.zip";
+enum { JZIOChunkSize = 64 * 1024 };
 
 static uint16_t JZRead16(const uint8_t *p)
 {
@@ -30,9 +37,21 @@ static BOOL JZFail(NSError **error, NSInteger code, NSString *message)
     return NO;
 }
 
+static BOOL JZFailErrno(NSError **error, NSInteger code, NSString *operation, NSString *path)
+{
+    int savedErrno = errno;
+    NSString *reason = [NSString stringWithUTF8String:strerror(savedErrno)] ?: @"unknown error";
+    return JZFail(error, code,
+                  [NSString stringWithFormat:@"Could not %@ %@: %@.", operation,
+                                             path.lastPathComponent ?: path, reason]);
+}
+
 static NSString *JZEntryName(const uint8_t *bytes, NSUInteger length, BOOL utf8)
 {
-    NSStringEncoding encoding = utf8 ? NSUTF8StringEncoding : NSISOLatin1StringEncoding;
+    NSStringEncoding encoding = NSUTF8StringEncoding;
+    if (!utf8)
+        encoding = CFStringConvertEncodingToNSStringEncoding(kCFStringEncodingDOSLatinUS);
+
     NSString *name = [[NSString alloc] initWithBytes:bytes length:length encoding:encoding];
     if (!name && !utf8)
         name = [[NSString alloc] initWithBytes:bytes length:length encoding:NSUTF8StringEncoding];
@@ -42,6 +61,8 @@ static NSString *JZEntryName(const uint8_t *bytes, NSUInteger length, BOOL utf8)
 static NSString *JZSafeDestination(NSString *root, NSString *entry)
 {
     if (!entry.length || [entry hasPrefix:@"/"]) return nil;
+    for (NSUInteger index = 0; index < entry.length; index++)
+        if ([entry characterAtIndex:index] == 0) return nil;
 
     NSMutableArray<NSString *> *safe = [NSMutableArray array];
     for (NSString *component in [entry componentsSeparatedByString:@"/"])
@@ -57,6 +78,141 @@ static NSString *JZSafeDestination(NSString *root, NSString *entry)
     NSString *standardPath = path.stringByStandardizingPath;
     NSString *prefix = [standardRoot stringByAppendingString:@"/"];
     return [standardPath hasPrefix:prefix] ? standardPath : nil;
+}
+
+static NSString *JZCollisionKey(NSString *path)
+{
+    return path.stringByStandardizingPath.precomposedStringWithCanonicalMapping.lowercaseString;
+}
+
+static BOOL JZWriteAll(int fd, const uint8_t *bytes, size_t length, NSError **error,
+                       NSString *path)
+{
+    while (length)
+    {
+        ssize_t written = write(fd, bytes, length);
+        if (written < 0)
+        {
+            if (errno == EINTR) continue;
+            return JZFailErrno(error, 21, @"write", path);
+        }
+        if (!written)
+            return JZFail(error, 21,
+                          [NSString stringWithFormat:@"A write to %@ made no progress.",
+                                                     path.lastPathComponent ?: path]);
+        bytes += written;
+        length -= (size_t)written;
+    }
+    return YES;
+}
+
+static BOOL JZExtractStored(const uint8_t *input, uint32_t size, int fd, NSString *path,
+                            uint32_t *crcOut, NSError **error)
+{
+    uLong crc = crc32(0L, Z_NULL, 0);
+    uint32_t remaining = size;
+    const uint8_t *cursor = input;
+
+    while (remaining)
+    {
+        uInt chunk = (uInt)MIN((NSUInteger)remaining, (NSUInteger)JZIOChunkSize);
+        crc = crc32(crc, cursor, chunk);
+        if (!JZWriteAll(fd, cursor, chunk, error, path)) return NO;
+        cursor += chunk;
+        remaining -= chunk;
+    }
+
+    *crcOut = (uint32_t)crc;
+    return YES;
+}
+
+static BOOL JZExtractDeflated(const uint8_t *input, uint32_t compressedSize,
+                              uint32_t uncompressedSize, int fd, NSString *path,
+                              uint32_t *crcOut, NSError **error)
+{
+    z_stream stream = {0};
+    int status = inflateInit2(&stream, -MAX_WBITS);
+    if (status != Z_OK)
+        return JZFail(error, 18,
+                      [NSString stringWithFormat:@"Could not initialize decompression for %@.",
+                                                 path.lastPathComponent]);
+
+    uint8_t *output = malloc(JZIOChunkSize);
+    if (!output)
+    {
+        inflateEnd(&stream);
+        return JZFail(error, 18,
+                      [NSString stringWithFormat:@"Could not allocate the ZIP stream buffer for %@.",
+                                                 path.lastPathComponent]);
+    }
+
+    const uint8_t *cursor = input;
+    uint32_t remaining = compressedSize;
+    uint64_t totalOutput = 0;
+    uLong crc = crc32(0L, Z_NULL, 0);
+    BOOL success = YES;
+
+    for (;;)
+    {
+        if (!stream.avail_in && remaining)
+        {
+            uInt chunk = (uInt)MIN((NSUInteger)remaining, (NSUInteger)JZIOChunkSize);
+            stream.next_in = (Bytef *)cursor;
+            stream.avail_in = chunk;
+            cursor += chunk;
+            remaining -= chunk;
+        }
+
+        stream.next_out = output;
+        stream.avail_out = JZIOChunkSize;
+        status = inflate(&stream, Z_NO_FLUSH);
+
+        size_t produced = JZIOChunkSize - stream.avail_out;
+        if (produced)
+        {
+            totalOutput += produced;
+            if (totalOutput > uncompressedSize)
+            {
+                success = JZFail(error, 18,
+                                 [NSString stringWithFormat:@"Decompressed data for %@ exceeds its declared size.",
+                                                            path.lastPathComponent]);
+                break;
+            }
+            crc = crc32(crc, output, (uInt)produced);
+            if (!JZWriteAll(fd, output, produced, error, path))
+            {
+                success = NO;
+                break;
+            }
+        }
+
+        if (status == Z_STREAM_END) break;
+        if (status != Z_OK)
+        {
+            success = JZFail(error, 18,
+                             [NSString stringWithFormat:@"Could not decompress %@ (zlib status %d).",
+                                                        path.lastPathComponent, status]);
+            break;
+        }
+        if (!produced && !stream.avail_in && !remaining)
+        {
+            success = JZFail(error, 18,
+                             [NSString stringWithFormat:@"Compressed data for %@ ended early.",
+                                                        path.lastPathComponent]);
+            break;
+        }
+    }
+
+    if (success && (status != Z_STREAM_END || totalOutput != uncompressedSize ||
+                    remaining != 0 || stream.avail_in != 0))
+        success = JZFail(error, 18,
+                         [NSString stringWithFormat:@"Compressed data for %@ has inconsistent sizes.",
+                                                    path.lastPathComponent]);
+
+    free(output);
+    inflateEnd(&stream);
+    if (success) *crcOut = (uint32_t)crc;
+    return success;
 }
 
 @implementation JuiceZip
@@ -114,6 +270,7 @@ static NSString *JZSafeDestination(NSString *root, NSString *entry)
           withIntermediateDirectories:YES attributes:nil error:error])
         return NO;
 
+    NSMutableSet<NSString *> *seenPaths = [NSMutableSet set];
     NSUInteger cursor = centralOffset;
     uint64_t extractedTotal = 0;
     for (uint16_t index = 0; index < entryCount; index++)
@@ -136,7 +293,7 @@ static NSString *JZSafeDestination(NSString *root, NSString *entry)
 
         if (!JZRangeIsValid(cursor, centralEntrySize, length))
             return JZFail(error, 7, @"A ZIP filename or metadata field is truncated.");
-        if (flags & 1)
+        if (flags & (1u | (1u << 6)))
             return JZFail(error, 8, @"Password-protected ZIP archives are not supported.");
         if (startDisk)
             return JZFail(error, 9, @"Multi-volume ZIP entries are not supported.");
@@ -152,9 +309,17 @@ static NSString *JZSafeDestination(NSString *root, NSString *entry)
         if (!outputPath)
             return JZFail(error, 12, @"The ZIP contains an unsafe or invalid path.");
 
+        NSString *collisionKey = JZCollisionKey(outputPath);
+        if ([seenPaths containsObject:collisionKey])
+            return JZFail(error, 12,
+                          [NSString stringWithFormat:@"The ZIP contains duplicate or case-colliding path %@.", name]);
+        [seenPaths addObject:collisionKey];
+
         BOOL directory = [name hasSuffix:@"/"];
         if (directory)
         {
+            if (compressedSize || uncompressedSize)
+                return JZFail(error, 12, @"A ZIP directory entry unexpectedly contains file data.");
             if (![files createDirectoryAtPath:outputPath
                   withIntermediateDirectories:YES attributes:nil error:error])
                 return NO;
@@ -170,60 +335,62 @@ static NSString *JZSafeDestination(NSString *root, NSString *entry)
             return JZFail(error, 14, @"A ZIP local file header is invalid.");
 
         const uint8_t *local = bytes + localOffset;
+        uint16_t localFlags = JZRead16(local + 6);
+        uint16_t localMethod = JZRead16(local + 8);
+        uint32_t localCRC = JZRead32(local + 14);
+        uint32_t localCompressedSize = JZRead32(local + 18);
+        uint32_t localUncompressedSize = JZRead32(local + 22);
         uint16_t localNameLength = JZRead16(local + 26);
         uint16_t localExtraLength = JZRead16(local + 28);
-        NSUInteger dataOffset = (NSUInteger)localOffset + 30u + localNameLength + localExtraLength;
-        if (!JZRangeIsValid(dataOffset, compressedSize, length))
-            return JZFail(error, 15, @"Compressed ZIP data is truncated.");
+        NSUInteger localHeaderSize = 30u + localNameLength + localExtraLength;
+        if (!JZRangeIsValid(localOffset, localHeaderSize, centralOffset))
+            return JZFail(error, 15, @"A ZIP local header is truncated or overlaps the central directory.");
+        if ((localFlags & (1u | (1u << 6))) || localMethod != method ||
+            ((localFlags ^ flags) & ((1u << 3) | (1u << 11))))
+            return JZFail(error, 16, @"A ZIP local header disagrees with the central directory.");
+        if (!(flags & (1u << 3)) &&
+            (localCRC != expectedCRC || localCompressedSize != compressedSize ||
+             localUncompressedSize != uncompressedSize))
+            return JZFail(error, 16, @"A ZIP local header has inconsistent CRC or sizes.");
+        if (localNameLength != nameLength ||
+            memcmp(local + 30, central + 46, nameLength) != 0)
+            return JZFail(error, 16, @"A ZIP local filename disagrees with the central directory.");
+
+        NSUInteger dataOffset = (NSUInteger)localOffset + localHeaderSize;
+        if (!JZRangeIsValid(dataOffset, compressedSize, centralOffset))
+            return JZFail(error, 17, @"Compressed ZIP data is truncated or overlaps the central directory.");
+        if (method == 0 && compressedSize != uncompressedSize)
+            return JZFail(error, 17, @"A stored ZIP entry has inconsistent sizes.");
 
         NSString *parent = outputPath.stringByDeletingLastPathComponent;
         if (![files createDirectoryAtPath:parent
               withIntermediateDirectories:YES attributes:nil error:error])
             return NO;
 
-        NSData *output = nil;
-        if (method == 0)
+        int fd = open(outputPath.fileSystemRepresentation,
+                      O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+        if (fd < 0) return JZFailErrno(error, 21, @"create", outputPath);
+
+        uint32_t actualCRC = 0;
+        BOOL extracted = method == 0
+            ? JZExtractStored(bytes + dataOffset, uncompressedSize, fd, outputPath, &actualCRC, error)
+            : JZExtractDeflated(bytes + dataOffset, compressedSize, uncompressedSize,
+                                fd, outputPath, &actualCRC, error);
+        int closeResult = close(fd);
+        if (!extracted || closeResult != 0)
         {
-            if (compressedSize != uncompressedSize)
-                return JZFail(error, 16, @"A stored ZIP entry has inconsistent sizes.");
-            output = [NSData dataWithBytesNoCopy:(void *)(bytes + dataOffset)
-                                         length:uncompressedSize
-                                   freeWhenDone:NO];
-        }
-        else
-        {
-            if (compressedSize > UINT_MAX || uncompressedSize > UINT_MAX)
-                return JZFail(error, 17, @"A ZIP entry is too large to decompress.");
-
-            NSMutableData *inflated = [NSMutableData dataWithLength:uncompressedSize];
-            Bytef emptyOutput = 0;
-            z_stream stream = {0};
-            stream.next_in = (Bytef *)(bytes + dataOffset);
-            stream.avail_in = compressedSize;
-            stream.next_out = uncompressedSize ? inflated.mutableBytes : &emptyOutput;
-            stream.avail_out = uncompressedSize ? uncompressedSize : 1;
-
-            int status = inflateInit2(&stream, -MAX_WBITS);
-            if (status == Z_OK) status = inflate(&stream, Z_FINISH);
-            inflateEnd(&stream);
-            if (status != Z_STREAM_END || stream.total_out != uncompressedSize)
-                return JZFail(error, 18,
-                              [NSString stringWithFormat:@"Could not decompress %@.", name]);
-            output = inflated;
-        }
-
-        uLong actualCRC = crc32(0L, Z_NULL, 0);
-        actualCRC = crc32(actualCRC, output.bytes, (uInt)output.length);
-        if ((uint32_t)actualCRC != expectedCRC)
-            return JZFail(error, 19,
-                          [NSString stringWithFormat:@"Checksum verification failed for %@.", name]);
-
-        NSError *writeError = nil;
-        if (![output writeToFile:outputPath options:0 error:&writeError])
-        {
-            if (error) *error = writeError;
+            if (extracted) JZFailErrno(error, 21, @"close", outputPath);
+            unlink(outputPath.fileSystemRepresentation);
             return NO;
         }
+
+        if (actualCRC != expectedCRC)
+        {
+            unlink(outputPath.fileSystemRepresentation);
+            return JZFail(error, 19,
+                          [NSString stringWithFormat:@"Checksum verification failed for %@.", name]);
+        }
+
         cursor += centralEntrySize;
     }
     if (cursor != (NSUInteger)centralOffset + centralSize)
