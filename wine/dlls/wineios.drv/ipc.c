@@ -189,6 +189,15 @@ static UINT send_virtual_key(HWND target,WORD vkey)
  return sent;
 }
 
+static HWND selected_input_target(HWND hwnd)
+{
+ HWND target_root,hwnd_root;
+ if(!input_target) return hwnd;
+ target_root=NtUserGetAncestor(input_target,GA_ROOT);
+ hwnd_root=NtUserGetAncestor(hwnd,GA_ROOT);
+ return target_root&&hwnd_root&&target_root==hwnd_root?input_target:hwnd;
+}
+
 BOOL ios_ipc_process_input(void)
 {
  for(;;)
@@ -319,7 +328,7 @@ BOOL ios_ipc_process_input(void)
   }
   else if(msg.type==JUICE_IOS_TEXT&&msg.size&&!(msg.size%sizeof(WCHAR)))
   {
-   target=input_target?input_target:hwnd;
+   target=selected_input_target(hwnd);
    NtUserSetForegroundWindow(hwnd);
    NtUserSetActiveWindow(hwnd);
    NtUserSetFocus(target);
@@ -338,7 +347,7 @@ BOOL ios_ipc_process_input(void)
   else if(msg.type==JUICE_IOS_KEY&&!msg.size&&(msg.flags&0xffffu))
   {
    WORD vkey=msg.flags&0xffffu;
-   target=input_target?input_target:hwnd;
+   target=selected_input_target(hwnd);
    NtUserSetForegroundWindow(hwnd);
    NtUserSetActiveWindow(hwnd);
    NtUserSetFocus(target);
@@ -348,7 +357,7 @@ BOOL ios_ipc_process_input(void)
   else if(msg.type==JUICE_IOS_HARDWARE_KEY&&!msg.size&&msg.y>0&&msg.y<=0xff&&
           (msg.flags&(JUICE_IOS_KEY_DOWN|JUICE_IOS_KEY_UP)))
   {
-   target=input_target?input_target:hwnd;
+   target=selected_input_target(hwnd);
    if(msg.flags&JUICE_IOS_KEY_DOWN)
    {
     NtUserSetForegroundWindow(hwnd);

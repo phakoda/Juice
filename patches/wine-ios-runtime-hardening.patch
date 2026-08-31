@@ -120,7 +120,7 @@ diff --git a/dlls/wineios.drv/ipc.h b/dlls/wineios.drv/ipc.h
 diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
 --- a/dlls/wineios.drv/ipc.c
 +++ b/dlls/wineios.drv/ipc.c
-@@ -5,27 +5,190 @@
+@@ -5,27 +5,199 @@
  #include "config.h"
  #include <errno.h>
  #include <fcntl.h>
@@ -310,12 +310,21 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
 + input.ki.dwFlags=KEYEVENTF_KEYUP;
 + sent+=NtUserSendHardwareInput(target,0,&input,0);
 + return sent;
++}
++
++static HWND selected_input_target(HWND hwnd)
++{
++ HWND target_root,hwnd_root;
++ if(!input_target) return hwnd;
++ target_root=NtUserGetAncestor(input_target,GA_ROOT);
++ hwnd_root=NtUserGetAncestor(hwnd,GA_ROOT);
++ return target_root&&hwnd_root&&target_root==hwnd_root?input_target:hwnd;
  }
 +
  BOOL ios_ipc_process_input(void)
  {
   for(;;)
-@@ -39,31 +202,48 @@ BOOL ios_ipc_process_input(void)
+@@ -39,31 +211,48 @@ BOOL ios_ipc_process_input(void)
    LRESULT text_length=0;
    BOOL redrawn=FALSE,presented=FALSE;
    ssize_t available;
@@ -374,7 +383,7 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
      break;
     }
    }
-@@ -85,14 +265,8 @@ BOOL ios_ipc_process_input(void)
+@@ -85,14 +274,8 @@ BOOL ios_ipc_process_input(void)
     input.type=INPUT_MOUSE;
     if(desktop_coords)
     {
@@ -390,7 +399,7 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
 +    if(pointer_down&&input_target&&pointer_generation==generation&&!down) target=input_target;
      else
      {
-@@ -121,7 +295,6 @@ BOOL ios_ipc_process_input(void)
+@@ -121,7 +304,6 @@ BOOL ios_ipc_process_input(void)
      if(!target||target==hwnd) target=NtUserWindowFromPoint(input.mi.dx,input.mi.dy);
      if(!target) target=hwnd;
     }
@@ -398,7 +407,7 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
     if(down)
     {
      NtUserSetForegroundWindow(hwnd);
-@@ -128,6 +301,7 @@ BOOL ios_ipc_process_input(void)
+@@ -128,6 +310,7 @@ BOOL ios_ipc_process_input(void)
      NtUserSetActiveWindow(hwnd);
      NtUserSetFocus(target);
      input_target=target;
@@ -406,7 +415,7 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
      pointer_down=TRUE;
     }
     input.mi.dwFlags=MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE|MOUSEEVENTF_MOVE_NOCOALESCE;
-@@ -135,10 +309,13 @@ BOOL ios_ipc_process_input(void)
+@@ -135,13 +318,16 @@ BOOL ios_ipc_process_input(void)
     if(msg.flags&JUICE_IOS_LEFT_UP) input.mi.dwFlags|=MOUSEEVENTF_LEFTUP;
     if(msg.flags&JUICE_IOS_RIGHT_DOWN) input.mi.dwFlags|=MOUSEEVENTF_RIGHTDOWN;
     if(msg.flags&JUICE_IOS_RIGHT_UP) input.mi.dwFlags|=MOUSEEVENTF_RIGHTUP;
@@ -422,12 +431,17 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
    }
    else if(msg.type==JUICE_IOS_TEXT&&msg.size&&!(msg.size%sizeof(WCHAR)))
    {
-@@ -160,17 +337,13 @@ BOOL ios_ipc_process_input(void)
+-   target=input_target?input_target:hwnd;
++   target=selected_input_target(hwnd);
+   NtUserSetForegroundWindow(hwnd);
+   NtUserSetActiveWindow(hwnd);
+@@ -160,20 +346,16 @@ BOOL ios_ipc_process_input(void)
    }
    else if(msg.type==JUICE_IOS_KEY&&!msg.size&&(msg.flags&0xffffu))
    {
 +   WORD vkey=msg.flags&0xffffu;
-    target=input_target?input_target:hwnd;
+-   target=input_target?input_target:hwnd;
++   target=selected_input_target(hwnd);
     NtUserSetForegroundWindow(hwnd);
     NtUserSetActiveWindow(hwnd);
     NtUserSetFocus(target);
@@ -443,7 +457,11 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
    }
    else if(msg.type==JUICE_IOS_HARDWARE_KEY&&!msg.size&&msg.y>0&&msg.y<=0xff&&
            (msg.flags&(JUICE_IOS_KEY_DOWN|JUICE_IOS_KEY_UP)))
-@@ -195,24 +368,33 @@ BOOL ios_ipc_process_input(void)
+   {
+-   target=input_target?input_target:hwnd;
++   target=selected_input_target(hwnd);
+   if(msg.flags&JUICE_IOS_KEY_DOWN)
+@@ -195,24 +377,33 @@ BOOL ios_ipc_process_input(void)
    }
    else
    {
@@ -483,7 +501,7 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
   SERVER_START_REQ(set_queue_fd)
   {
    req->handle=wine_server_obj_handle(handle);
-@@ -223,51 +405,103 @@ void ios_ipc_register_queue(void)
+@@ -223,51 +414,103 @@ void ios_ipc_register_queue(void)
   if(ret) fprintf(stderr,"[JuiceInput] failed to register queue fd status=%x tid=%p\n",ret,NtCurrentTeb()->ClientId.UniqueThread);
   else
   {
