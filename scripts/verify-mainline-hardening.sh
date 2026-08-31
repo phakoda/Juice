@@ -96,6 +96,8 @@ test -n "$remove_line" -a -n "$sync_line" -a -n "$close_line" \
 # Host sockets are short/non-inheritable and survive sustained transient accept
 # pressure. Per-listener generations plus SO_ACCEPTCONN/path verification prevent
 # old loops or lifecycle recovery from trusting/closing a reused unrelated fd.
+# Listener teardown and listener replacement must share the same serialized
+# state boundary so an old accept loop cannot close a newly reused descriptor.
 grep -Fq 'NSTemporaryDirectory()' "$SOCKET"
 grep -Fq 'FD_CLOEXEC' "$SOCKET"
 grep -Fq 'SO_NOSIGPIPE' "$SOCKET"
@@ -104,6 +106,11 @@ grep -Fq 'JuiceListenerFDMatchesPath' "$SOCKET"
 grep -Fq 'JuiceListenerGeneration' "$SOCKET"
 grep -Fq 'persistent=1' "$SOCKET"
 grep -Fq 'SOCKET_BIND_RETRY' "$SOCKET"
+test "$(grep -Fc '@synchronized(self)' "$SOCKET")" -ge 2 || {
+  echo "Socket listener teardown and restart must both serialize on self." >&2
+  exit 3
+}
+grep -Fq 'serialized=1' "$SOCKET"
 if grep -Fq 'failures++<20' "$SOCKET"; then
   echo "Socket accept recovery must not permanently stop after a fixed retry count." >&2
   exit 3
@@ -204,7 +211,8 @@ grep -Fq 'hidden_images_trimmed' "$MEMORY"
 
 # Foregrounding repairs missing listeners, backgrounding drops stale pointer
 # capture, and newer mainline host FDs are explicitly close-on-exec. Lifecycle
-# ownership checks must not close an unrelated fd that reused a listener number.
+# recovery must delegate listener mutation to the serialized socket layer rather
+# than closing/unlinking a descriptor after an unlocked identity check.
 grep -Fq 'UIApplicationWillEnterForegroundNotification' "$LIFECYCLE"
 grep -Fq 'listener_restart=' "$LIFECYCLE"
 grep -Fq 'gamepadFD' "$LIFECYCLE"
@@ -213,6 +221,13 @@ grep -Fq 'FD_CLOEXEC' "$LIFECYCLE"
 grep -Fq 'SO_ACCEPTCONN' "$LIFECYCLE"
 grep -Fq 'JuiceListenerOwnsFD' "$LIFECYCLE"
 grep -Fq 'reused_fd=' "$LIFECYCLE"
+grep -Fq 'delegated=1' "$LIFECYCLE"
+restart_block="$(awk '/^static void JuiceRestartListener/{capture=1} capture{print} capture&&/^}/{exit}' "$LIFECYCLE")"
+grep -Fq 'objc_msgSend)(self,selector)' <<<"$restart_block"
+if grep -Eq 'close\(|unlink\(|JuiceLifecycleSetValue' <<<"$restart_block"; then
+  echo "Foreground listener recovery must not mutate listener fd/path state directly." >&2
+  exit 3
+fi
 
 # Persistent diagnostic output is bounded to a current + previous 8 MiB segment;
 # rotation preserves CLOEXEC. Export combines only bounded tails and removes
