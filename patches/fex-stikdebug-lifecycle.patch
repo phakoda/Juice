@@ -1,0 +1,222 @@
+diff --git a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+index 961096f..d59d004 100644
+--- a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
++++ b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+@@ -5,6 +5,8 @@ $end_info$
+ #include <cstdlib>
+ #include <cstddef>
+ #include <cstdint>
++#include <mutex>
++#include <vector>
+ #include <sys/types.h>
+ 
+ namespace FEXCore::Allocator {
+@@ -31,14 +33,109 @@ inline bool JuiceStikDebugJITEnabled() {
+   return Enabled;
+ }
+ 
++struct JuiceJITPoolRange {
++  size_t Offset {};
++  size_t Size {};
++};
++
++struct JuiceJITPoolState {
++  std::mutex Mutex;
++  void* Writable {};
++  void* Executable {};
++  size_t Size {};
++  bool Detached {};
++  std::vector<JuiceJITPoolRange> FreeRanges;
++};
++
++inline JuiceJITPoolState& JuiceGetJITPool() {
++  static JuiceJITPoolState Pool;
++  return Pool;
++}
++
++inline size_t JuiceJITPoolReserveSize() {
++  static const size_t ReserveSize = []() {
++    constexpr size_t MiB = 1024 * 1024;
++    constexpr size_t DefaultReserve = 384 * MiB;
++    const char* Value = std::getenv("JUICE_STIKDEBUG_JIT_POOL_MB");
++    if (!Value || !Value[0]) {
++      return DefaultReserve;
++    }
++
++    char* End {};
++    const unsigned long long Megabytes = std::strtoull(Value, &End, 10);
++    if (!End || End == Value || End[0] != '\0' || Megabytes < 256 || Megabytes > 1024) {
++      LogMan::Msg::EFmt("Ignoring invalid JUICE_STIKDEBUG_JIT_POOL_MB='{}'; using {} MiB", Value, DefaultReserve / MiB);
++      return DefaultReserve;
++    }
++    return static_cast<size_t>(Megabytes) * MiB;
++  }();
++  return ReserveSize;
++}
++
++inline size_t JuiceAlignJITSize(size_t Size) {
++  constexpr size_t Alignment = 16 * 1024;
++  constexpr size_t AlignmentMask = Alignment - 1;
++  if (Size > static_cast<size_t>(-1) - AlignmentMask) {
++    return 0;
++  }
++  return (Size + AlignmentMask) & ~AlignmentMask;
++}
++
++inline bool JuiceInitializeJITPoolLocked(JuiceJITPoolState& Pool) {
++  if (Pool.Executable) {
++    return true;
++  }
++
++  const size_t ReserveSize = JuiceJITPoolReserveSize();
++  void* Writable {};
++  void* Executable {};
++  const long Status = NtWineAllocateJitMemory(&Writable, &Executable, ReserveSize);
++  if (Status || !Writable || !Executable) {
++    LogMan::Msg::EFmt("Failed to reserve StikDebug JIT pool (status=0x{:x}, size={})", Status, ReserveSize);
++    return false;
++  }
++
++  Pool.Writable = Writable;
++  Pool.Executable = Executable;
++  Pool.Size = ReserveSize;
++  Pool.FreeRanges.push_back({0, ReserveSize});
++  LogMan::Msg::IFmt("Reserved StikDebug JIT pool: {} MiB write={:p} exec={:p}", ReserveSize / (1024 * 1024), Writable, Executable);
++  return true;
++}
++
+ inline JuiceJITMapping JuiceAllocateJITMapping(size_t Size) {
+   if (JuiceStikDebugJITEnabled()) {
+-    void* Writable {};
+-    void* Executable {};
+-    const long Status = NtWineAllocateJitMemory(&Writable, &Executable, Size);
+-    if (!Status && Writable && Executable) {
++    const size_t AlignedSize = JuiceAlignJITSize(Size);
++    if (!AlignedSize) {
++      return {};
++    }
++
++    auto& Pool = JuiceGetJITPool();
++    std::lock_guard<std::mutex> Lock(Pool.Mutex);
++    if (!JuiceInitializeJITPoolLocked(Pool)) {
++      return {};
++    }
++
++    for (size_t Index = 0; Index < Pool.FreeRanges.size(); ++Index) {
++      auto& Range = Pool.FreeRanges[Index];
++      if (Range.Size < AlignedSize) {
++        continue;
++      }
++
++      const size_t Offset = Range.Offset;
++      Range.Offset += AlignedSize;
++      Range.Size -= AlignedSize;
++      if (!Range.Size) {
++        Pool.FreeRanges.erase(Pool.FreeRanges.begin() + Index);
++      }
++
++      auto* Writable = static_cast<uint8_t*>(Pool.Writable) + Offset;
++      auto* Executable = static_cast<uint8_t*>(Pool.Executable) + Offset;
+       return {Writable, Executable, true};
+     }
++
++    LogMan::Msg::EFmt("StikDebug JIT pool exhausted{}: request={} reserve={}",
++                      Pool.Detached ? " after debugger detach" : "", AlignedSize, Pool.Size);
+     return {};
+   }
+ 
+@@ -49,18 +146,72 @@ inline JuiceJITMapping JuiceAllocateJITMapping(size_t Size) {
+ inline bool JuiceFreeJITMapping(JuiceJITMapping Mapping, size_t Size) {
+   if (!Mapping.Executable) return true;
+   if (Mapping.DualMapped) {
+-    return NtWineFreeJitMemory(Mapping.Writable, Mapping.Executable, Size) == 0;
++    const size_t AlignedSize = JuiceAlignJITSize(Size);
++    if (!AlignedSize) return false;
++
++    auto& Pool = JuiceGetJITPool();
++    std::lock_guard<std::mutex> Lock(Pool.Mutex);
++    if (!Pool.Writable || !Pool.Executable) return false;
++
++    const uintptr_t WriteBase = reinterpret_cast<uintptr_t>(Pool.Writable);
++    const uintptr_t ExecBase = reinterpret_cast<uintptr_t>(Pool.Executable);
++    const uintptr_t Write = reinterpret_cast<uintptr_t>(Mapping.Writable);
++    const uintptr_t Exec = reinterpret_cast<uintptr_t>(Mapping.Executable);
++    if (Write < WriteBase || Exec < ExecBase) return false;
++
++    const size_t WriteOffset = Write - WriteBase;
++    const size_t ExecOffset = Exec - ExecBase;
++    if (WriteOffset != ExecOffset || WriteOffset > Pool.Size || AlignedSize > Pool.Size - WriteOffset) return false;
++
++    size_t Index = 0;
++    while (Index < Pool.FreeRanges.size() && Pool.FreeRanges[Index].Offset < WriteOffset) {
++      ++Index;
++    }
++    if (Index && Pool.FreeRanges[Index - 1].Offset + Pool.FreeRanges[Index - 1].Size > WriteOffset) return false;
++    if (Index < Pool.FreeRanges.size() && WriteOffset + AlignedSize > Pool.FreeRanges[Index].Offset) return false;
++
++    Pool.FreeRanges.insert(Pool.FreeRanges.begin() + Index, {WriteOffset, AlignedSize});
++    if (Index && Pool.FreeRanges[Index - 1].Offset + Pool.FreeRanges[Index - 1].Size == Pool.FreeRanges[Index].Offset) {
++      Pool.FreeRanges[Index - 1].Size += Pool.FreeRanges[Index].Size;
++      Pool.FreeRanges.erase(Pool.FreeRanges.begin() + Index);
++      --Index;
++    }
++    if (Index + 1 < Pool.FreeRanges.size() &&
++        Pool.FreeRanges[Index].Offset + Pool.FreeRanges[Index].Size == Pool.FreeRanges[Index + 1].Offset) {
++      Pool.FreeRanges[Index].Size += Pool.FreeRanges[Index + 1].Size;
++      Pool.FreeRanges.erase(Pool.FreeRanges.begin() + Index + 1);
++    }
++    return true;
+   }
+   VirtualFree(Mapping.Executable, Size);
+   return true;
+ }
+ 
++inline bool JuiceDetachJITDebugger() {
++  if (!JuiceStikDebugJITEnabled()) return true;
++
++  auto& Pool = JuiceGetJITPool();
++  std::lock_guard<std::mutex> Lock(Pool.Mutex);
++  if (!Pool.Executable || !Pool.Writable) return false;
++  if (Pool.Detached) return true;
++
++  const long Status = NtWineDetachJitDebugger();
++  if (Status) {
++    LogMan::Msg::EFmt("Failed to detach StikDebug JIT debugger (status=0x{:x})", Status);
++    return false;
++  }
++  Pool.Detached = true;
++  LogMan::Msg::IFmt("StikDebug JIT pool sealed; debugger detached");
++  return true;
++}
++
+ inline bool JuicePublishJITMapping(JuiceJITMapping Mapping, size_t Size) {
+   if (Mapping.DualMapped) return true;
+   return VirtualProtect(Mapping.Executable, Size, ProtectOptions::Read | ProtectOptions::Exec);
+ }
+ #else
+ inline bool JuiceStikDebugJITEnabled() { return false; }
++inline bool JuiceDetachJITDebugger() { return true; }
+ #endif
+ 
+ FEX_DEFAULT_VISIBILITY extern VirtualNamePtr VirtualName;
+diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+index 3a08955..f43fc4e 100644
+--- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+@@ -3,6 +3,16 @@
+ 
+   CurrentCodeBuffer = CodeBuffers.GetLatest();
+   ThreadState->LookupCache->Shared = CurrentCodeBuffer->LookupCache.get();
++
++#ifdef FEX_JUICE_IOS
++  /* InitCore has already emitted the global dispatcher, and GetLatest above
++   * eagerly establishes the first code buffer.  The backing RX/RW pool was
++   * reserved before either allocation, so all later code-buffer growth can be
++   * satisfied without asking StikDebug for new executable mappings. */
++  if (FEXCore::Allocator::JuiceStikDebugJITEnabled()) {
++    LOGMAN_THROW_A_FMT(FEXCore::Allocator::JuiceDetachJITDebugger(), "Couldn't detach StikDebug after JIT initialization");
++  }
++#endif
+ }
+ 
+ void Arm64JITCore::EmitDetectionString() {

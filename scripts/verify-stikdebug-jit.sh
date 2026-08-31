@@ -6,7 +6,9 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 required=(
   app/JuiceStikDebugJIT.m
   patches/fex-stikdebug-jit.patch
+  patches/fex-stikdebug-lifecycle.patch
   patches/wine-stikdebug-jit.patch
+  patches/wine-stikdebug-lifecycle.patch
   scripts/apply-wine-stikdebug-jit.sh
   scripts/fetch-fex-linux.sh
   scripts/verify-fex-patch.sh
@@ -20,13 +22,15 @@ bash -n \
   "$ROOT/scripts/fetch-fex-linux.sh" \
   "$ROOT/scripts/verify-fex-patch.sh"
 
-# Parse the complete hand-edited unified diff without requiring an FEX checkout.
+# Parse the hand-edited unified diffs without requiring an FEX checkout.
 # --recount derives hunk sizes from the actual patch lines while still rejecting
 # malformed syntax such as incomplete hunks or a missing terminal newline.
 git -C "$ROOT" apply --recount --numstat "$ROOT/patches/fex-stikdebug-jit.patch" >/dev/null
+git -C "$ROOT" apply --recount --numstat "$ROOT/patches/fex-stikdebug-lifecycle.patch" >/dev/null
+git -C "$ROOT" apply --recount --numstat "$ROOT/patches/wine-stikdebug-lifecycle.patch" >/dev/null
 
-# Verify the small Wine overlay against either a clean source checkout or a
-# source tree that has already been prepared for an incremental build.
+# Verify the Wine overlays against either a clean source checkout or a source
+# tree that has already been prepared for an incremental build.
 "$ROOT/scripts/verify-wine-patch.sh"
 
 python3 - "$ROOT/config/Info.plist" <<'PY'
@@ -64,22 +68,38 @@ grep -Fq 'VM_PROT_READ | VM_PROT_WRITE' "$ROOT/patches/wine-stikdebug-jit.patch"
 grep -Fq 'set_arm64ec_range' "$ROOT/patches/wine-stikdebug-jit.patch"
 grep -Fq 'juice_break_mark_jit_mapping' "$ROOT/patches/wine-stikdebug-jit.patch"
 grep -Fq 'juice_break_get_jit_mapping' "$ROOT/patches/wine-stikdebug-jit.patch"
+grep -Fq 'brk #0x3caf' "$ROOT/patches/wine-stikdebug-lifecycle.patch"
+grep -Fq 'juice_jit_allocation_sealed' "$ROOT/patches/wine-stikdebug-lifecycle.patch"
+grep -Fq 'STATUS_ACCESS_DENIED' "$ROOT/patches/wine-stikdebug-lifecycle.patch"
 
 grep -Fq 'WritablePtr' "$ROOT/patches/fex-stikdebug-jit.patch"
 grep -Fq 'JuiceAllocateJITMapping' "$ROOT/patches/fex-stikdebug-jit.patch"
 grep -Fq 'NtWineAllocateJitMemory' "$ROOT/patches/fex-stikdebug-jit.patch"
 grep -Fq 'NtWineFreeJitMemory' "$ROOT/patches/fex-stikdebug-jit.patch"
+grep -Fq 'WritableCopyStart' "$ROOT/patches/fex-stikdebug-jit.patch"
+grep -Fq 'ClearICache(CopyStart, TempSize)' "$ROOT/patches/fex-stikdebug-jit.patch"
+grep -Fq 'ClearICache(JITMapping.Executable, MAX_DISPATCHER_CODE_SIZE)' "$ROOT/patches/fex-stikdebug-jit.patch"
 if grep -Fq 'JuicePrepareExecutableRegion' "$ROOT/patches/fex-stikdebug-jit.patch"; then
   echo "StikDebug FEX patch regressed to in-place executable publication." >&2
   exit 3
 fi
 
-# The base and overlay patches are layered intentionally.  The fetch script
-# must apply both, and the verifier must know how to temporarily remove only
-# the StikDebug overlay before comparing the established base patch.
-grep -Fq 'STIKDEBUG_PATCH="$ROOT/patches/fex-stikdebug-jit.patch"' "$ROOT/scripts/fetch-fex-linux.sh"
-grep -Fq 'git -C "$SOURCE" apply --recount "$STIKDEBUG_PATCH"' "$ROOT/scripts/fetch-fex-linux.sh"
-grep -Fq 'STIKDEBUG_PATCH="$ROOT/patches/fex-stikdebug-jit.patch"' "$ROOT/scripts/verify-fex-patch.sh"
-grep -Fq 'apply --recount --reverse "$STIKDEBUG_PATCH"' "$ROOT/scripts/verify-fex-patch.sh"
+grep -Fq 'DefaultReserve = 384' "$ROOT/patches/fex-stikdebug-lifecycle.patch"
+grep -Fq 'JUICE_STIKDEBUG_JIT_POOL_MB' "$ROOT/patches/fex-stikdebug-lifecycle.patch"
+grep -Fq 'JuiceInitializeJITPoolLocked' "$ROOT/patches/fex-stikdebug-lifecycle.patch"
+grep -Fq 'Pool.FreeRanges' "$ROOT/patches/fex-stikdebug-lifecycle.patch"
+grep -Fq 'after debugger detach' "$ROOT/patches/fex-stikdebug-lifecycle.patch"
+grep -Fq 'JuiceDetachJITDebugger' "$ROOT/patches/fex-stikdebug-lifecycle.patch"
+grep -Fq 'CurrentCodeBuffer = CodeBuffers.GetLatest()' "$ROOT/patches/fex-stikdebug-lifecycle.patch"
 
-echo "JUICE_STIKDEBUG_JIT_VERIFY_OK"
+# The base, dual-map, and lifecycle patches are layered intentionally.  The
+# fetch/apply scripts must use all layers, and the verifiers must peel them in
+# reverse order before comparing the established base deltas.
+grep -Fq 'LIFECYCLE_PATCH="$ROOT/patches/fex-stikdebug-lifecycle.patch"' "$ROOT/scripts/fetch-fex-linux.sh"
+grep -Fq 'apply --recount "$LIFECYCLE_PATCH"' "$ROOT/scripts/fetch-fex-linux.sh"
+grep -Fq 'LIFECYCLE_PATCH="$ROOT/patches/fex-stikdebug-lifecycle.patch"' "$ROOT/scripts/verify-fex-patch.sh"
+grep -Fq 'apply --recount --reverse "$LIFECYCLE_PATCH"' "$ROOT/scripts/verify-fex-patch.sh"
+grep -Fq 'LIFECYCLE_PATCH="$ROOT/patches/wine-stikdebug-lifecycle.patch"' "$ROOT/scripts/apply-wine-stikdebug-jit.sh"
+grep -Fq 'LIFECYCLE_PATCH="$ROOT/patches/wine-stikdebug-lifecycle.patch"' "$ROOT/scripts/verify-wine-patch.sh"
+
+echo "JUICE_STIKDEBUG_JIT_VERIFY_OK lifecycle=1"
