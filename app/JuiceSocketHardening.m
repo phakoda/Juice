@@ -11,6 +11,7 @@
 
 static char JuiceDisplayListenerGenerationKey;
 static char JuiceControlListenerGenerationKey;
+static char JuiceSocketTerminatingKey;
 
 static id JuiceSocketValue(id object, NSString *key)
 {
@@ -30,6 +31,10 @@ static void JuiceSocketAppend(id self, NSString *line)
 static NSString *JuiceSocketRoot(void)
 {
     return [NSTemporaryDirectory() stringByAppendingPathComponent:@"JuiceSockets"];
+}
+static BOOL JuiceSocketTerminating(id self)
+{
+    return [objc_getAssociatedObject(self,&JuiceSocketTerminatingKey) boolValue];
 }
 static const void *JuiceListenerGenerationKey(BOOL control)
 {
@@ -192,14 +197,14 @@ static void JuiceAcceptLoop(id self,int listener,BOOL control,NSUInteger generat
 static void JuiceStartListener(id self,BOOL control);
 static void JuiceScheduleListenerRestart(id self,BOOL control,NSUInteger generation,int error)
 {
-    if(!JuiceTransientListenerSetup(error))return;
+    if(!JuiceTransientListenerSetup(error)||JuiceSocketTerminating(self))return;
     JuiceSocketAppend(self,[NSString stringWithFormat:
         @"SOCKET_BIND_RETRY kind=%@ generation=%lu errno=%d delay_ms=500\n",
         control?@"control":@"display",(unsigned long)generation,error]);
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(500*NSEC_PER_MSEC)),
                    dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{
         NSString *fdKey=control?@"controlListenFD":@"listenFD";
-        if(JuiceListenerGeneration(self,control)!=generation||
+        if(JuiceSocketTerminating(self)||JuiceListenerGeneration(self,control)!=generation||
            [JuiceSocketValue(self,fdKey) intValue]>=0)return;
         JuiceStartListener(self,control);
     });
@@ -208,6 +213,12 @@ static void JuiceStartListener(id self,BOOL control)
 {
     @synchronized(self)
     {
+        if(JuiceSocketTerminating(self))
+        {
+            JuiceSocketAppend(self,[NSString stringWithFormat:
+                @"SOCKET_START_SKIPPED kind=%@ reason=terminating\n",control?@"control":@"display"]);
+            return;
+        }
         NSString *fdKey=control?@"controlListenFD":@"listenFD";
         NSString *pathKey=control?@"controlSocketPath":@"socketPath";
         int old=[JuiceSocketValue(self,fdKey) intValue];
@@ -248,6 +259,20 @@ static void JuiceStartListener(id self,BOOL control)
 }
 static void JuiceStartDisplay(id self,SEL _cmd){(void)_cmd;JuiceStartListener(self,NO);}
 static void JuiceStartControl(id self,SEL _cmd){(void)_cmd;JuiceStartListener(self,YES);}
+static void JuiceSocketWillTerminate(id self,SEL _cmd)
+{
+    (void)_cmd;
+    @synchronized(self)
+    {
+        if(JuiceSocketTerminating(self))return;
+        objc_setAssociatedObject(self,&JuiceSocketTerminatingKey,@YES,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        NSUInteger displayGeneration=JuiceBumpListenerGeneration(self,NO);
+        NSUInteger controlGeneration=JuiceBumpListenerGeneration(self,YES);
+        JuiceSocketAppend(self,[NSString stringWithFormat:
+            @"SOCKET_TERMINATING display_generation=%lu control_generation=%lu retries_cancelled=1\n",
+            (unsigned long)displayGeneration,(unsigned long)controlGeneration]);
+    }
+}
 
 __attribute__((constructor(200)))
 static void JuiceInstallSocketHardening(void)
@@ -257,4 +282,5 @@ static void JuiceInstallSocketHardening(void)
     Method control=class_getInstanceMethod(cls,NSSelectorFromString(@"startControlServer"));
     if(display)method_setImplementation(display,(IMP)JuiceStartDisplay);
     if(control)method_setImplementation(control,(IMP)JuiceStartControl);
+    class_addMethod(cls,NSSelectorFromString(@"juice_socketWillTerminate"),(IMP)JuiceSocketWillTerminate,"v@:");
 }
