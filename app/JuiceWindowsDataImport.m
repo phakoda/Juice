@@ -29,7 +29,7 @@ static NSString *JuiceDataImportRoot(void)
 
 static NSString *JuiceDataCopyImport(NSURL *url,NSError **error)
 {
-    NSError *localError=nil;NSError **resultError=error?:&localError;
+    NSError *__autoreleasing localError=nil;NSError *__autoreleasing *resultError=error?:&localError;
     NSString *root=JuiceDataImportRoot();
     if(![NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:resultError])return nil;
     NSString *name=url.lastPathComponent.length?url.lastPathComponent:@"windows-file";
