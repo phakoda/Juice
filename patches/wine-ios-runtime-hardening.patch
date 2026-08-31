@@ -390,7 +390,15 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
 +    if(pointer_down&&input_target&&pointer_generation==generation&&!down) target=input_target;
      else
      {
-@@ -121,7 +295,7 @@ BOOL ios_ipc_process_input(void)
+@@ -121,7 +295,6 @@ BOOL ios_ipc_process_input(void)
+     if(!target||target==hwnd) target=NtUserWindowFromPoint(input.mi.dx,input.mi.dy);
+     if(!target) target=hwnd;
+    }
+-
+    if(down)
+    {
+     NtUserSetForegroundWindow(hwnd);
+@@ -128,6 +301,7 @@ BOOL ios_ipc_process_input(void)
      NtUserSetActiveWindow(hwnd);
      NtUserSetFocus(target);
      input_target=target;
