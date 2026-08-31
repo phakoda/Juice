@@ -30,6 +30,12 @@ jobs:
           grep -Fq 'JuiceDataQuotedArgument' app/JuiceWindowsDataImport.m
           grep -Fq 'NSFileTypeRegular' app/JuiceWindowsDataImport.m
           grep -Fq 'regular_file=1 quoted_path=1' app/JuiceWindowsDataImport.m
+          grep -Fq 'JuiceDisplaySnapshotQueue' app/JuiceDisplayTransportHardening.m
+          grep -Fq 'dispatch_async(JuiceDisplaySnapshotQueue(),^{JuiceDeliverFrame(self,frame);})' app/JuiceDisplayTransportHardening.m
+          if grep -Fq 'if(schedule)dispatch_async(dispatch_get_main_queue(),^{JuiceDeliverFrame' app/JuiceDisplayTransportHardening.m; then
+            echo 'Full framebuffer snapshots must not run on UIKit main thread.' >&2
+            exit 3
+          fi
 
   app-build:
     runs-on: macos-latest
