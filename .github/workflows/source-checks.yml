@@ -21,6 +21,20 @@ jobs:
           grep -Fq 'chmod(root.fileSystemRepresentation,S_IRWXU)' app/JuiceSocketHardening.m
           grep -Fq 'chmod(wire,S_IRUSR|S_IWUSR)' app/JuiceSocketHardening.m
           grep -Fq 'private_mode=0600 dir_mode=0700' app/JuiceSocketHardening.m
+          grep -Fq 'JuiceSocketTerminatingKey' app/JuiceSocketHardening.m
+          grep -Fq 'if(!JuiceTransientListenerSetup(error)||JuiceSocketTerminating(self))return;' app/JuiceSocketHardening.m
+          grep -Fq 'if(JuiceSocketTerminating(self)||JuiceListenerGeneration(self,control)!=generation||' app/JuiceSocketHardening.m
+          grep -Fq 'JuiceBumpListenerGeneration(self,NO)' app/JuiceSocketHardening.m
+          grep -Fq 'JuiceBumpListenerGeneration(self,YES)' app/JuiceSocketHardening.m
+          grep -Fq 'class_addMethod(cls,NSSelectorFromString(@"juice_socketWillTerminate")' app/JuiceSocketHardening.m
+          grep -Fq 'SEL stop=NSSelectorFromString(@"juice_socketWillTerminate")' app/JuiceLifecycleHardening.m
+          grep -Fq 'retries_cancelled=1' app/JuiceLifecycleHardening.m
+          stop_line="$(grep -nF 'SEL stop=NSSelectorFromString(@"juice_socketWillTerminate")' app/JuiceLifecycleHardening.m | cut -d: -f1)"
+          lock_line="$(grep -nF '@synchronized(self)' app/JuiceLifecycleHardening.m | cut -d: -f1)"
+          test -n "$stop_line" -a -n "$lock_line" -a "$stop_line" -lt "$lock_line" || {
+            echo 'Termination must invalidate listener retries before final listener cleanup.' >&2
+            exit 3
+          }
           grep -Fq 'Windows backslashes are always literal' app/JuiceLaunchHardening.m
           grep -Fq '[line characterAtIndex:i+1]==quote' app/JuiceLaunchHardening.m
           if grep -Fq 'unichar next=' app/JuiceLaunchHardening.m; then
