@@ -297,7 +297,7 @@ static void JuiceDeliverFrame(id self,JuiceDisplayFramebuffer *frame)
             BOOL present=NO;
             @synchronized(frame)
             {
-                if(!frame.invalidated){frame.rendered++;present=YES;}
+                if(!frame.invalidated&&frame.clientFD==fd&&frame.peerPID==peerPID){frame.rendered++;present=YES;}
             }
             SEL selector=NSSelectorFromString(@"presentFrameMessage:data:client:peerPID:first:");
             if(present&&[self respondsToSelector:selector])
