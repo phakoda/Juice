@@ -27,6 +27,9 @@ jobs:
             echo 'Launch argument parser must not reinterpret Windows backslashes as escapes.' >&2
             exit 3
           fi
+          grep -Fq 'JuiceDataQuotedArgument' app/JuiceWindowsDataImport.m
+          grep -Fq 'NSFileTypeRegular' app/JuiceWindowsDataImport.m
+          grep -Fq 'regular_file=1 quoted_path=1' app/JuiceWindowsDataImport.m
 
   app-build:
     runs-on: macos-latest
