@@ -5,6 +5,7 @@
 #import <objc/runtime.h>
 #import <string.h>
 #import <sys/socket.h>
+#import <sys/stat.h>
 #import <sys/un.h>
 #import <unistd.h>
 
@@ -85,7 +86,7 @@ static BOOL JuiceBindListener(NSString *path,int backlog,int *fdOut,int *errorOu
     JuiceSetSocketFlags(fd);
     struct sockaddr_un address={0};address.sun_family=AF_UNIX;
     strncpy(address.sun_path,wire,sizeof(address.sun_path)-1);
-    if(bind(fd,(struct sockaddr *)&address,sizeof(address))||listen(fd,backlog))
+    if(bind(fd,(struct sockaddr *)&address,sizeof(address))||chmod(wire,S_IRUSR|S_IWUSR)||listen(fd,backlog))
     {
         int saved=errno;close(fd);unlink(wire);if(errorOut)*errorOut=saved;return NO;
     }
@@ -174,7 +175,7 @@ static void JuiceAcceptLoop(id self,int listener,BOOL control,NSUInteger generat
             NSMutableArray *clients=JuiceSocketValue(self,@"clients");
             if([clients isKindOfClass:NSMutableArray.class])@synchronized(clients){[clients addObject:@(fd)];}
             JuiceSocketAppend(self,[NSString stringWithFormat:
-                @"DISPLAY_CLIENT_CONNECTED fd=%d listener_generation=%lu cloexec=1\n",
+                @"DISPLAY_CLIENT_CONNECTED fd=%d listener_generation=%lu cloexec=1 private_socket=1\n",
                 fd,(unsigned long)generation]);
         }
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{
@@ -222,13 +223,15 @@ static void JuiceStartListener(id self,BOOL control)
     NSUInteger generation=JuiceBumpListenerGeneration(self,control);
     NSString *root=JuiceSocketRoot();NSError *error=nil;
     [NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:&error];
+    int permissionError=0;
+    if(!error&&chmod(root.fileSystemRepresentation,S_IRWXU))permissionError=errno;
     NSString *path=[root stringByAppendingPathComponent:control?@"control.sock":@"display.sock"];
     JuiceSocketSetValue(self,pathKey,path);
-    int listener=-1,saved=error?EACCES:0;
-    BOOL ready=!error&&JuiceBindListener(path,control?4:8,&listener,&saved);
+    int listener=-1,saved=error?EACCES:permissionError;
+    BOOL ready=!error&&!permissionError&&JuiceBindListener(path,control?4:8,&listener,&saved);
     JuiceSocketSetValue(self,fdKey,@(listener));
     JuiceSocketAppend(self,[NSString stringWithFormat:
-        @"%@ path=%@ ready=%d fd=%d generation=%lu errno=%d temp_socket=1 cloexec=1\n",
+        @"%@ path=%@ ready=%d fd=%d generation=%lu errno=%d temp_socket=1 cloexec=1 private_mode=0600 dir_mode=0700\n",
         control?@"CONTROL_V1_SOCKET":@"DISPLAY_SOCKET",path,ready,listener,
         (unsigned long)generation,saved]);
     if(ready)
