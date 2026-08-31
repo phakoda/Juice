@@ -45,21 +45,22 @@ static BOOL JuiceListenerNeedsRestart(id self,NSString *fdKey,NSString *pathKey)
 
 static void JuiceRestartListener(id self,NSString *fdKey,NSString *pathKey,NSString *selectorName,NSString *label)
 {
-    if(!JuiceListenerNeedsRestart(self,fdKey,pathKey))return;
+    BOOL needed=JuiceListenerNeedsRestart(self,fdKey,pathKey);
     int oldFD=[JuiceLifecycleValue(self,fdKey) intValue];
     NSString *oldPath=JuiceLifecycleValue(self,pathKey);
     BOOL owned=JuiceListenerOwnsFD(oldFD,oldPath);
-    if(owned)close(oldFD);
-    JuiceLifecycleSetValue(self,fdKey,@(-1));
-    if(oldPath.length)unlink(oldPath.fileSystemRepresentation);
+    BOOL reused=oldFD>=0&&JuiceDescriptorAlive(oldFD)&&!owned;
     SEL selector=NSSelectorFromString(selectorName);
-    if([self respondsToSelector:selector])
-    {
+    if(![self respondsToSelector:selector])return;
+    if(needed)
         JuiceLifecycleAppend(self,[NSString stringWithFormat:
-            @"APP_LIFECYCLE listener_restart=%@ old_fd=%d old_path=%@ owned=%d reused_fd=%d\n",
-            label,oldFD,oldPath?:@"",owned,oldFD>=0&&JuiceDescriptorAlive(oldFD)&&!owned]);
-        ((void(*)(id,SEL))objc_msgSend)(self,selector);
-    }
+            @"APP_LIFECYCLE listener_restart=%@ old_fd=%d old_path=%@ owned=%d reused_fd=%d delegated=1\n",
+            label,oldFD,oldPath?:@"",owned,reused]);
+    /* Socket hardening owns listener identity, cleanup, generation changes and
+       restart under @synchronized(self). Always delegate, even when the
+       preflight looked healthy, so a listener that dies between the check and
+       this call is still repaired and an already-healthy listener is a no-op. */
+    ((void(*)(id,SEL))objc_msgSend)(self,selector);
 }
 
 static void JuiceEnteredBackground(id self)
