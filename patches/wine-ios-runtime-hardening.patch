@@ -431,9 +431,10 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
    }
    else if(msg.type==JUICE_IOS_TEXT&&msg.size&&!(msg.size%sizeof(WCHAR)))
    {
-@@ -145 +331 @@ BOOL ios_ipc_process_input(void)
+@@ -145,2 +331,2 @@ BOOL ios_ipc_process_input(void)
 -   target=input_target?input_target:hwnd;
 +   target=selected_input_target(hwnd);
+   NtUserSetForegroundWindow(hwnd);
 @@ -160,17 +346,13 @@ BOOL ios_ipc_process_input(void)
    }
    else if(msg.type==JUICE_IOS_KEY&&!msg.size&&(msg.flags&0xffffu))
@@ -456,9 +457,10 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
    }
    else if(msg.type==JUICE_IOS_HARDWARE_KEY&&!msg.size&&msg.y>0&&msg.y<=0xff&&
            (msg.flags&(JUICE_IOS_KEY_DOWN|JUICE_IOS_KEY_UP)))
-@@ -178 +360 @@ BOOL ios_ipc_process_input(void)
+@@ -178,2 +360,2 @@ BOOL ios_ipc_process_input(void)
 -   target=input_target?input_target:hwnd;
 +   target=selected_input_target(hwnd);
+   if(msg.flags&JUICE_IOS_KEY_DOWN)
 @@ -195,24 +377,33 @@ BOOL ios_ipc_process_input(void)
    }
    else
