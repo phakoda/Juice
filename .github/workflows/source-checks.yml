@@ -30,7 +30,7 @@ jobs:
           grep -Fq 'SEL stop=NSSelectorFromString(@"juice_socketWillTerminate")' app/JuiceLifecycleHardening.m
           grep -Fq 'retries_cancelled=1' app/JuiceLifecycleHardening.m
           stop_line="$(grep -nF 'SEL stop=NSSelectorFromString(@"juice_socketWillTerminate")' app/JuiceLifecycleHardening.m | cut -d: -f1)"
-          lock_line="$(grep -nF '@synchronized(self)' app/JuiceLifecycleHardening.m | cut -d: -f1)"
+          lock_line="$(grep -nF '    @synchronized(self)' app/JuiceLifecycleHardening.m | cut -d: -f1)"
           test -n "$stop_line" -a -n "$lock_line" -a "$stop_line" -lt "$lock_line" || {
             echo 'Termination must invalidate listener retries before final listener cleanup.' >&2
             exit 3
