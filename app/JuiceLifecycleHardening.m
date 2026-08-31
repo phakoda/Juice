@@ -83,6 +83,8 @@ static void JuiceEnteredForeground(id self)
 
 static void JuiceWillTerminate(id self)
 {
+    SEL stop=NSSelectorFromString(@"juice_socketWillTerminate");
+    if([self respondsToSelector:stop])((void(*)(id,SEL))objc_msgSend)(self,stop);
     @synchronized(self)
     {
         NSArray<NSString *> *fdKeys=@[@"listenFD",@"controlListenFD"];
@@ -93,7 +95,7 @@ static void JuiceWillTerminate(id self)
             BOOL owned=JuiceListenerOwnsFD(fd,path);if(owned)close(fd);
             JuiceLifecycleSetValue(self,fdKeys[i],@(-1));if(path.length)unlink(path.fileSystemRepresentation);
         }
-        JuiceLifecycleAppend(self,@"APP_LIFECYCLE terminate listeners_closed=1 serialized=1\n");
+        JuiceLifecycleAppend(self,@"APP_LIFECYCLE terminate listeners_closed=1 serialized=1 retries_cancelled=1\n");
     }
 }
 
