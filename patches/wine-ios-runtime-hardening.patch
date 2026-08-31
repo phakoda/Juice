@@ -415,7 +415,7 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
      pointer_down=TRUE;
     }
     input.mi.dwFlags=MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE|MOUSEEVENTF_MOVE_NOCOALESCE;
-@@ -135,13 +318,16 @@ BOOL ios_ipc_process_input(void)
+@@ -135,10 +318,13 @@ BOOL ios_ipc_process_input(void)
     if(msg.flags&JUICE_IOS_LEFT_UP) input.mi.dwFlags|=MOUSEEVENTF_LEFTUP;
     if(msg.flags&JUICE_IOS_RIGHT_DOWN) input.mi.dwFlags|=MOUSEEVENTF_RIGHTDOWN;
     if(msg.flags&JUICE_IOS_RIGHT_UP) input.mi.dwFlags|=MOUSEEVENTF_RIGHTUP;
@@ -431,11 +431,10 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
    }
    else if(msg.type==JUICE_IOS_TEXT&&msg.size&&!(msg.size%sizeof(WCHAR)))
    {
+@@ -145 +331 @@ BOOL ios_ipc_process_input(void)
 -   target=input_target?input_target:hwnd;
 +   target=selected_input_target(hwnd);
-   NtUserSetForegroundWindow(hwnd);
-   NtUserSetActiveWindow(hwnd);
-@@ -160,20 +346,16 @@ BOOL ios_ipc_process_input(void)
+@@ -160,17 +346,13 @@ BOOL ios_ipc_process_input(void)
    }
    else if(msg.type==JUICE_IOS_KEY&&!msg.size&&(msg.flags&0xffffu))
    {
@@ -457,10 +456,9 @@ diff --git a/dlls/wineios.drv/ipc.c b/dlls/wineios.drv/ipc.c
    }
    else if(msg.type==JUICE_IOS_HARDWARE_KEY&&!msg.size&&msg.y>0&&msg.y<=0xff&&
            (msg.flags&(JUICE_IOS_KEY_DOWN|JUICE_IOS_KEY_UP)))
-   {
+@@ -178 +360 @@ BOOL ios_ipc_process_input(void)
 -   target=input_target?input_target:hwnd;
 +   target=selected_input_target(hwnd);
-   if(msg.flags&JUICE_IOS_KEY_DOWN)
 @@ -195,24 +377,33 @@ BOOL ios_ipc_process_input(void)
    }
    else
