@@ -25,6 +25,7 @@ static unsigned int ipc_generation;
 static __thread unsigned int queue_generation;
 static HWND input_target;
 static BOOL pointer_down;
+static unsigned int pointer_generation;
 
 struct ipc_surface_generation
 {
@@ -266,7 +267,7 @@ BOOL ios_ipc_process_input(void)
    {
     input.mi.dx=msg.x;
     input.mi.dy=msg.y;
-    if(pointer_down&&input_target&&!down) target=input_target;
+    if(pointer_down&&input_target&&pointer_generation==generation&&!down) target=input_target;
     else
     {
      if(NtUserGetWindowRect(hwnd,&window,NtUserGetDpiForWindow(hwnd)))
@@ -300,6 +301,7 @@ BOOL ios_ipc_process_input(void)
     NtUserSetActiveWindow(hwnd);
     NtUserSetFocus(target);
     input_target=target;
+    pointer_generation=generation;
     pointer_down=TRUE;
    }
    input.mi.dwFlags=MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE|MOUSEEVENTF_MOVE_NOCOALESCE;
