@@ -384,19 +384,30 @@ static void JuiceHardenedReadClient(id self,SEL _cmd,int fd)
 
     JuiceDisplayAppend(self,[NSString stringWithFormat:@"DISPLAY_CLIENT_CLOSED fd=%d pid=%d\n",fd,peerPID]);
     JuiceInvalidateClient(self,fd);
-    close(fd);
+
+    /* A numeric descriptor must not become reusable until every host-side
+     * route has stopped naming it. First remove it from the set consulted by
+     * sendMessage:payload:toFD:, then synchronously invalidate WineWindowState
+     * transport ownership on the main queue. Only after both steps may close()
+     * return the descriptor number to accept(). */
     NSMutableArray *clients=JuiceDisplayValue(self,@"clients");
     if([clients isKindOfClass:NSMutableArray.class])
     {
         @synchronized(clients){[clients removeObject:@(fd)];}
     }
-    if([JuiceDisplayValue(self,@"activeClient") intValue]==fd)
-        JuiceDisplaySetValue(self,@"activeClient",@(-1));
-    dispatch_async(dispatch_get_main_queue(),^{
+    void (^invalidateWindowTransport)(void)=^{
         SEL selector=NSSelectorFromString(@"removeWindowsForClient:");
         if([self respondsToSelector:selector])
             ((void (*)(id,SEL,int))objc_msgSend)(self,selector,fd);
-    });
+        if([JuiceDisplayValue(self,@"activeClient") intValue]==fd)
+            JuiceDisplaySetValue(self,@"activeClient",@(-1));
+    };
+    if(NSThread.isMainThread)invalidateWindowTransport();
+    else dispatch_sync(dispatch_get_main_queue(),invalidateWindowTransport);
+
+    close(fd);
+    JuiceDisplayAppend(self,[NSString stringWithFormat:
+        @"DISPLAY_CLIENT_TEARDOWN fd=%d state_invalidated_before_close=1\n",fd]);
 }
 
 __attribute__((constructor(300)))
