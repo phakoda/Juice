@@ -126,18 +126,21 @@ static useconds_t JuiceAcceptBackoff(unsigned failures,int error)
 }
 static void JuiceListenerEnded(id self,BOOL control,int listener,NSUInteger generation,int error)
 {
-    NSString *fdKey=control?@"controlListenFD":@"listenFD";
-    NSString *pathKey=control?@"controlSocketPath":@"socketPath";
-    if([JuiceSocketValue(self,fdKey) intValue]!=listener||
-       JuiceListenerGeneration(self,control)!=generation)return;
-    NSString *path=JuiceSocketValue(self,pathKey);
-    BOOL owned=JuiceListenerFDMatchesPath(listener,path);
-    if(owned)close(listener);
-    JuiceSocketSetValue(self,fdKey,@(-1));
-    if(path.length)unlink(path.fileSystemRepresentation);
-    JuiceSocketAppend(self,[NSString stringWithFormat:
-        @"SOCKET_LISTENER_ENDED kind=%@ fd=%d generation=%lu errno=%d owned=%d restartable=1\n",
-        control?@"control":@"display",listener,(unsigned long)generation,error,owned]);
+    @synchronized(self)
+    {
+        NSString *fdKey=control?@"controlListenFD":@"listenFD";
+        NSString *pathKey=control?@"controlSocketPath":@"socketPath";
+        if([JuiceSocketValue(self,fdKey) intValue]!=listener||
+           JuiceListenerGeneration(self,control)!=generation)return;
+        NSString *path=JuiceSocketValue(self,pathKey);
+        BOOL owned=JuiceListenerFDMatchesPath(listener,path);
+        if(owned)close(listener);
+        JuiceSocketSetValue(self,fdKey,@(-1));
+        if(path.length)unlink(path.fileSystemRepresentation);
+        JuiceSocketAppend(self,[NSString stringWithFormat:
+            @"SOCKET_LISTENER_ENDED kind=%@ fd=%d generation=%lu errno=%d owned=%d restartable=1 serialized=1\n",
+            control?@"control":@"display",listener,(unsigned long)generation,error,owned]);
+    }
 }
 static void JuiceAcceptLoop(id self,int listener,BOOL control,NSUInteger generation)
 {
@@ -203,42 +206,45 @@ static void JuiceScheduleListenerRestart(id self,BOOL control,NSUInteger generat
 }
 static void JuiceStartListener(id self,BOOL control)
 {
-    NSString *fdKey=control?@"controlListenFD":@"listenFD";
-    NSString *pathKey=control?@"controlSocketPath":@"socketPath";
-    int old=[JuiceSocketValue(self,fdKey) intValue];
-    NSString *oldPath=JuiceSocketValue(self,pathKey);
-    BOOL oldIsListener=JuiceListenerFDMatchesPath(old,oldPath);
-    BOOL pathPresent=oldPath.length&&access(oldPath.fileSystemRepresentation,F_OK)==0;
-    if(oldIsListener&&pathPresent)
+    @synchronized(self)
     {
-        JuiceSocketAppend(self,[NSString stringWithFormat:
-            @"SOCKET_LISTENER_ALREADY_RUNNING kind=%@ fd=%d generation=%lu\n",
-            control?@"control":@"display",old,(unsigned long)JuiceListenerGeneration(self,control)]);
-        return;
-    }
-    if(oldIsListener)close(old);
-    if(old>=0)JuiceSocketSetValue(self,fdKey,@(-1));
-    if(oldPath.length)unlink(oldPath.fileSystemRepresentation);
+        NSString *fdKey=control?@"controlListenFD":@"listenFD";
+        NSString *pathKey=control?@"controlSocketPath":@"socketPath";
+        int old=[JuiceSocketValue(self,fdKey) intValue];
+        NSString *oldPath=JuiceSocketValue(self,pathKey);
+        BOOL oldIsListener=JuiceListenerFDMatchesPath(old,oldPath);
+        BOOL pathPresent=oldPath.length&&access(oldPath.fileSystemRepresentation,F_OK)==0;
+        if(oldIsListener&&pathPresent)
+        {
+            JuiceSocketAppend(self,[NSString stringWithFormat:
+                @"SOCKET_LISTENER_ALREADY_RUNNING kind=%@ fd=%d generation=%lu serialized=1\n",
+                control?@"control":@"display",old,(unsigned long)JuiceListenerGeneration(self,control)]);
+            return;
+        }
+        if(oldIsListener)close(old);
+        if(old>=0)JuiceSocketSetValue(self,fdKey,@(-1));
+        if(oldPath.length)unlink(oldPath.fileSystemRepresentation);
 
-    NSUInteger generation=JuiceBumpListenerGeneration(self,control);
-    NSString *root=JuiceSocketRoot();NSError *error=nil;
-    [NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:&error];
-    int permissionError=0;
-    if(!error&&chmod(root.fileSystemRepresentation,S_IRWXU))permissionError=errno;
-    NSString *path=[root stringByAppendingPathComponent:control?@"control.sock":@"display.sock"];
-    JuiceSocketSetValue(self,pathKey,path);
-    int listener=-1,saved=error?EACCES:permissionError;
-    BOOL ready=!error&&!permissionError&&JuiceBindListener(path,control?4:8,&listener,&saved);
-    JuiceSocketSetValue(self,fdKey,@(listener));
-    JuiceSocketAppend(self,[NSString stringWithFormat:
-        @"%@ path=%@ ready=%d fd=%d generation=%lu errno=%d temp_socket=1 cloexec=1 private_mode=0600 dir_mode=0700\n",
-        control?@"CONTROL_V1_SOCKET":@"DISPLAY_SOCKET",path,ready,listener,
-        (unsigned long)generation,saved]);
-    if(ready)
-        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{
-            JuiceAcceptLoop(self,listener,control,generation);
-        });
-    else JuiceScheduleListenerRestart(self,control,generation,saved);
+        NSUInteger generation=JuiceBumpListenerGeneration(self,control);
+        NSString *root=JuiceSocketRoot();NSError *error=nil;
+        [NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:&error];
+        int permissionError=0;
+        if(!error&&chmod(root.fileSystemRepresentation,S_IRWXU))permissionError=errno;
+        NSString *path=[root stringByAppendingPathComponent:control?@"control.sock":@"display.sock"];
+        JuiceSocketSetValue(self,pathKey,path);
+        int listener=-1,saved=error?EACCES:permissionError;
+        BOOL ready=!error&&!permissionError&&JuiceBindListener(path,control?4:8,&listener,&saved);
+        JuiceSocketSetValue(self,fdKey,@(listener));
+        JuiceSocketAppend(self,[NSString stringWithFormat:
+            @"%@ path=%@ ready=%d fd=%d generation=%lu errno=%d temp_socket=1 cloexec=1 private_mode=0600 dir_mode=0700 serialized=1\n",
+            control?@"CONTROL_V1_SOCKET":@"DISPLAY_SOCKET",path,ready,listener,
+            (unsigned long)generation,saved]);
+        if(ready)
+            dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED,0),^{
+                JuiceAcceptLoop(self,listener,control,generation);
+            });
+        else JuiceScheduleListenerRestart(self,control,generation,saved);
+    }
 }
 static void JuiceStartDisplay(id self,SEL _cmd){(void)_cmd;JuiceStartListener(self,NO);}
 static void JuiceStartControl(id self,SEL _cmd){(void)_cmd;JuiceStartListener(self,YES);}
