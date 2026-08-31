@@ -70,7 +70,9 @@ test "$(grep -Fc 'JuiceSelectInputRoute(self,canvas,hwnd,client);' "$MULTI")" -e
 }
 
 # UIKit must validate/cap payloads and geometry before allocation/compositing,
-# then coalesce producer frames before rendering.
+# then coalesce producer frames before rendering. Client teardown must remove
+# send membership and synchronously invalidate HWND transport state before the
+# descriptor is closed and becomes reusable by accept().
 grep -Fq 'JUICE_DISPLAY_MAX_BYTES' "$DISPLAY"
 grep -Fq 'JUICE_DISPLAY_MAX_DESKTOP_PIXELS' "$DISPLAY"
 grep -Fq 'JUICE_DISPLAY_MAX_WINDOW_PIXELS' "$DISPLAY"
@@ -79,6 +81,16 @@ grep -Fq 'JUICE_DISPLAY_DIRTY' "$DISPLAY"
 grep -Fq 'frame.coalesced++' "$DISPLAY"
 grep -Fq 'frame.generation!=generation' "$DISPLAY"
 grep -Fq 'presentFrameMessage:data:client:peerPID:first:' "$DISPLAY"
+grep -Fq 'state_invalidated_before_close=1' "$DISPLAY"
+grep -Fq 'dispatch_sync(dispatch_get_main_queue(),invalidateWindowTransport)' "$DISPLAY"
+remove_line="$(grep -nF '[clients removeObject:@(fd)]' "$DISPLAY" | tail -1 | cut -d: -f1)"
+sync_line="$(grep -nF 'dispatch_sync(dispatch_get_main_queue(),invalidateWindowTransport)' "$DISPLAY" | tail -1 | cut -d: -f1)"
+close_line="$(grep -nF '    close(fd);' "$DISPLAY" | tail -1 | cut -d: -f1)"
+test -n "$remove_line" -a -n "$sync_line" -a -n "$close_line" \
+  -a "$remove_line" -lt "$sync_line" -a "$sync_line" -lt "$close_line" || {
+  echo "Display client teardown must invalidate membership/state before close(fd)." >&2
+  exit 3
+}
 
 # Host sockets are short/non-inheritable and survive sustained transient accept
 # pressure. Per-listener generations plus SO_ACCEPTCONN/path verification prevent
@@ -100,8 +112,8 @@ grep -Fq '@synchronized(clients)' "$HOSTIO"
 
 # Short transport interruptions retain window geometry but never keep a closed
 # descriptor as an input target. A retained state is tagged with its Wine peer
-# PID and the grace is extended only while that process is actually alive, so a
-# reused host fd cannot make a live reconnect look like the old dead connection.
+# PID and the grace is extended only while that process is actually alive. The
+# retained state fd is -1 until a real WINDOW/FRAME explicitly reclaims it.
 grep -Fq 'DISPLAY_RECONNECT_GRACE' "$RECONNECT"
 grep -Fq 'DISPLAY_RECONNECT_GRACE_END' "$RECONNECT"
 grep -Fq 'DISPLAY_RECONNECT_GRACE_EXTEND' "$RECONNECT"
@@ -112,6 +124,9 @@ grep -Fq 'kill(peerPID,0)' "$RECONNECT"
 grep -Fq 'JuiceReconnectPeerPIDKey' "$RECONNECT"
 grep -Fq 'presentFrameMessage:data:client:peerPID:first:' "$RECONNECT"
 grep -Fq 'peer_liveness=1' "$RECONNECT"
+grep -Fq 'state_fds_cleared=1' "$RECONNECT"
+grep -Fq 'JuiceReconnectSetValue(state,@"clientFD",@(-1))' "$RECONNECT"
+grep -Fq 'clientFD") intValue]!=-1' "$RECONNECT"
 
 # Imported MSI/BAT/CMD/REG files launch through current main's helper/runtime
 # flags, not the obsolete force-translation hook from the old branch.
@@ -130,11 +145,13 @@ fi
 
 # Text input must stay below wineios.drv's 64 KiB message ceiling and prevent a
 # huge clipboard from monopolizing the socket. Clipboard/typed text resolves the
-# selected HWND's current live client instead of trusting a stale active fd.
+# selected HWND's current live client instead of trusting a stale active fd; a
+# tracked-but-disconnected HWND must fail closed rather than fall through.
 grep -Fq '#define JUICE_TEXT_CHUNK_BYTES (60u * 1024u)' "$TEXT_INPUT"
 grep -Fq '#define JUICE_TEXT_MAX_PASTE_BYTES (1024u * 1024u)' "$TEXT_INPUT"
 grep -Fq 'JuiceTextClientForHWND' "$TEXT_INPUT"
 grep -Fq 'JuiceTextFDConnected' "$TEXT_INPUT"
+grep -Fq 'return JuiceTextFDConnected(self,fd)?fd:-1;' "$TEXT_INPUT"
 grep -Fq 'sendMessage:payload:toFD:' "$TEXT_INPUT"
 grep -Fq 'UIPasteboard.generalPasteboard.string' "$TEXT_INPUT"
 grep -Fq 'UIKeyModifierCommand' "$TEXT_INPUT"
@@ -145,8 +162,9 @@ grep -Fq 'msg.size>64u*1024u' "$IPC_C"
 
 # Raw HID and on-screen virtual keys must use the selected live Wine client,
 # never broadcast keyboard traffic to every display socket. Preserve the scan
-# code/extended/repeat fields while resolving the FD from the selected HWND.
+# code/extended/repeat fields and fail closed for a tracked disconnected HWND.
 grep -Fq 'JuiceKeyboardClientForHWND' "$KEYBOARD"
+grep -Fq 'return JuiceKeyboardFDConnected(self,fd)?fd:-1;' "$KEYBOARD"
 grep -Fq 'sendMessage:payload:toFD:' "$KEYBOARD"
 grep -Fq 'JUICE_KEYBOARD_HARDWARE' "$KEYBOARD"
 grep -Fq 'JUICE_KEYBOARD_EXTENDED' "$KEYBOARD"
