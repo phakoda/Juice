@@ -1,0 +1,272 @@
+diff --git a/dlls/wineios.drv/vulkan.m b/dlls/wineios.drv/vulkan.m
+--- a/dlls/wineios.drv/vulkan.m
++++ b/dlls/wineios.drv/vulkan.m
+@@ -15,6 +15,8 @@
+ #include <assert.h>
+ #include <dlfcn.h>
+ #include <pthread.h>
++#include <stdlib.h>
++#include "graphics_policy.h"
+ 
+ #include "ntstatus.h"
+ #include "iosdrv.h"
+@@ -93,50 +95,79 @@
+ static void iosdrv_client_surface_update(struct client_surface *client)
+ {
+     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
+-    LONG width = max(1, client->monitor_rect.right - client->monitor_rect.left);
+-    LONG height = max(1, client->monitor_rect.bottom - client->monitor_rect.top);
+-    CGSize size = CGSizeMake(width, height);
+-
++    int64_t wide_width = (int64_t)client->monitor_rect.right - client->monitor_rect.left;
++    int64_t wide_height = (int64_t)client->monitor_rect.bottom - client->monitor_rect.top;
++    size_t width = wide_width > 0 ? (size_t)wide_width : 1;
++    size_t height = wide_height > 0 ? (size_t)wide_height : 1;
++    struct juice_readback_layout layout;
++    CGSize size;
++
++    if (!juice_readback_layout(width, height, 256, &layout))
++    {
++        WARN("refusing oversized Metal surface for %s\n", debugstr_client_surface(client));
++        return;
++    }
++    size = CGSizeMake(width, height);
+     if (!CGSizeEqualToSize(surface->layer.drawableSize, size))
+     {
+         surface->layer.bounds = CGRectMake(0, 0, width, height);
+         surface->layer.drawableSize = size;
+-        TRACE("resized %s Metal surface to %dx%d\n", debugstr_client_surface(client), width, height);
++        TRACE("resized %s Metal surface to %lux%lu\n", debugstr_client_surface(client),
++              (unsigned long)width, (unsigned long)height);
++    }
++}
++
++static enum juice_readback_format iosdrv_readback_format(MTLPixelFormat format)
++{
++    switch (format)
++    {
++    case MTLPixelFormatBGRA8Unorm: case MTLPixelFormatBGRA8Unorm_sRGB: return JUICE_READBACK_BGRA8;
++    case MTLPixelFormatRGBA8Unorm: case MTLPixelFormatRGBA8Unorm_sRGB: return JUICE_READBACK_RGBA8;
++    case MTLPixelFormatRGB10A2Unorm: return JUICE_READBACK_RGB10A2;
++    case MTLPixelFormatBGR10A2Unorm: return JUICE_READBACK_BGR10A2;
++    default: return JUICE_READBACK_UNSUPPORTED;
+     }
+ }
+ 
+ static BOOL iosdrv_prepare_readback(struct iosdrv_client_surface *surface, NSUInteger width, NSUInteger height)
+ {
+-    NSUInteger stride = (width * 4u + 255u) & ~255u;
+-    NSUInteger size;
+-
+-    if (height && stride > NSUIntegerMax / height) return FALSE;
+-    size = stride * height;
+-    if (surface->readback && surface->readback_size >= size && surface->readback_stride == stride) return TRUE;
+-
++    struct juice_readback_layout layout;
++    id<MTLBuffer> replacement;
++    if (!juice_readback_layout(width, height, 256, &layout)) return FALSE;
++    if (surface->readback && surface->readback_size >= layout.bytes && surface->readback_stride == layout.stride) return TRUE;
++
++    /* Allocation failure must not destroy a reusable previous buffer. */
++    replacement = [surface->device newBufferWithLength:layout.bytes options:MTLResourceStorageModeShared];
++    if (!replacement) return FALSE;
+     [surface->readback release];
+-    surface->readback = [surface->device newBufferWithLength:size options:MTLResourceStorageModeShared];
+-    surface->readback_size = surface->readback ? size : 0;
+-    surface->readback_stride = surface->readback ? stride : 0;
+-    return surface->readback != nil;
+-}
+-
+-static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc)
++    surface->readback = replacement;
++    surface->readback_size = layout.bytes;
++    surface->readback_stride = layout.stride;
++    return TRUE;
++}
++
++static void iosdrv_present_readback(struct client_surface *client)
+ {
+     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
+     id<CAMetalDrawable> drawable = [surface->layer copyLastDrawable];
+     id<MTLTexture> texture = drawable.texture;
+     id<MTLCommandBuffer> command;
+     id<MTLBlitCommandEncoder> blit;
++    enum juice_readback_format format;
+     NSUInteger width, height;
+     RECT dirty;
+ 
+-    (void)hdc;
+     if (!drawable || !texture) goto done;
+     width = texture.width;
+     height = texture.height;
+-    if (!width || !height || !iosdrv_prepare_readback(surface, width, height)) goto done;
+-
++    format = iosdrv_readback_format(texture.pixelFormat);
++    if (format == JUICE_READBACK_UNSUPPORTED || texture.sampleCount != 1 ||
++        texture.textureType != MTLTextureType2D || texture.framebufferOnly)
++    {
++        WARN("unsupported Metal readback format/type for %s\n", debugstr_client_surface(client));
++        goto done;
++    }
++    if (!iosdrv_prepare_readback(surface, width, height)) goto done;
+     command = [surface->queue commandBuffer];
+     blit = [command blitCommandEncoder];
+     if (!command || !blit) goto done;
+@@ -147,6 +178,8 @@
+     destinationBytesPerImage:surface->readback_stride * height];
+     [blit endEncoding];
+     [command commit];
++    /* Preserve synchronous readback until producer-queue synchronization is
++     * available; completion on this queue is not a cross-queue render fence. */
+     [command waitUntilCompleted];
+     if (command.status != MTLCommandBufferStatusCompleted)
+     {
+@@ -154,17 +187,30 @@
+             [[command.error description] UTF8String]);
+         goto done;
+     }
++    if (!juice_readback_to_bgra(surface->readback.contents, surface->readback_size, width, height,
++                                surface->readback_stride, format)) goto done;
+ 
+     SetRect(&dirty, 0, 0, (INT)width, (INT)height);
+     ios_ipc_present(client->hwnd, surface->readback.contents, (unsigned int)width,
+                     (unsigned int)height, (unsigned int)surface->readback_stride, &dirty);
+-    if (surface->present_count++ < 3)
++    if (surface->present_count < 3)
+         fprintf(stderr, "JUICE_MOLTENVK_PRESENT_OK hwnd=%p width=%lu height=%lu stride=%lu frame=%u\n",
+                 client->hwnd, (unsigned long)width, (unsigned long)height,
+-                (unsigned long)surface->readback_stride, surface->present_count);
+-
++                (unsigned long)surface->readback_stride, ++surface->present_count);
+ done:
+     [drawable release];
++}
++
++static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc)
++{
++    struct iosdrv_client_surface *surface = impl_from_client_surface(client);
++    (void)hdc;
++    /* Win32 threads need not have a Cocoa run loop. Drain temporary Metal
++     * objects per frame, and serialize buffer allocation/conversion/IPC reuse. */
++    @autoreleasepool
++    {
++        @synchronized(surface->queue) { iosdrv_present_readback(client); }
++    }
+ }
+ 
+ static const struct client_surface_funcs iosdrv_client_surface_funcs =
+@@ -227,9 +273,18 @@
+ static VkBool32 iosdrv_get_physical_device_presentation_support(struct vulkan_physical_device *device,
+                                                                  uint32_t queue)
+ {
+-    (void)device;
+-    (void)queue;
+-    return VK_TRUE;
++    VkQueueFamilyProperties *families;
++    uint32_t count = 0, capacity;
++    VkBool32 supported;
++    if (!device || !device->instance || !device->instance->p_vkGetPhysicalDeviceQueueFamilyProperties) return VK_FALSE;
++    device->instance->p_vkGetPhysicalDeviceQueueFamilyProperties(device->host.physical_device, &count, NULL);
++    if (!count || count > 4096 || queue >= count) return VK_FALSE;
++    capacity = count;
++    if (!(families = calloc(capacity, sizeof(*families)))) return VK_FALSE;
++    device->instance->p_vkGetPhysicalDeviceQueueFamilyProperties(device->host.physical_device, &count, families);
++    supported = queue < count && queue < capacity && families[queue].queueCount != 0;
++    free(families);
++    return supported;
+ }
+ 
+ static void iosdrv_map_instance_extensions(struct vulkan_instance_extensions *extensions)
+@@ -253,6 +308,8 @@
+ 
+ UINT iosdrv_VulkanInit(UINT version, void *vulkan_handle, const struct vulkan_driver_funcs **driver)
+ {
++    if (!driver) return STATUS_INVALID_PARAMETER;
++    *driver = NULL;
+     if (version != WINE_VULKAN_DRIVER_VERSION)
+     {
+         ERR("version mismatch, win32u wants %u but wineios has %u\n", version,
+diff --git a/dlls/wineios.drv/graphics_policy.h b/dlls/wineios.drv/graphics_policy.h
+new file mode 100644
+--- /dev/null
++++ b/dlls/wineios.drv/graphics_policy.h
+@@ -0,0 +1,79 @@
++/* Software transport policy for Metal surfaces. LGPL-2.1-or-later. */
++#ifndef JUICE_GRAPHICS_POLICY_H
++#define JUICE_GRAPHICS_POLICY_H
++#include <stdbool.h>
++#include <stddef.h>
++#include <stdint.h>
++#include <string.h>
++
++/* Match the UIKit receiver's per-frame limits before asking Metal to allocate. */
++#define JUICE_GRAPHICS_MAX_DIMENSION 8192u
++#define JUICE_GRAPHICS_MAX_PIXELS (4096u * 4096u)
++#define JUICE_GRAPHICS_MAX_BYTES (128u * 1024u * 1024u)
++
++enum juice_readback_format {
++    JUICE_READBACK_UNSUPPORTED,
++    JUICE_READBACK_BGRA8,
++    JUICE_READBACK_RGBA8,
++    JUICE_READBACK_RGB10A2,
++    JUICE_READBACK_BGR10A2
++};
++struct juice_readback_layout { size_t stride, bytes; };
++
++static inline bool juice_readback_layout(size_t width, size_t height, size_t alignment,
++                                         struct juice_readback_layout *out)
++{
++    size_t row, stride;
++    if (!out) return false;
++    *out = (struct juice_readback_layout){0, 0};
++    if (!width || !height || width > JUICE_GRAPHICS_MAX_DIMENSION || height > JUICE_GRAPHICS_MAX_DIMENSION ||
++        width > JUICE_GRAPHICS_MAX_PIXELS / height || !alignment || (alignment & (alignment - 1))) return false;
++    row = width * 4u;
++    if (alignment - 1 > SIZE_MAX - row) return false;
++    stride = (row + alignment - 1) & ~(alignment - 1);
++    if (stride > JUICE_GRAPHICS_MAX_BYTES / height) return false;
++    out->stride = stride; out->bytes = stride * height;
++    return true;
++}
++
++static inline uint8_t juice_unorm10_to_unorm8(uint32_t value)
++{
++    return (uint8_t)((value * 255u + 511u) / 1023u);
++}
++
++/* In-place conversion after GPU completion. All supported formats use 4 B/px.
++ * This is SDR quantization/channel ordering, NOT HDR tone mapping. Unsupported
++ * formats fail without touching the buffer. Padding is never sent uninitialized.
++ * A completed frame must be blitted again before calling this a second time. */
++static inline bool juice_readback_to_bgra(void *data, size_t capacity, size_t width,
++                                        size_t height, size_t stride, enum juice_readback_format format)
++{
++    struct juice_readback_layout tight;
++    if (!data || format < JUICE_READBACK_BGRA8 || format > JUICE_READBACK_BGR10A2 ||
++        !juice_readback_layout(width, height, 1, &tight) || stride < tight.stride ||
++        stride > JUICE_GRAPHICS_MAX_BYTES / height || stride > capacity / height) return false;
++    for (size_t y = 0; y < height; ++y) {
++        uint8_t *row = (uint8_t *)data + y * stride;
++        if (format == JUICE_READBACK_RGBA8) {
++            for (size_t x = 0; x < width; ++x) {
++                uint8_t r = row[x * 4];
++                row[x * 4] = row[x * 4 + 2]; row[x * 4 + 2] = r;
++            }
++        } else if (format == JUICE_READBACK_RGB10A2 || format == JUICE_READBACK_BGR10A2) {
++            for (size_t x = 0; x < width; ++x) {
++                uint8_t *pixel = row + x * 4;
++                uint32_t packed = (uint32_t)pixel[0] | (uint32_t)pixel[1] << 8 |
++                                  (uint32_t)pixel[2] << 16 | (uint32_t)pixel[3] << 24;
++                uint8_t low = juice_unorm10_to_unorm8(packed & 1023u);
++                uint8_t high = juice_unorm10_to_unorm8((packed >> 20) & 1023u);
++                pixel[0] = format == JUICE_READBACK_RGB10A2 ? high : low;
++                pixel[1] = juice_unorm10_to_unorm8((packed >> 10) & 1023u);
++                pixel[2] = format == JUICE_READBACK_RGB10A2 ? low : high;
++                pixel[3] = (uint8_t)((packed >> 30) * 85u);
++            }
++        }
++        memset(row + tight.stride, 0, stride - tight.stride);
++    }
++    return true;
++}
++#endif

@@ -9,6 +9,7 @@ HANDOFF_PATCH="$ROOT/patches/wine-stikdebug-handoff.patch"
 # input. Incremental trees are accepted only as a complete ordered prefix.
 applied="$(python3 "$ROOT/scripts/verify-patch-stack.py" "$SOURCE" \
   "$ROOT/patches/wine-ios.patch" "$ROOT/patches/wine-ios-runtime-hardening.patch" \
+  "$ROOT/patches/wine-ios-graphics.patch" \
   --optional "$PATCH" "$LIFECYCLE_PATCH" "$HANDOFF_PATCH" --applied-count)"
 patches=("$PATCH" "$LIFECYCLE_PATCH" "$HANDOFF_PATCH")
 apply_root="$SOURCE"

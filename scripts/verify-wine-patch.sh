@@ -4,11 +4,13 @@ set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 PATCH="$ROOT/patches/wine-ios.patch"
 HARDENING_PATCH="$ROOT/patches/wine-ios-runtime-hardening.patch"
+GRAPHICS_PATCH="$ROOT/patches/wine-ios-graphics.patch"
 BASE_FILE="$ROOT/config/wine-base.txt"
 IPC_C="$ROOT/wine/dlls/wineios.drv/ipc.c"
 
 test -s "$PATCH" || { echo "Missing Wine patch: $PATCH" >&2; exit 2; }
 test -s "$HARDENING_PATCH" || { echo "Missing Wine runtime hardening patch: $HARDENING_PATCH" >&2; exit 2; }
+test -s "$GRAPHICS_PATCH" || { echo "Missing Wine graphics patch: $GRAPHICS_PATCH" >&2; exit 2; }
 test -s "$BASE_FILE" || { echo "Missing Wine base revision: $BASE_FILE" >&2; exit 2; }
 test -s "$IPC_C" || { echo "Missing Wine IPC source: $IPC_C" >&2; exit 2; }
 base="$(tr -d '[:space:]' < "$BASE_FILE")"
@@ -20,7 +22,7 @@ esac
 
 # Peel the overlay and then the COMPLETE base patch in an isolated copy. Never
 # mutate live build inputs or exclude files changed by an incremental layer.
-python3 "$ROOT/scripts/verify-patch-stack.py" "$ROOT/wine" "$PATCH" "$HARDENING_PATCH" --optional \
+python3 "$ROOT/scripts/verify-patch-stack.py" "$ROOT/wine" "$PATCH" "$HARDENING_PATCH" "$GRAPHICS_PATCH" --optional \
   "$ROOT/patches/wine-stikdebug-jit.patch" "$ROOT/patches/wine-stikdebug-lifecycle.patch" \
   "$ROOT/patches/wine-stikdebug-handoff.patch"
 

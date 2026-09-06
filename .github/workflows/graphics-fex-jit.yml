@@ -27,4 +27,28 @@ jobs:
         with:
           persist-credentials: false
       - run: bash scripts/test-fex-codegen-host.sh
+      - run: bash scripts/test-graphics-policy-host.sh
       - run: bash scripts/test-jit-host.sh
+  iphoneos-driver:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: brew install bison flex make
+      - name: Compile actual Wine iOS graphics and JIT objects
+        run: |
+          export PATH="$(brew --prefix bison)/bin:$(brew --prefix flex)/bin:$(brew --prefix make)/libexec/gnubin:$PATH"
+          bash scripts/test-wine-graphics-ios-compile.sh
+      - name: Preserve compiler diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wine-ios-graphics-${{ github.sha }}
+          path: |
+            build/wine-compile-logs/
+            build/wine-tools-macos/config.log
+            build/wine-ios-validation/config.log
+          retention-days: 7
+          if-no-files-found: warn
