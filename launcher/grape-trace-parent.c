@@ -84,6 +84,46 @@ static void prepend_bundle_libraries(const char *program)
     free(value);
 }
 
+/* UIKit must never chdir() its process while background queues are active.
+ * JUICE_LAUNCH_CWD is therefore consumed here, in the dedicated trace helper,
+ * before it creates Wine.  The variable is removed so Windows descendants do
+ * not inherit an internal host-launch setting. */
+static int apply_launch_directory(void)
+{
+    const char *directory = getenv("JUICE_LAUNCH_CWD");
+    char *copy;
+
+    if (!directory || !*directory)
+        return 0;
+
+    copy = strdup(directory);
+    if (!copy)
+    {
+        fprintf(stderr, "[JuiceWine parent] launch cwd allocation failed\n");
+        return -1;
+    }
+
+    unsetenv("JUICE_LAUNCH_CWD");
+    if (chdir(copy))
+    {
+        int saved_errno = errno;
+        fprintf(
+            stderr,
+            "[JuiceWine parent] launch cwd failed path=%s errno=%d (%s)\n",
+            copy,
+            saved_errno,
+            strerror(saved_errno)
+        );
+        free(copy);
+        errno = saved_errno;
+        return -1;
+    }
+
+    fprintf(stderr, "[JuiceWine parent] launch cwd=%s\n", copy);
+    free(copy);
+    return 0;
+}
+
 static int ptrace_continue(
     pid_t child,
     int signal_number
@@ -173,6 +213,9 @@ int main(int argc, char **argv)
 
         return 64;
     }
+
+    if (apply_launch_directory())
+        return 70;
 
     prepend_bundle_libraries(argv[1]);
 
