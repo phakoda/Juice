@@ -10,8 +10,11 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Verify source tree and Wine patch
         run: make verify
       - name: Verify StikDebug JIT integration
@@ -19,7 +22,7 @@ jobs:
 
   app-build:
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,23 +31,3 @@ jobs:
         run: make app
       - name: Compile launcher helpers for iPhoneOS
         run: make launchers
-
-  review-inputs:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Archive tracked review inputs
-        run: |
-          git archive --format=tar.gz --output="$RUNNER_TEMP/juice-review-inputs.tar.gz" HEAD \
-            app launcher scripts config patches .github Makefile README.md \
-            wine/dlls/wineios.drv wine/dlls/ntdll
-      - uses: actions/upload-artifact@v4
-        with:
-          name: juice-review-inputs
-          path: ${{ runner.temp }}/juice-review-inputs.tar.gz
-          retention-days: 1
-          if-no-files-found: error
