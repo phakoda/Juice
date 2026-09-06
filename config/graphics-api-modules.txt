@@ -21,8 +21,6 @@ d3dcompiler_40
 d3dcompiler_41
 d3dcompiler_42
 d3dcompiler_43
-d3dcompiler_44
-d3dcompiler_45
 d3dcompiler_46
 d3dcompiler_47
 d3drm
@@ -74,6 +72,8 @@ msvcp120
 msvcp140
 msvcp140_1
 msvcp140_2
+msvcp140_atomic_wait
+msvcp140_codecvt_ids
 msvcp60
 msvcp70
 msvcp71

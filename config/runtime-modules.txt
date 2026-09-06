@@ -119,8 +119,7 @@ programs/wineboot/aarch64-windows/wineboot.exe
 programs/winedevice/aarch64-windows/winedevice.exe
 programs/winemine/aarch64-windows/winemine.exe
 
-# Additional Wine builtin graphics and C/C++ API families. Module presence is
-# not a feature-level promise; see config/graphics-api-modules.txt and its audit.
+# Legacy Direct3D, DirectDraw and composition entry points.
 dlls/d3d8/aarch64-windows/d3d8.dll
 dlls/d3d9/aarch64-windows/d3d9.dll
 dlls/d3d10/aarch64-windows/d3d10.dll
@@ -129,6 +128,8 @@ dlls/d3dxof/aarch64-windows/d3dxof.dll
 dlls/ddraw/aarch64-windows/ddraw.dll
 dlls/dcomp/aarch64-windows/dcomp.dll
 dlls/dwmapi/aarch64-windows/dwmapi.dll
+
+# Wine shader compiler compatibility versions.
 dlls/d3dcompiler_33/aarch64-windows/d3dcompiler_33.dll
 dlls/d3dcompiler_34/aarch64-windows/d3dcompiler_34.dll
 dlls/d3dcompiler_35/aarch64-windows/d3dcompiler_35.dll
@@ -140,9 +141,9 @@ dlls/d3dcompiler_40/aarch64-windows/d3dcompiler_40.dll
 dlls/d3dcompiler_41/aarch64-windows/d3dcompiler_41.dll
 dlls/d3dcompiler_42/aarch64-windows/d3dcompiler_42.dll
 dlls/d3dcompiler_43/aarch64-windows/d3dcompiler_43.dll
-dlls/d3dcompiler_44/aarch64-windows/d3dcompiler_44.dll
-dlls/d3dcompiler_45/aarch64-windows/d3dcompiler_45.dll
 dlls/d3dcompiler_46/aarch64-windows/d3dcompiler_46.dll
+
+# Wine D3DX utility compatibility versions.
 dlls/d3dx9_24/aarch64-windows/d3dx9_24.dll
 dlls/d3dx9_25/aarch64-windows/d3dx9_25.dll
 dlls/d3dx9_26/aarch64-windows/d3dx9_26.dll
@@ -176,6 +177,8 @@ dlls/d3dx10_42/aarch64-windows/d3dx10_42.dll
 dlls/d3dx10_43/aarch64-windows/d3dx10_43.dll
 dlls/d3dx11_42/aarch64-windows/d3dx11_42.dll
 dlls/d3dx11_43/aarch64-windows/d3dx11_43.dll
+
+# Imaging, text and property-system APIs.
 dlls/gdiplus/aarch64-windows/gdiplus.dll
 dlls/msimg32/aarch64-windows/msimg32.dll
 dlls/windowscodecs/aarch64-windows/windowscodecs.dll
@@ -183,6 +186,8 @@ dlls/windowscodecsext/aarch64-windows/windowscodecsext.dll
 dlls/propsys/aarch64-windows/propsys.dll
 dlls/usp10/aarch64-windows/usp10.dll
 dlls/mscms/aarch64-windows/mscms.dll
+
+# Wine C and C++ runtime compatibility libraries.
 dlls/msvcr70/aarch64-windows/msvcr70.dll
 dlls/msvcr71/aarch64-windows/msvcr71.dll
 dlls/msvcr80/aarch64-windows/msvcr80.dll
@@ -204,3 +209,10 @@ dlls/msvcp140_2/aarch64-windows/msvcp140_2.dll
 dlls/vcruntime140/aarch64-windows/vcruntime140.dll
 dlls/vcruntime140_1/aarch64-windows/vcruntime140_1.dll
 dlls/concrt140/aarch64-windows/concrt140.dll
+
+# Builtin DLL availability is not a claim of complete API or GPU support.
+# Codec features still depend on configured PNG/JPEG/TIFF/LCMS PE libraries.
+
+# Modern C++ synchronization and locale identifier helpers.
+dlls/msvcp140_atomic_wait/aarch64-windows/msvcp140_atomic_wait.dll
+dlls/msvcp140_codecvt_ids/aarch64-windows/msvcp140_codecvt_ids.dll
