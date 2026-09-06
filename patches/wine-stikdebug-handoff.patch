@@ -1,0 +1,237 @@
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -1,5 +1,13 @@
+             else
+             {
++                const char *external = getenv( "JUICE_EXTERNAL_DEBUG_EXEC" );
++                if (external && !strcmp( external, "1" ))
++                {
++                    /* There is no ptrace-parent event loop in exec mode.
++                     * Lost debug permission must fail, never SIGSTOP forever. */
++                    fprintf( stderr, "[JuiceWine] external debugger permission lost across exec\n" );
++                    exit(1);
++                }
+                 errno = 0;
+ 
+                 if (ptrace( PT_TRACE_ME, 0, NULL, 0 ))
+@@ -72,6 +80,14 @@
+ /* Once FEX has initialized its preallocated dual-map arena, no caller may
+  * create another executable view through the breakpoint protocol. */
+ static BOOL juice_jit_allocation_sealed;
++static pthread_mutex_t juice_jit_mutex = PTHREAD_MUTEX_INITIALIZER;
++struct juice_jit_record
++{
++    struct juice_jit_record *next;
++    void *write_address, *exec_address;
++    SIZE_T size;
++};
++static struct juice_jit_record *juice_jit_records;
+ 
+ static BOOL juice_invalid_breakpoint_mapping( const void *address )
+ {
+@@ -101,11 +117,19 @@
+     return status;
+ }
+ 
+-static BOOL juice_unregister_jit_view_locked( void *address, SIZE_T size )
+-{
+-    struct file_view *view = find_view( address, size );
+-    if (!view || view->base != address || view->size != size || !(view->protect & VPROT_JUICE_JIT)) return FALSE;
+-    delete_view( view );
++/* Called only after validating the complete allocation pair under jit_mutex.
++ * Prevalidate both views before deleting either one: an invalid free must not
++ * partially unregister a still-live executable mapping. */
++static BOOL juice_unregister_jit_pair_locked( struct juice_jit_record *record )
++{
++    struct file_view *write = find_view( record->write_address, record->size );
++    struct file_view *exec = find_view( record->exec_address, record->size );
++    if (!write || !exec || write == exec ||
++        write->base != record->write_address || exec->base != record->exec_address ||
++        write->size != record->size || exec->size != record->size ||
++        !(write->protect & VPROT_JUICE_JIT) || !(exec->protect & VPROT_JUICE_JIT)) return FALSE;
++    delete_view( write );
++    delete_view( exec );
+     return TRUE;
+ }
+ #endif
+@@ -127,12 +151,20 @@
+     void *exec;
+     kern_return_t result;
+     NTSTATUS status;
++    struct juice_jit_record *record;
+ 
+     if (!write_address || !exec_address || !size || !juice_stikdebug_enabled()) return STATUS_INVALID_PARAMETER;
++    if (size > ~(SIZE_T)0 - host_page_mask) return STATUS_INVALID_PARAMETER;
++    *write_address = NULL;
++    *exec_address = NULL;
++    record = malloc( sizeof(*record) );
++    if (!record) return STATUS_NO_MEMORY;
++    pthread_mutex_lock( &juice_jit_mutex );
+     if (juice_jit_allocation_sealed)
+     {
+         WARN( "refusing StikDebug executable allocation after JIT detach (size=%lx)\n", (unsigned long)size );
+-        return STATUS_ACCESS_DENIED;
++        status = STATUS_ACCESS_DENIED;
++        goto failed;
+     }
+     *write_address = NULL;
+     *exec_address = NULL;
+@@ -145,12 +177,12 @@
+          * legacy sentinel. */
+         exec = juice_break_mark_jit_mapping( size );
+         if (juice_invalid_breakpoint_mapping( exec )) exec = juice_break_get_jit_mapping( NULL, size );
+-        if (juice_invalid_breakpoint_mapping( exec )) return STATUS_NO_MEMORY;
++        if (juice_invalid_breakpoint_mapping( exec )) { status = STATUS_NO_MEMORY; goto failed; }
+     }
+     else
+     {
+         exec = mmap( NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE | MAP_ANON, -1, 0 );
+-        if (exec == MAP_FAILED) return STATUS_NO_MEMORY;
++        if (exec == MAP_FAILED) { status = STATUS_NO_MEMORY; goto failed; }
+     }
+ 
+     result = vm_remap( mach_task_self(), &write, size, 0, VM_FLAGS_ANYWHERE,
+@@ -159,7 +191,8 @@
+     if (result != KERN_SUCCESS)
+     {
+         vm_deallocate( mach_task_self(), (vm_address_t)exec, size );
+-        return STATUS_NO_MEMORY;
++        status = STATUS_NO_MEMORY;
++        goto failed;
+     }
+ 
+     result = vm_protect( mach_task_self(), write, size, FALSE, VM_PROT_READ | VM_PROT_WRITE );
+@@ -167,7 +200,8 @@
+     {
+         vm_deallocate( mach_task_self(), write, size );
+         vm_deallocate( mach_task_self(), (vm_address_t)exec, size );
+-        return STATUS_UNSUCCESSFUL;
++        status = STATUS_UNSUCCESSFUL;
++        goto failed;
+     }
+ 
+     status = juice_register_jit_views( (void *)write, exec, size );
+@@ -175,13 +209,55 @@
+     {
+         vm_deallocate( mach_task_self(), write, size );
+         vm_deallocate( mach_task_self(), (vm_address_t)exec, size );
+-        return status;
+-    }
+-
++        goto failed;
++    }
++
++    record->write_address = (void *)write;
++    record->exec_address = exec;
++    record->size = size;
++    record->next = juice_jit_records;
++    juice_jit_records = record;
+     *write_address = (void *)write;
+     *exec_address = exec;
+     TRACE( "StikDebug dual JIT mapping write=%p exec=%p size=%lx txm=%u\n",
+            *write_address, *exec_address, (unsigned long)size, juice_stikdebug_txm_enabled() );
++    pthread_mutex_unlock( &juice_jit_mutex );
++    return STATUS_SUCCESS;
++failed:
++    pthread_mutex_unlock( &juice_jit_mutex );
++    free( record );
++    return status;
++#else
++    return STATUS_NOT_SUPPORTED;
++#endif
++}
++
++/***********************************************************************
++ *             NtWineFreeJitMemory   (NTDLL.@)
++ */
++NTSTATUS WINAPI NtWineFreeJitMemory( void *write_address, void *exec_address, SIZE_T size )
++{
++#if defined(__APPLE__) && defined(__aarch64__)
++    struct juice_jit_record **cursor, *record;
++    sigset_t sigset;
++    BOOL valid;
++
++    if (!write_address || !exec_address || !size || size > ~(SIZE_T)0 - host_page_mask)
++        return STATUS_INVALID_PARAMETER;
++    size = ROUND_SIZE( 0, size, host_page_mask );
++    pthread_mutex_lock( &juice_jit_mutex );
++    for (cursor = &juice_jit_records; (record = *cursor); cursor = &record->next)
++        if (record->write_address == write_address && record->exec_address == exec_address && record->size == size) break;
++    if (!record) { pthread_mutex_unlock( &juice_jit_mutex ); return STATUS_INVALID_ADDRESS; }
++    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
++    valid = juice_unregister_jit_pair_locked( record );
++    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
++    if (!valid) { pthread_mutex_unlock( &juice_jit_mutex ); return STATUS_INVALID_ADDRESS; }
++    *cursor = record->next;
++    vm_deallocate( mach_task_self(), (vm_address_t)write_address, size );
++    vm_deallocate( mach_task_self(), (vm_address_t)exec_address, size );
++    free( record );
++    pthread_mutex_unlock( &juice_jit_mutex );
+     return STATUS_SUCCESS;
+ #else
+     return STATUS_NOT_SUPPORTED;
+@@ -189,41 +265,36 @@
+ }
+ 
+ /***********************************************************************
+- *             NtWineFreeJitMemory   (NTDLL.@)
+- */
+-NTSTATUS WINAPI NtWineFreeJitMemory( void *write_address, void *exec_address, SIZE_T size )
+-{
+-#if defined(__APPLE__) && defined(__aarch64__)
+-    BOOL write_registered, exec_registered;
+-    sigset_t sigset;
+-
+-    if (!write_address || !exec_address || !size) return STATUS_INVALID_PARAMETER;
+-    size = ROUND_SIZE( 0, size, host_page_mask );
+-
+-    server_enter_uninterrupted_section( &virtual_mutex, &sigset );
+-    write_registered = juice_unregister_jit_view_locked( write_address, size );
+-    exec_registered = juice_unregister_jit_view_locked( exec_address, size );
+-    server_leave_uninterrupted_section( &virtual_mutex, &sigset );
+-    if (!write_registered || !exec_registered) return STATUS_INVALID_ADDRESS;
+-
+-    vm_deallocate( mach_task_self(), (vm_address_t)write_address, size );
+-    vm_deallocate( mach_task_self(), (vm_address_t)exec_address, size );
+-    return STATUS_SUCCESS;
+-#else
+-    return STATUS_NOT_SUPPORTED;
+-#endif
+-}
+-
+-/***********************************************************************
+  *             NtWineDetachJitDebugger   (NTDLL.@)
+  */
+ NTSTATUS WINAPI NtWineDetachJitDebugger(void)
+ {
+ #if defined(__APPLE__) && defined(__aarch64__)
+     if (!juice_stikdebug_enabled()) return STATUS_INVALID_PARAMETER;
+-    if (juice_jit_allocation_sealed) return STATUS_SUCCESS;
++    pthread_mutex_lock( &juice_jit_mutex );
++    if (juice_jit_allocation_sealed) { pthread_mutex_unlock( &juice_jit_mutex ); return STATUS_SUCCESS; }
++    if (!juice_jit_records) { pthread_mutex_unlock( &juice_jit_mutex ); return STATUS_INVALID_PARAMETER; }
+     if (juice_stikdebug_txm_enabled()) juice_break_jit_detach();
+     juice_jit_allocation_sealed = TRUE;
++    pthread_mutex_unlock( &juice_jit_mutex );
++    /* A launch-scoped acknowledgement, not authentication of a third-party
++     * debugger script. It is emitted only after arena allocation and detach
++     * return. The host also verifies the unreaped PID and launch generation. */
++    {
++        const char *nonce = getenv( "JUICE_STIKDEBUG_SESSION" );
++        char line[160];
++        unsigned int i;
++        BOOL valid = nonce && strlen(nonce) == 36;
++        for (i = 0; valid && i < 36; i++)
++            if (!((nonce[i] >= '0' && nonce[i] <= '9') || (nonce[i] >= 'A' && nonce[i] <= 'F') ||
++                  (nonce[i] >= 'a' && nonce[i] <= 'f') || nonce[i] == '-')) valid = FALSE;
++        if (valid)
++        {
++            int length = snprintf( line, sizeof(line), "JUICE_JIT_RUNTIME_READY pid=%d session=%s\n", getpid(), nonce );
++            ssize_t written;
++            do { written = write( STDERR_FILENO, line, length ); } while (written < 0 && errno == EINTR);
++        }
++    }
+     TRACE( "StikDebug JIT allocation sealed after debugger detach\n" );
+     return STATUS_SUCCESS;
+ #else

@@ -1,12 +1,15 @@
 #import <UIKit/UIKit.h>
-#import <Foundation/Foundation.h>
 #import <CoreFoundation/CoreFoundation.h>
-#import <spawn.h>
 #import <dlfcn.h>
 #import <signal.h>
 #import <unistd.h>
 #import <errno.h>
 #import <string.h>
+#import <mach/mach_time.h>
+#import <objc/message.h>
+#import <objc/runtime.h>
+#import "JuiceStikDebugJIT.h"
+#import "JuiceJITState.h"
 
 #ifndef CS_OPS_STATUS
 #define CS_OPS_STATUS 0u
@@ -15,39 +18,15 @@
 #define CS_DEBUGGED 0x10000000u
 #endif
 #ifndef POSIX_SPAWN_START_SUSPENDED
-/* Darwin's spawn extension is present on supported devices even when an older
- * public SDK does not expose the constant in spawn.h. */
 #define POSIX_SPAWN_START_SUSPENDED 0x0080
 #endif
 
-/*
- * StikDebug JIT coordinator.
- *
- * Juice's JIT lives in the Wine/FEX process, not the UIKit host. Interpose the
- * one posix_spawn used for the Grape trace parent, start that exact process
- * suspended, ask StikDebug to attach to its PID with the universal script, and
- * resume only after the kernel reports CS_DEBUGGED. This preserves the PID
- * across the trace-parent exec chain and prevents FEX's breakpoint protocol
- * from running before StikDebug's script is actually attached.
- */
-
 typedef int (*JuicePosixSpawnFn)(pid_t *, const char *,
-                                 const posix_spawn_file_actions_t *,
-                                 const posix_spawnattr_t *,
-                                 char *const [], char *const []);
+    const posix_spawn_file_actions_t *, const posix_spawnattr_t *,
+    char *const [], char *const []);
 typedef CFTypeRef (*JuiceSecTaskCreateFromSelfFn)(CFAllocatorRef);
 typedef CFTypeRef (*JuiceSecTaskCopyValueForEntitlementFn)(CFTypeRef, CFStringRef, CFErrorRef *);
 typedef int (*JuiceCSOpsFn)(pid_t, unsigned int, void *, size_t);
-
-static JuicePosixSpawnFn JuiceRealPosixSpawn(void)
-{
-    static JuicePosixSpawnFn function;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        function = (JuicePosixSpawnFn)dlsym(RTLD_NEXT, "posix_spawn");
-    });
-    return function;
-}
 
 static BOOL JuiceHasEnvironmentEntry(char *const envp[], const char *entry)
 {
@@ -76,8 +55,8 @@ static BOOL JuiceStikDebugDisabled(char *const envp[])
 }
 
 /* MeloNX detects TXM from the same preboot firmware marker. Keep that exact
- * signal as the primary check; only use the OS-major fallback if preboot is not
- * readable from the current installation. */
+ * signal as the primary check; require the protected-memory protocol if preboot is not
+ * readable. OS-major version alone does not identify the SoC security mode. */
 static NSString *JuiceFirstEntryOfLength(NSString *directory, NSUInteger length)
 {
     NSError *error = nil;
@@ -88,7 +67,7 @@ static NSString *JuiceFirstEntryOfLength(NSString *directory, NSUInteger length)
     return nil;
 }
 
-static BOOL JuiceTXMPresent(void)
+static BOOL JuiceUseTXMProtocol(void)
 {
     static NSInteger cached = -1;
     static dispatch_once_t onceToken;
@@ -114,8 +93,9 @@ static BOOL JuiceTXMPresent(void)
 
         if (firmware)
         {
-            resolved = YES;
-            present = access(firmware.fileSystemRepresentation, F_OK) == 0;
+            int result = access(firmware.fileSystemRepresentation, F_OK);
+            resolved = result == 0 || errno == ENOENT;
+            present = result == 0;
         }
 
         /* Failing closed is safer than attempting the legacy executable-memory
@@ -123,8 +103,8 @@ static BOOL JuiceTXMPresent(void)
          * every launch either way. */
         if (!resolved)
         {
-            NSOperatingSystemVersion version = NSProcessInfo.processInfo.operatingSystemVersion;
-            present = version.majorVersion >= 26;
+            present = YES;
+            fprintf(stderr, "STIKDEBUG_JIT_TXM_UNKNOWN protected_protocol_required=1\n");
         }
         cached = present ? 1 : 0;
     });
@@ -166,40 +146,6 @@ static NSString *JuiceStikDebugScheme(void)
     return scheme;
 }
 
-static BOOL JuiceRequestStikDebug(pid_t pid, NSString *scheme, BOOL txm)
-{
-    NSString *bundleID = NSBundle.mainBundle.bundleIdentifier;
-    if (!bundleID.length || !scheme.length || pid <= 0) return NO;
-
-    NSURLComponents *components = [[NSURLComponents alloc] init];
-    components.scheme = scheme;
-    components.host = @"enable-jit";
-    components.queryItems = @[
-        [NSURLQueryItem queryItemWithName:@"bundle-id" value:bundleID],
-        [NSURLQueryItem queryItemWithName:@"pid" value:[NSString stringWithFormat:@"%d", pid]],
-        [NSURLQueryItem queryItemWithName:@"script-name" value:@"universal.js"]
-    ];
-    NSURL *url = components.URL;
-    if (!url) return NO;
-
-    void (^openRequest)(void) = ^{
-        [UIApplication.sharedApplication openURL:url options:@{} completionHandler:^(BOOL success) {
-            fprintf(stderr, "STIKDEBUG_JIT_OPEN pid=%d scheme=%s txm=%d accepted=%d\n",
-                    pid, scheme.UTF8String, txm, success);
-            fflush(stderr);
-            if (!success)
-            {
-                /* The child was intentionally born suspended. Never strand it
-                 * if iOS rejects the StikDebug handoff. */
-                kill(pid, SIGTERM);
-            }
-        }];
-    };
-    if (NSThread.isMainThread) openRequest();
-    else dispatch_async(dispatch_get_main_queue(), openRequest);
-    return YES;
-}
-
 static BOOL JuiceProcessIsDebugged(pid_t pid)
 {
     static JuiceCSOpsFn csopsFunction;
@@ -210,66 +156,6 @@ static BOOL JuiceProcessIsDebugged(pid_t pid)
     if (!csopsFunction) return NO;
     uint32_t flags = 0;
     return csopsFunction(pid, CS_OPS_STATUS, &flags, sizeof(flags)) == 0 && (flags & CS_DEBUGGED) != 0;
-}
-
-static void JuiceResumeAfterStikDebug(pid_t pid)
-{
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-        /* Juice is normally suspended while StikDebug is foreground. Use a
-         * generous bound so foreground suspension does not turn a normal user
-         * round-trip into an accidental timeout. */
-        const unsigned int pollUsec = 100000;
-        const unsigned int maxPolls = 18000; /* 30 minutes of active wall time. */
-        for (unsigned int poll = 0; poll < maxPolls; ++poll)
-        {
-            if (JuiceProcessIsDebugged(pid))
-            {
-                fprintf(stderr, "STIKDEBUG_JIT_READY pid=%d\n", pid);
-                fflush(stderr);
-                kill(pid, SIGCONT);
-                return;
-            }
-            if (kill(pid, 0) != 0 && errno == ESRCH) return;
-            usleep(pollUsec);
-        }
-        fprintf(stderr, "STIKDEBUG_JIT_TIMEOUT pid=%d\n", pid);
-        fflush(stderr);
-        kill(pid, SIGTERM);
-    });
-}
-
-static char **JuiceCopyEnvironmentForJIT(char *const envp[], BOOL txm)
-{
-    size_t count = 0;
-    while (envp && envp[count]) ++count;
-    char **copy = calloc(count + 3, sizeof(char *));
-    if (!copy) return NULL;
-    for (size_t index = 0; index < count; ++index)
-    {
-        copy[index] = strdup(envp[index]);
-        if (!copy[index])
-        {
-            for (size_t freeIndex = 0; freeIndex < index; ++freeIndex) free(copy[freeIndex]);
-            free(copy);
-            return NULL;
-        }
-    }
-    copy[count] = strdup("JUICE_STIKDEBUG_JIT=1");
-    copy[count + 1] = strdup(txm ? "JUICE_STIKDEBUG_TXM=1" : "JUICE_STIKDEBUG_TXM=0");
-    if (!copy[count] || !copy[count + 1])
-    {
-        for (size_t index = 0; index < count + 2; ++index) free(copy[index]);
-        free(copy);
-        return NULL;
-    }
-    return copy;
-}
-
-static void JuiceFreeEnvironment(char **environment)
-{
-    if (!environment) return;
-    for (size_t index = 0; environment[index]; ++index) free(environment[index]);
-    free(environment);
 }
 
 static int JuiceSpawnSuspended(JuicePosixSpawnFn realSpawn, pid_t *pid, const char *path,
@@ -313,53 +199,203 @@ static int JuiceSpawnSuspended(JuicePosixSpawnFn realSpawn, pid_t *pid, const ch
     return result;
 }
 
-int posix_spawn(pid_t *pid, const char *path,
-                const posix_spawn_file_actions_t *fileActions,
-                const posix_spawnattr_t *attributes,
-                char *const argv[], char *const envp[])
+@interface JuiceJITSession : NSObject
+@property(nonatomic,weak) id owner;
+@property(nonatomic) pid_t pid;
+@property(nonatomic) uint64_t generation;
+@property(nonatomic) JuiceJITState state;
+@property(nonatomic,copy) NSString *nonce;
+@property(nonatomic,strong) NSURL *url;
+@property(nonatomic,strong) dispatch_source_t timer;
+@property(nonatomic) UIBackgroundTaskIdentifier backgroundTask;
+@end
+@implementation JuiceJITSession
+@end
+static char JuiceJITSessionKey;
+static void (*JuiceOriginalJITStop)(id,SEL,NSString *);
+
+static uint64_t JuiceJITNowMS(void)
 {
-    JuicePosixSpawnFn realSpawn = JuiceRealPosixSpawn();
-    if (!realSpawn) return ENOSYS;
-
-    if (!JuiceIsFEXLaunch(path, envp) || JuiceStikDebugDisabled(envp))
-        return realSpawn(pid, path, fileActions, attributes, argv, envp);
-
-    NSString *scheme = JuiceStikDebugScheme();
-    if (!scheme.length)
+    mach_timebase_info_data_t base;
+    mach_timebase_info(&base);
+    /* Continuous time includes suspension and system sleep. */
+    return (uint64_t)((long double)mach_continuous_time()*base.numer/base.denom/1000000.0L);
+}
+static id JuiceJITValue(id owner,NSString *key)
+{
+    @try{return [owner valueForKey:key];}@catch(__unused NSException *error){return nil;}
+}
+static BOOL JuiceJITOwnsChild(JuiceJITSession *session)
+{
+    dispatch_assert_queue(dispatch_get_main_queue());
+    id owner=session.owner;
+    return owner && objc_getAssociatedObject(owner,&JuiceJITSessionKey)==session &&
+        session.pid>0 && [JuiceJITValue(owner,@"child") intValue]==session.pid &&
+        [JuiceJITValue(owner,@"launchGeneration") unsignedLongLongValue]==session.generation;
+}
+static void JuiceJITDispose(JuiceJITSession *session)
+{
+    if(session.timer){dispatch_source_cancel(session.timer);session.timer=nil;}
+    if(session.backgroundTask!=UIBackgroundTaskInvalid)
     {
-        fprintf(stderr, "STIKDEBUG_JIT_UNAVAILABLE reason=scheme\n");
-        fflush(stderr);
-        return ENOENT;
+        UIBackgroundTaskIdentifier task=session.backgroundTask;
+        session.backgroundTask=UIBackgroundTaskInvalid;
+        [UIApplication.sharedApplication endBackgroundTask:task];
     }
-    if (!JuiceHasGetTaskAllow())
+    id owner=session.owner;
+    if(owner && objc_getAssociatedObject(owner,&JuiceJITSessionKey)==session)
+        objc_setAssociatedObject(owner,&JuiceJITSessionKey,nil,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+static void JuiceJITEventReceived(JuiceJITSession *session,JuiceJITEvent event)
+{
+    dispatch_assert_queue(dispatch_get_main_queue());
+    if(!session)return;
+    BOOL owns=JuiceJITOwnsChild(session);
+    JuiceJITState state=session.state;
+    JuiceJITAction action=JuiceJITTransition(&state,event,JuiceJITNowMS(),owns,
+        UIApplication.sharedApplication.applicationState==UIApplicationStateActive);
+    session.state=state;
+    if(action==JuiceJITResume)
     {
-        /* The packaged Wine child is independently signed with get-task-allow;
-         * this host-side check catches a mismatched Juice installation before
-         * starting a child that StikDebug cannot service. */
-        fprintf(stderr, "STIKDEBUG_JIT_UNAVAILABLE reason=get-task-allow\n");
-        fflush(stderr);
-        return EACCES;
+        /* No waitpid or owner mutation can interleave this ownership check
+         * with the signal. An unreaped child reserves the numeric PID. */
+        if(kill(session.pid,SIGCONT))
+        {
+            state.phase=JuiceJITFailed;session.state=state;action=JuiceJITStop;
+        }
+        else fprintf(stderr,"STIKDEBUG_JIT_RESUMED pid=%d runtime_ready=0\n",session.pid);
     }
-
-    BOOL txm = JuiceTXMPresent();
-    char **jitEnvironment = JuiceCopyEnvironmentForJIT(envp, txm);
-    if (!jitEnvironment) return ENOMEM;
-
-    pid_t localPID = -1;
-    pid_t *spawnPID = pid ? pid : &localPID;
-    int result = JuiceSpawnSuspended(realSpawn, spawnPID, path, fileActions, attributes, argv, jitEnvironment);
-    JuiceFreeEnvironment(jitEnvironment);
-    if (result) return result;
-
-    pid_t targetPID = *spawnPID;
-    if (!JuiceRequestStikDebug(targetPID, scheme, txm))
+    if(!JuiceJITPending(state))
     {
-        kill(targetPID, SIGTERM);
-        return EIO;
+        id owner=session.owner;
+        fprintf(stderr,"STIKDEBUG_JIT_FINISHED pid=%d phase=%d owned=%d\n",session.pid,state.phase,owns);
+        JuiceJITDispose(session);
+        if(action==JuiceJITStop && owns)
+            ((void(*)(id,SEL,id))objc_msgSend)(owner,NSSelectorFromString(@"stopAllWineProcesses:"),@"stikdebug-handoff-failed");
     }
-
-    fprintf(stderr, "STIKDEBUG_JIT_REQUESTED pid=%d txm=%d script=universal.js\n", targetPID, txm);
-    fflush(stderr);
-    JuiceResumeAfterStikDebug(targetPID);
+}
+static void JuiceJITHardenedStop(id owner,SEL selector,NSString *reason)
+{
+    dispatch_assert_queue(dispatch_get_main_queue());
+    JuiceJITSession *session=objc_getAssociatedObject(owner,&JuiceJITSessionKey);
+    if([reason isEqualToString:@"application-will-resign-active"] && session &&
+       JuiceJITOwnsChild(session) && JuiceJITPending(session.state) &&
+       JuiceJITNowMS()<session.state.deadlineMS)
+    {
+        fprintf(stderr,"STIKDEBUG_JIT_HANDOFF pid=%d bounded=1\n",session.pid);
+        return;
+    }
+    if(session){JuiceJITEventReceived(session,JuiceJITCancel);JuiceJITDispose(session);}
+    if(JuiceOriginalJITStop)JuiceOriginalJITStop(owner,selector,reason);
+}
+static char **JuiceJITEnvironment(char *const envp[],BOOL txm,NSString *nonce)
+{
+    NSMutableArray<NSString *> *values=[NSMutableArray array];
+    for(size_t i=0;envp && envp[i];i++)
+    {
+        NSString *entry=[NSString stringWithUTF8String:envp[i]];
+        if(!entry)return NULL;
+        if([entry hasPrefix:@"JUICE_STIKDEBUG_JIT="] || [entry hasPrefix:@"JUICE_STIKDEBUG_TXM="] ||
+           [entry hasPrefix:@"JUICE_STIKDEBUG_SESSION="] || [entry hasPrefix:@"JUICE_EXTERNAL_DEBUG_EXEC="])continue;
+        [values addObject:entry];
+    }
+    [values addObject:@"JUICE_STIKDEBUG_JIT=1"];
+    [values addObject:txm?@"JUICE_STIKDEBUG_TXM=1":@"JUICE_STIKDEBUG_TXM=0"];
+    [values addObject:@"JUICE_EXTERNAL_DEBUG_EXEC=1"];
+    [values addObject:[@"JUICE_STIKDEBUG_SESSION=" stringByAppendingString:nonce]];
+    char **copy=calloc(values.count+1,sizeof(*copy));
+    if(!copy)return NULL;
+    for(NSUInteger i=0;i<values.count;i++)
+        if(!(copy[i]=strdup(values[i].UTF8String)))
+        {for(NSUInteger j=0;j<i;j++)free(copy[j]);free(copy);return NULL;}
+    return copy;
+}
+int JuiceSpawnForLaunch(id owner,pid_t *pid,const char *path,
+    const posix_spawn_file_actions_t *actions,const posix_spawnattr_t *attributes,
+    char *const argv[],char *const envp[])
+{
+    dispatch_assert_queue(dispatch_get_main_queue());
+    if(!JuiceIsFEXLaunch(path,envp) || JuiceStikDebugDisabled(envp))
+        return posix_spawn(pid,path,actions,attributes,argv,envp);
+    if(!owner || !pid || objc_getAssociatedObject(owner,&JuiceJITSessionKey))return EINVAL;
+    NSString *scheme=JuiceStikDebugScheme();
+    if(!scheme.length)return ENOENT;
+    if(!JuiceHasGetTaskAllow())return EACCES;
+    if(!NSBundle.mainBundle.bundleIdentifier.length)return EINVAL;
+    JuiceJITSession *session=[JuiceJITSession new];
+    session.owner=owner;session.nonce=NSUUID.UUID.UUIDString;
+    session.backgroundTask=UIBackgroundTaskInvalid;
+    char **environment=JuiceJITEnvironment(envp,JuiceUseTXMProtocol(),session.nonce);
+    if(!environment)return ENOMEM;
+    int result=JuiceSpawnSuspended(posix_spawn,pid,path,actions,attributes,argv,environment);
+    for(size_t i=0;environment[i];i++)free(environment[i]);free(environment);
+    if(result)return result;
+    session.pid=*pid;
+    session.state=(JuiceJITState){JuiceJITOpening,JuiceJITNowMS()+120000,false};
+    NSURLComponents *url=[NSURLComponents new];url.scheme=scheme;url.host=@"enable-jit";
+    url.queryItems=@[
+        [NSURLQueryItem queryItemWithName:@"bundle-id" value:NSBundle.mainBundle.bundleIdentifier],
+        [NSURLQueryItem queryItemWithName:@"pid" value:[NSString stringWithFormat:@"%d",*pid]],
+        [NSURLQueryItem queryItemWithName:@"script-name" value:@"universal.js"]];
+    session.url=url.URL;
+    objc_setAssociatedObject(owner,&JuiceJITSessionKey,session,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    /* Never return an error after spawn succeeds. The caller first adopts the
+     * child, installs its pipe/reaper owner, then calls JuiceJITAdoptLaunch. */
     return 0;
+}
+void JuiceJITAdoptLaunch(id owner,pid_t pid,uint64_t generation)
+{
+    dispatch_assert_queue(dispatch_get_main_queue());
+    JuiceJITSession *session=objc_getAssociatedObject(owner,&JuiceJITSessionKey);
+    if(!session || session.pid!=pid)return;
+    session.generation=generation;
+    if(!session.url){JuiceJITEventReceived(session,JuiceJITOpenRejected);return;}
+    __weak JuiceJITSession *weakSession=session;
+    session.backgroundTask=[UIApplication.sharedApplication beginBackgroundTaskWithName:@"Juice debugger handoff" expirationHandler:^{
+        dispatch_async(dispatch_get_main_queue(),^{JuiceJITEventReceived(weakSession,JuiceJITOpenRejected);});
+    }];
+    session.timer=dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER,0,0,dispatch_get_main_queue());
+    if(!session.timer){JuiceJITEventReceived(session,JuiceJITOpenRejected);return;}
+    dispatch_source_set_timer(session.timer,dispatch_time(DISPATCH_TIME_NOW,0),100*NSEC_PER_MSEC,10*NSEC_PER_MSEC);
+    dispatch_source_set_event_handler(session.timer,^{
+        JuiceJITSession *current=weakSession;
+        if(!current)return;
+        JuiceJITEventReceived(current,JuiceJITTick);
+        if(JuiceJITOwnsChild(current) && JuiceJITPending(current.state) && JuiceProcessIsDebugged(current.pid))
+            JuiceJITEventReceived(current,JuiceJITDebugged);
+    });
+    dispatch_resume(session.timer);
+    [UIApplication.sharedApplication openURL:session.url options:@{} completionHandler:^(BOOL success){
+        dispatch_async(dispatch_get_main_queue(),^{JuiceJITEventReceived(weakSession,
+            success?JuiceJITOpenAccepted:JuiceJITOpenRejected);});
+    }];
+}
+void JuiceJITObserveOutput(id owner,pid_t pid,uint64_t generation,NSString *line)
+{
+    if(![line hasPrefix:@"JUICE_JIT_RUNTIME_READY "])return;
+    dispatch_async(dispatch_get_main_queue(),^{
+        JuiceJITSession *session=objc_getAssociatedObject(owner,&JuiceJITSessionKey);
+        if(!session || session.pid!=pid || session.generation!=generation)return;
+        NSString *expected=[NSString stringWithFormat:@"JUICE_JIT_RUNTIME_READY pid=%d session=%@\n",pid,session.nonce];
+        if([line isEqualToString:expected])JuiceJITEventReceived(session,JuiceJITRuntimeAck);
+    });
+}
+void JuiceJITWillReap(id owner,pid_t pid,uint64_t generation)
+{
+    dispatch_assert_queue(dispatch_get_main_queue());
+    JuiceJITSession *session=objc_getAssociatedObject(owner,&JuiceJITSessionKey);
+    if(session && session.pid==pid && session.generation==generation)
+    {JuiceJITEventReceived(session,JuiceJITCancel);JuiceJITDispose(session);}
+}
+__attribute__((constructor(460)))
+static void JuiceInstallJITOwnership(void)
+{
+    Class cls=NSClassFromString(@"JuiceController");
+    Method method=class_getInstanceMethod(cls,NSSelectorFromString(@"stopAllWineProcesses:"));
+    if(method)JuiceOriginalJITStop=(void*)method_setImplementation(method,(IMP)JuiceJITHardenedStop);
+    [NSNotificationCenter.defaultCenter addObserverForName:UIApplicationWillTerminateNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(__unused NSNotification *note){
+        id owner=UIApplication.sharedApplication.keyWindow.rootViewController;
+        SEL stop=NSSelectorFromString(@"stopAllWineProcesses:");
+        if([owner respondsToSelector:stop])((void(*)(id,SEL,id))objc_msgSend)(owner,stop,@"application-terminate");
+    }];
 }

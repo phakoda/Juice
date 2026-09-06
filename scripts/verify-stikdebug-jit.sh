@@ -31,7 +31,7 @@ git -C "$ROOT" apply --recount --numstat "$ROOT/patches/wine-stikdebug-lifecycle
 
 # Verify the Wine overlays against either a clean source checkout or a source
 # tree that has already been prepared for an incremental build.
-"$ROOT/scripts/verify-wine-patch.sh"
+bash "$ROOT/scripts/verify-wine-patch.sh"
 
 python3 - "$ROOT/config/Info.plist" <<'PY'
 import plistlib
@@ -100,6 +100,19 @@ grep -Fq 'apply --recount "$LIFECYCLE_PATCH"' "$ROOT/scripts/fetch-fex-linux.sh"
 grep -Fq 'LIFECYCLE_PATCH="$ROOT/patches/fex-stikdebug-lifecycle.patch"' "$ROOT/scripts/verify-fex-patch.sh"
 grep -Fq 'apply --recount --reverse "$LIFECYCLE_PATCH"' "$ROOT/scripts/verify-fex-patch.sh"
 grep -Fq 'LIFECYCLE_PATCH="$ROOT/patches/wine-stikdebug-lifecycle.patch"' "$ROOT/scripts/apply-wine-stikdebug-jit.sh"
-grep -Fq 'LIFECYCLE_PATCH="$ROOT/patches/wine-stikdebug-lifecycle.patch"' "$ROOT/scripts/verify-wine-patch.sh"
+grep -Fq 'wine-stikdebug-handoff.patch' "$ROOT/scripts/verify-wine-patch.sh"
 
-echo "JUICE_STIKDEBUG_JIT_VERIFY_OK lifecycle=1"
+
+
+# Structural checks supplement, rather than replace, executable host tests.
+grep -Fq 'JuiceSpawnForLaunch(self,' "$ROOT/app/JuiceLaunchHardening.m"
+grep -Fq 'JuiceJITWillReap(self,child,generation)' "$ROOT/app/JuiceLaunchHardening.m"
+grep -Fq 'JuiceJITOwnsChild' "$app"
+grep -Fq 'JUICE_JIT_RUNTIME_READY' "$ROOT/patches/wine-stikdebug-handoff.patch"
+grep -Fq 'execve(argv[1], &argv[1], environ)' "$ROOT/launcher/grape-trace-parent.c"
+if grep -Eq '^int posix_spawn\(' "$app"; then
+  echo 'Process-wide spawn interposition must not return.' >&2; exit 3
+fi
+git -C "$ROOT" apply --recount --numstat "$ROOT/patches/wine-stikdebug-handoff.patch" >/dev/null
+
+echo "JUICE_STIKDEBUG_JIT_VERIFY_OK lifecycle=1 handoff=1"
