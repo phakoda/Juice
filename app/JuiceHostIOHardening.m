@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import "JuiceAsyncWriter.h"
+#import "JuiceKeyChord.h"
 #import "JuiceSocketIO.h"
 #import <errno.h>
 #import <objc/message.h>
@@ -79,6 +80,22 @@ static BOOL JuiceHostEnqueue(id self,int fd,NSData *packet)
             @"HOST_IO_QUEUE_REJECTED fd=%d errno=%d connection_shutdown=1\n",fd,saved]);
         return NO;
     }
+}
+BOOL JuiceQueueKeyChord(id self,uint16_t key,uint16_t scan,BOOL extended,unsigned modifiers)
+{
+    if(!NSThread.isMainThread)return NO;
+    id canvas=JuiceHostValue(self,@"canvas");
+    uint64_t hwnd=[JuiceHostValue(canvas,@"hwnd") unsignedLongLongValue];
+    id windows=JuiceHostValue(self,@"wineWindows");
+    id state=[windows isKindOfClass:NSDictionary.class]?windows[@(hwnd)]:nil;
+    NSNumber *descriptor=JuiceHostValue(state,@"clientFD");
+    if(!hwnd||![descriptor isKindOfClass:NSNumber.class]||descriptor.intValue<0)return NO;
+    JuiceKeyPacket packet[JUICE_CHORD_MAX_MESSAGES];
+    size_t count=JuiceBuildKeyChord(hwnd,key,scan,extended,modifiers,packet,JUICE_CHORD_MAX_MESSAGES);
+    if(!count)return NO;
+    /* One enqueue admits all downs and ups together or disconnects on failure.
+     * Selection is resolved once; the writer keeps its connection-owned dup. */
+    return JuiceHostEnqueue(self,descriptor.intValue,[NSData dataWithBytes:packet length:count*sizeof(*packet)]);
 }
 static void JuiceControlCopy(char *destination,size_t capacity,NSString *value)
 {

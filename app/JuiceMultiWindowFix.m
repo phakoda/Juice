@@ -2,6 +2,7 @@
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <math.h>
+#import "JuiceMetalCompositor.h"
 
 /*
  * Multi-window presentation fixes for the UIKit host.
@@ -198,6 +199,7 @@ static void JuiceRenderCompositeWineDesktop(id self, SEL _cmd)
 {
     if (![JuiceValue(self, @"experimentalMultiWindow") boolValue])
     {
+        JuiceHideMetalComposite(JuiceValue(self, @"canvas"));
         if (OriginalCompositeWineDesktop) OriginalCompositeWineDesktop(self, _cmd);
         return;
     }
@@ -207,6 +209,7 @@ static void JuiceRenderCompositeWineDesktop(id self, SEL _cmd)
     id canvas = JuiceValue(self, @"canvas");
     if (![windows isKindOfClass:NSDictionary.class] || ![order isKindOfClass:NSArray.class] || !canvas)
     {
+        JuiceHideMetalComposite(JuiceValue(self, @"canvas"));
         if (OriginalCompositeWineDesktop) OriginalCompositeWineDesktop(self, _cmd);
         return;
     }
@@ -222,31 +225,50 @@ static void JuiceRenderCompositeWineDesktop(id self, SEL _cmd)
     objc_setAssociatedObject(self, &JuiceCompositeViewportKey,
                              [NSValue valueWithCGRect:viewport], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
-    UIGraphicsBeginImageContextWithOptions(viewport.size, YES, 1.0);
-    [[UIColor blackColor] setFill];
-    UIRectFill(CGRectMake(0.0, 0.0, viewport.size.width, viewport.size.height));
-
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    CGContextSaveGState(context);
-    CGContextTranslateCTM(context, -viewport.origin.x, -viewport.origin.y);
-
+    NSMutableArray<JuiceCompositeWindow *> *layers = [NSMutableArray array];
     id topState = nil;
     for (NSNumber *key in order)
     {
         id state = windows[key];
         if (!JuiceStateDrawable(state)) continue;
-
         CGRect rect = JuiceStateDrawableRect(state);
         if (CGRectIsEmpty(rect) || CGRectIsNull(rect) || !CGRectIntersectsRect(rect, viewport)) continue;
-        JuiceDrawStateImage(state, context);
-        topState = state;
+        JuiceCompositeWindow *layer = [JuiceCompositeWindow new];
+        layer.identifier = key; layer.image = JuiceValue(state, @"image"); layer.frame = JuiceStateRect(state);
+        [layers addObject:layer]; topState = state;
     }
-
-    CGContextRestoreGState(context);
-    UIImage *result = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-
-    if (result) JuiceSetValue(canvas, @"image", result);
+    __weak id weakOwner = self;
+    BOOL metal = JuicePresentMetalComposite(canvas, layers, viewport, ^{
+        id owner = weakOwner; SEL selector = NSSelectorFromString(@"compositeWineDesktop");
+        if ([owner respondsToSelector:selector]) ((void (*)(id, SEL))objc_msgSend)(owner, selector);
+    });
+    if (metal)
+    {
+        /* Keep UIImage-based legacy guards alive; pointer geometry uses the
+         * compositor viewport rather than this individual backing's size. */
+        JuiceSetValue(canvas, @"image", JuiceValue(topState, @"image"));
+    }
+    else
+    {
+        UIGraphicsBeginImageContextWithOptions(viewport.size, YES, 1.0);
+        [[UIColor blackColor] setFill];
+        UIRectFill(CGRectMake(0.0, 0.0, viewport.size.width, viewport.size.height));
+        CGContextRef context = UIGraphicsGetCurrentContext();
+        if (context)
+        {
+            CGContextSaveGState(context);
+            CGContextTranslateCTM(context, -viewport.origin.x, -viewport.origin.y);
+            for (NSNumber *key in order)
+            {
+                id state = windows[key];
+                if (JuiceStateDrawable(state)) JuiceDrawStateImage(state, context);
+            }
+            CGContextRestoreGState(context);
+        }
+        UIImage *result = UIGraphicsGetImageFromCurrentImageContext();
+        UIGraphicsEndImageContext();
+        if (result) JuiceSetValue(canvas, @"image", result);
+    }
     id routingState=JuiceSelectedRoutingState(windows,canvas,topState);
     if (routingState)
     {
@@ -267,6 +289,7 @@ static void JuiceFixedCompositeWineDesktop(id self, SEL _cmd)
 {
     if (![JuiceValue(self, @"experimentalMultiWindow") boolValue])
     {
+        JuiceHideMetalComposite(JuiceValue(self, @"canvas"));
         if (OriginalCompositeWineDesktop) OriginalCompositeWineDesktop(self, _cmd);
         return;
     }

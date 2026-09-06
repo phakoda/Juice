@@ -114,8 +114,8 @@ int main(void)
         a.frame = (JuiceRect){2,2,1,1};
         image = Render(core,@[a],viewport,target,YES); Pixel(image,2,2,255,255,0);
         assert(core.uploadedBytes == before + 4);
-        assert(![core encodeLayers:@[a,a] viewport:viewport target:target linear:NO error:&error]);
-        assert(![core encodeLayers:@[a] viewport:(JuiceRect){NAN,0,4,4} target:target linear:NO error:&error]);
+        assert((![core encodeLayers:@[a,a] viewport:viewport target:target linear:NO error:&error]));
+        assert((![core encodeLayers:@[a] viewport:(JuiceRect){NAN,0,4,4} target:target linear:NO error:&error]));
         a.stride = UINT32_MAX;
         assert(![core encodeLayers:@[a] viewport:viewport target:target linear:NO error:&error]);
         a.stride = 4;
