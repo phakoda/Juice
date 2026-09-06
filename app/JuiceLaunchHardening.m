@@ -1,6 +1,9 @@
 #import <UIKit/UIKit.h>
 #import "JuiceChildReaper.h"
 #import "JuiceStikDebugJIT.h"
+#import "JuiceAppProfile.h"
+#import "JuiceRuntimePreflight.h"
+#import "JuiceUTF8Stream.h"
 #import <errno.h>
 #import <fcntl.h>
 #import <objc/message.h>
@@ -25,7 +28,7 @@ static char **JuiceCopyStrings(NSArray<NSString *> *strings)
     for(NSUInteger i=0;i<strings.count;i++)
     {
         const char *utf8=strings[i].UTF8String;
-        if(!utf8||!(result[i]=strdup(utf8)))
+        if(!utf8||strlen(utf8)!=[strings[i] lengthOfBytesUsingEncoding:NSUTF8StringEncoding]||!(result[i]=strdup(utf8)))
         {for(NSUInteger j=0;j<i;j++)free(result[j]);free(result);return NULL;}
     }
     return result;
@@ -85,8 +88,15 @@ static int JuiceSpawnAttributes(posix_spawnattr_t *attributes)
 
 static NSString *JuiceDecodeOutput(NSData *data)
 {
+    if(!data.length)return @"";
     NSString *text=[[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];
-    if(!text)text=[[NSString alloc]initWithData:data encoding:NSISOLatin1StringEncoding];
+    if(text)return text;
+    if(data.length>NSUIntegerMax/3)return @"";
+    NSMutableData *clean=[NSMutableData dataWithLength:data.length*3];
+    size_t consumed=0;
+    size_t used=JuiceUTF8Sanitize(data.bytes,data.length,clean.mutableBytes,clean.length,&consumed);
+    if(consumed!=data.length)return @"";
+    text=[[NSString alloc]initWithBytes:clean.bytes length:used encoding:NSUTF8StringEncoding];
     return text?:@"";
 }
 
@@ -102,7 +112,15 @@ static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generatio
             {NSString *line=JuiceDecodeOutput([NSData dataWithBytes:bytes+start length:i+1-start]);
              JuiceJITObserveOutput(self,child,generation,line);JuiceLaunchAppend(self,line);start=i+1;}
             if(start)[pending replaceBytesInRange:NSMakeRange(0,start) withBytes:NULL length:0];
-            if(pending.length>=64*1024){JuiceLaunchAppend(self,JuiceDecodeOutput(pending));[pending setLength:0];}
+            if(pending.length>=64*1024)
+            {
+                NSUInteger complete=JuiceUTF8CompletePrefix(pending.bytes,pending.length);
+                if(complete)
+                {
+                    JuiceLaunchAppend(self,JuiceDecodeOutput([pending subdataWithRange:NSMakeRange(0,complete)]));
+                    [pending replaceBytesInRange:NSMakeRange(0,complete) withBytes:NULL length:0];
+                }
+            }
         }
         if(pending.length)JuiceLaunchAppend(self,JuiceDecodeOutput(pending));
     }close(readFD);
@@ -135,6 +153,8 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     (void)_cmd;
     JuiceLaunchStop(self,@"new-launch");
     JuiceLaunchCallVoid(self,@"preparePrefix");
+    NSString *profileError=JuiceProfilePreparationError(self);
+    if(profileError.length){JuiceLaunchReject(self,profileError);return;}
 
     UITextField *argsField=JuiceLaunchValue(self,@"argsField");NSString *failure=nil;
     NSArray<NSString *> *parts=JuiceParseArguments(argsField.text?:@"",&failure);
@@ -145,9 +165,20 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     NSString *server=[build stringByAppendingPathComponent:@"server/wineserver"];
     NSString *tracer=[grape stringByAppendingPathComponent:@"tools/grape-trace-parent"];
     NSString *exe=JuiceLaunchCallObject(self,@"resolveExe");NSArray<NSString *> *environment=JuiceLaunchCallObject(self,@"environment");
-    NSString *cwd=exe.stringByDeletingLastPathComponent;
+    NSString *cwd=JuiceProfileWorkingDirectory(self,exe.stringByDeletingLastPathComponent);
+    if(!cwd.length){JuiceLaunchReject(self,@"The saved working directory is no longer available. Update the app launch profile before launching.");return;}
+
+    NSDictionary<NSString *,id> *preflight=JuiceRuntimePreflight(exe,grape,
+        [JuiceLaunchValue(self,@"usingX64") boolValue],[JuiceLaunchValue(self,@"usingWin32") boolValue]);
+    if(![preflight[@"can_launch"] boolValue])
+    {JuiceLaunchReject(self,[preflight[@"failures"] componentsJoinedByString:@"\n"]);return;}
+    for(NSString *warning in preflight[@"warnings"])
+        JuiceLaunchAppend(self,[NSString stringWithFormat:@"RUNTIME_PREFLIGHT_WARNING %@\n",warning]);
+    JuiceLaunchAppend(self,[NSString stringWithFormat:@"RUNTIME_PREFLIGHT_OK arch=%@ managed=%@ profile_jit=%d\n",
+        preflight[@"architecture"],preflight[@"managed"],JuiceProfileJITRequested(self)]);
+
     NSFileManager *files=NSFileManager.defaultManager;
-    if(!grape.length||!exe.length||!environment.count||!cwd.length||![files isExecutableFileAtPath:loader]||
+    if(!grape.length||!exe.length||!environment.count||![files isExecutableFileAtPath:loader]||
        ![files isExecutableFileAtPath:server]||![files isExecutableFileAtPath:tracer]||![files fileExistsAtPath:exe]||
        ![files fileExistsAtPath:cwd])
     {JuiceLaunchReject(self,@"The selected Wine runtime, executable, or working directory is incomplete.");return;}
