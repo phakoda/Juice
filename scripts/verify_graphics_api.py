@@ -113,12 +113,14 @@ def make_targets(report: dict, makefile: str, arch: str) -> list[str]:
         targets.extend(matches)
     return targets
 
-def arm64ec_metadata(stream: BinaryIO, pe_offset: int, coff: bytes, file_size: int) -> dict:
-    """Validate linked-image CHPE metadata without mistaking ordinary x64 for EC.
+def arm64ec_image_evidence(stream: BinaryIO, pe_offset: int, coff: bytes, file_size: int) -> dict:
+    """Require CHPE code metadata or positive proof of a code-free forwarder.
 
     A641 identifies intermediate COFF objects, not final ARM64EC DLLs. Linked
     EC images use AMD64 plus a CHPEMetadataPointer in the PE32+ load configuration.
-    This is bounded structural evidence, not validation of executable semantics.
+    Wine's --data-only export forwarders contain no code and need no CHPE. They
+    are accepted only after verifying absent execution hooks and bounded pure
+    forwarder exports, never by filename. This is structural, not semantic proof.
     """
     def reject(message: str) -> NoReturn:
         raise AuditError(f"invalid ARM64EC image: {message}")
@@ -148,12 +150,14 @@ def arm64ec_metadata(stream: BinaryIO, pe_offset: int, coff: bytes, file_size: i
     if not section_offset + sections_count * 40 <= headers_size <= min(file_size, image_size):
         reject("invalid image/header bounds")
     sections = []
+    executable_sections = False
     for i in range(sections_count):
         entry = read_at(section_offset + i * 40, 40)
         virtual_size, address, raw_size, raw_offset = struct.unpack_from("<IIII", entry, 8)
         if address + max(virtual_size, raw_size) > image_size or raw_offset + raw_size > file_size:
             reject("section extends beyond the image or file")
         sections.append((address, raw_size, raw_offset))
+        executable_sections |= bool(struct.unpack_from("<I", entry, 36)[0] & 0x20000020)
 
     def rva_offset(rva: int, count: int) -> int:
         if rva <= 0 or count <= 0 or rva >= image_size or count > image_size - rva:
@@ -166,6 +170,62 @@ def arm64ec_metadata(stream: BinaryIO, pe_offset: int, coff: bytes, file_size: i
         return candidates[0]
 
     config_rva, config_size = struct.unpack_from("<II", optional, 112 + 10 * 8)
+    if config_rva == 0 and config_size == 0:
+        if executable_sections or any(struct.unpack_from("<I", optional, offset)[0]
+                                      for offset in (4, 16, 20)):
+            reject("code or entry point without CHPE metadata")
+        # Only exports, resources, signatures and debug data are compatible
+        # with this code-free case. In particular, reject TLS callbacks, CLR,
+        # imports, IAT, exception and relocation directories rather than guess.
+        for i in range(directories):
+            if i not in (0, 2, 4, 6) and any(struct.unpack_from("<II", optional, 112 + i * 8)):
+                reject("execution-related directory in a code-free forwarder")
+        export_rva, export_size = struct.unpack_from("<II", optional, 112)
+        if not 40 <= export_size <= 1024 * 1024:
+            reject("missing or unbounded forwarder export directory")
+        exports = read_at(rva_offset(export_rva, export_size), export_size)
+
+        def export_bytes(rva: int, count: int) -> bytes:
+            if count <= 0 or rva < export_rva or rva - export_rva + count > export_size:
+                reject("direct export or out-of-bounds forwarder data")
+            rva_offset(rva, count)  # Reject overlapping mappings, even for a subrange.
+            return exports[rva - export_rva:rva - export_rva + count]
+
+        def export_string(rva: int) -> str:
+            export_bytes(rva, 1)
+            start = rva - export_rva
+            end = exports.find(b"\0", start, min(start + 1024, export_size))
+            if end <= start or any(byte < 33 or byte > 126 for byte in exports[start:end]):
+                reject("invalid or unterminated forwarder/export string")
+            return exports[start:end].decode("ascii")
+
+        module_rva, ordinal_base, function_count, name_count, functions_rva, names_rva, ordinals_rva = \
+            struct.unpack_from("<IIIIIII", exports, 12)
+        if not 1 <= function_count <= 65536 or name_count > function_count or ordinal_base + function_count > 0x100000000:
+            reject("unbounded forwarder export counts")
+        if not re.fullmatch(r"[A-Za-z0-9_+.-]+", export_string(module_rva)):
+            reject("invalid forwarder module name")
+        functions = list(struct.unpack(f"<{function_count}I", export_bytes(functions_rva, function_count * 4)))
+        forwarders = 0
+        for rva in functions:
+            if not rva:  # Sparse ordinal tables are legitimate, not executable exports.
+                continue
+            module, separator, symbol = export_string(rva).rpartition(".")
+            if not separator or not symbol or not re.fullmatch(r"[A-Za-z0-9_+.-]+", module) or ".." in module:
+                reject("invalid forwarded module/symbol")
+            if symbol.startswith("#") and (not re.fullmatch(r"#[0-9]{1,5}", symbol) or not 1 <= int(symbol[1:]) <= 65535):
+                reject("invalid forwarded ordinal")
+            forwarders += 1
+        if not forwarders:
+            reject("no forwarded exports")
+        if name_count:
+            names = struct.unpack(f"<{name_count}I", export_bytes(names_rva, name_count * 4))
+            ordinals = struct.unpack(f"<{name_count}H", export_bytes(ordinals_rva, name_count * 2))
+            for name_rva, ordinal in zip(names, ordinals):
+                export_string(name_rva)
+                if ordinal >= function_count or not functions[ordinal]:
+                    reject("named forwarder has no valid ordinal target")
+        return {"kind": "forwarder-only", "forwarded_exports": forwarders}
     if not 208 <= config_size <= 4096:
         reject("missing or undersized CHPE load configuration")
     config = read_at(rva_offset(config_rva, config_size), config_size)
@@ -179,7 +239,7 @@ def arm64ec_metadata(stream: BinaryIO, pe_offset: int, coff: bytes, file_size: i
         reject("unsupported CHPE version or unbounded code map")
     if code_map_count:
         rva_offset(code_map_rva, code_map_count * 8)
-    return {"version": version, "code_map_entries": code_map_count}
+    return {"kind": "chpe", "version": version, "code_map_entries": code_map_count}
 
 
 def inspect_build(build: Path, targets: list[str], arch: str) -> list[dict]:
@@ -202,7 +262,7 @@ def inspect_build(build: Path, targets: list[str], arch: str) -> list[dict]:
             if not struct.unpack_from("<H", pe, 22)[0] & 0x2000:
                 raise AuditError(f"{target}: expected a DLL image")
             try:
-                metadata = arm64ec_metadata(stream, offset, pe, file_size) if arch == "arm64ec" else None
+                evidence = arm64ec_image_evidence(stream, offset, pe, file_size) if arch == "arm64ec" else None
             except AuditError as error:
                 raise AuditError(f"{target}: {error}") from error
             stream.seek(0)
@@ -211,8 +271,8 @@ def inspect_build(build: Path, targets: list[str], arch: str) -> list[dict]:
                 hasher.update(block)
             digest = hasher.hexdigest()
         entry = {"path": target, "machine": expected, "architecture": arch, "sha256": digest, "bytes": file_size}
-        if metadata is not None:
-            entry["chpe_metadata"] = metadata
+        if evidence is not None:
+            entry["architecture_evidence"] = evidence
         result.append(entry)
     return result
 

@@ -28,13 +28,21 @@ expressions and declared stub exports rather than hiding them. It never evaluate
 Make expressions or shell commands. Optional build inspection validates each DLL's
 PE machine and DLL characteristic and records its SHA-256.
 
-Linked ARM64EC DLLs carry an AMD64 (`0x8664`) PE machine field plus CHPE load
+Code-bearing ARM64EC DLLs carry an AMD64 (`0x8664`) PE machine field plus CHPE load
 configuration; `0xA641` is an intermediate object-file identifier, not the final
 image header. The build auditor requires PE32+, bounded section/RVA mappings,
 a valid load-configuration size and CHPE pointer, and bounded versioned code-map
 metadata before accepting an AMD64 image as ARM64EC. Plain x64, object-machine
 headers, truncated tables and ambiguous mappings are rejected. Each report keeps
-the actual machine field, requested architecture, metadata version and DLL hash.
+the actual machine field, requested architecture, architecture evidence and DLL hash.
+
+Wine also builds code-free forwarder DLLs such as `usp10` with `--data-only`.
+These require separate positive evidence, not a name-based exception: no code
+size, entry point, executable/code section or execution-related data directory;
+bounded export tables and ordinal indices; and every populated export resolving
+to a terminated ASCII forwarder inside the export directory. The report labels
+these `forwarder-only` and records the forwarded-export count rather than claiming
+that a CHPE code map exists. Code-bearing x64 DLLs remain rejected without CHPE.
 
 This audit is not a complete Windows loader or API conformance test. Dynamic
 loads, API-set resolution, configured codec libraries, transitive behavior, COM

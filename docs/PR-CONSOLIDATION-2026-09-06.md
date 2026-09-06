@@ -66,6 +66,18 @@ actual previously built FEX ARM64EC DLL, whose machine field is `0x8664` and
 metadata version is 1. No compiled fixture is added to the runtime or source tree.
 Reference: https://learn.microsoft.com/en-us/windows/arm/arm64ec
 
+The real `usp10.dll` is an intentional `--data-only` Wine forwarder with 44
+exports delegated to GDI32; it contains no executable sections or entry point
+and therefore no CHPE code metadata. The auditor now verifies this distinct
+case structurally without exempting the filename or accepting arbitrary x64:
+no code or execution-related directories, bounded complete export tables,
+valid named ordinals, and only terminated forwarder strings within the export
+directory. Reports distinguish `forwarder-only` from `chpe` evidence. Both the
+real Wine-generated usp10 image and real FEX translator passed local inspection.
+The 28 auditor regressions include 20,000 deterministic metadata/forwarder
+mutations and all 1,024 truncations of each structural fixture.
+Reference: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#export-address-table
+
 ## Validation boundary
 
 Every current-head check must complete before merging the runtime layer: source

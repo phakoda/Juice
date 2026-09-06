@@ -1,5 +1,7 @@
 import importlib.util
+import io
 from pathlib import Path
+import random
 import struct
 import tempfile
 import unittest
@@ -120,6 +122,7 @@ class GraphicsAPITests(unittest.TestCase):
         struct.pack_into("<II", data, 152 + 112 + 80, 0x1000, 208)
         data[392:400] = b".rdata\0\0"
         struct.pack_into("<IIII", data, 400, 512, 0x1000, 512, 512)
+        struct.pack_into("<I", data, 428, 0x40000040)
         struct.pack_into("<I", data, 512, 208)
         struct.pack_into("<Q", data, 512 + 200, 0x180001100)
         struct.pack_into("<III", data, 768, 1, 0x1120, 1)
@@ -138,7 +141,7 @@ class GraphicsAPITests(unittest.TestCase):
                 report = self.inspect_ec(data)
                 self.assertEqual(report["machine"], 0x8664)
                 self.assertEqual(report["architecture"], "arm64ec")
-                self.assertEqual(report["chpe_metadata"], {"version": version, "code_map_entries": 1})
+                self.assertEqual(report["architecture_evidence"], {"kind": "chpe", "version": version, "code_map_entries": 1})
                 self.assertEqual(report["bytes"], len(data))
 
     def test_arm64ec_does_not_accept_object_machine_or_native_arm64(self):
@@ -188,6 +191,81 @@ class GraphicsAPITests(unittest.TestCase):
     def test_arm64ec_metadata_with_no_code_ranges(self):
         data = self.arm64ec_fixture()
         struct.pack_into("<II", data, 772, 0, 0)
-        self.assertEqual(self.inspect_ec(data)["chpe_metadata"]["code_map_entries"], 0)
+        self.assertEqual(self.inspect_ec(data)["architecture_evidence"]["code_map_entries"], 0)
+
+    def forwarder_fixture(self):
+        data = self.arm64ec_fixture()
+        struct.pack_into("<II", data, 344, 0, 0)
+        struct.pack_into("<II", data, 264, 0x1000, 0x120)
+        data[512:] = bytes(512)
+        struct.pack_into("<IIIIIII", data, 524, 0x1040, 1, 3, 2, 0x1028, 0x1034, 0x103C)
+        struct.pack_into("<III", data, 552, 0x1080, 0, 0x10A0)
+        struct.pack_into("<II", data, 564, 0x1060, 0x1070)
+        struct.pack_into("<HH", data, 572, 0, 2)
+        for offset, text in ((576, b"forward.dll\0"), (608, b"First\0"),
+                             (624, b"Second\0"), (640, b"gdi32.ScriptX\0"), (672, b"gdi32.#22\0")):
+            data[offset:offset + len(text)] = text
+        return data
+
+    def test_code_free_forwarders_have_separate_evidence(self):
+        report = self.inspect_ec(self.forwarder_fixture())
+        self.assertEqual(report["machine"], 0x8664)
+        self.assertEqual(report["architecture_evidence"], {"kind": "forwarder-only", "forwarded_exports": 2})
+
+    def test_forwarder_rejects_code_entry_points_and_execution_directories(self):
+        changes = [(156, 4), (168, 0x1000), (172, 0x1000), (428, 0x60000040), (428, 0x40000020)]
+        changes += [(264 + i * 8, 0x1000) for i in (1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)]
+        for offset, value in changes:
+            with self.subTest(offset=offset, value=value):
+                data = self.forwarder_fixture()
+                struct.pack_into("<I", data, offset, value)
+                with self.assertRaises(api.AuditError): self.inspect_ec(data)
+
+    def test_forwarder_rejects_direct_exports_and_bad_tables(self):
+        changes = [(552, 0x1200), (552, 0xFFFF), (264, 0), (268, 39), (268, 1024 * 1024 + 1),
+                   (532, 0), (532, 65537), (536, 4), (540, 0x11FF), (544, 0x11FF),
+                   (548, 0x11FF), (524, 0x11FF), (564, 0x11FF)]
+        for offset, value in changes:
+            with self.subTest(offset=offset, value=value):
+                data = self.forwarder_fixture()
+                struct.pack_into("<I", data, offset, value)
+                with self.assertRaises(api.AuditError): self.inspect_ec(data)
+        for ordinal in (1, 3, 65535):
+            data = self.forwarder_fixture()
+            struct.pack_into("<H", data, 572, ordinal)
+            with self.assertRaises(api.AuditError): self.inspect_ec(data)
+        data = self.forwarder_fixture()
+        data[552:564] = bytes(12)
+        with self.assertRaises(api.AuditError): self.inspect_ec(data)
+
+    def test_forwarder_rejects_bad_forwarded_strings(self):
+        for text in (b"", b"gdi32", b".symbol", b"gdi32.", b"../gdi32.symbol", b"gdi32.#0",
+                     b"gdi32.#65536", b"gdi32.#no", b"gdi32.\xFF", b"gdi32. bad"):
+            with self.subTest(text=text):
+                data = self.forwarder_fixture()
+                data[640:640 + len(text) + 1] = text + b"\0"
+                with self.assertRaises(api.AuditError): self.inspect_ec(data)
+        data = self.forwarder_fixture()
+        data[640:800] = b"x" * 160  # No terminator in the export directory.
+        with self.assertRaises(api.AuditError): self.inspect_ec(data)
+
+    def test_forwarder_all_file_truncations_rejected(self):
+        data = self.forwarder_fixture()
+        for size in range(len(data)):
+            with self.subTest(size=size):
+                with self.assertRaises(api.AuditError): self.inspect_ec(data[:size])
+
+    def test_metadata_and_forwarder_deterministic_mutations(self):
+        generator = random.Random(0xFEC2026)
+        for original in (self.arm64ec_fixture(), self.forwarder_fixture()):
+            for _ in range(10000):
+                data = bytearray(original)
+                for _ in range(generator.randrange(1, 5)):
+                    data[generator.randrange(len(data))] ^= generator.randrange(1, 256)
+                try:
+                    evidence = api.arm64ec_image_evidence(io.BytesIO(data), 128, data[128:152], len(data))
+                except api.AuditError:
+                    continue
+                self.assertIn(evidence["kind"], ("chpe", "forwarder-only"))
 
 if __name__ == "__main__": unittest.main()
