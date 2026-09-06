@@ -70,7 +70,11 @@ static void TerminateProcessGroup(pid_t leader)
   errno=0;
   if(kill(-leader,0)==0||errno==EPERM)kill(-leader,SIGKILL);
   else if(errno==ESRCH&&kill(leader,0)==0)kill(leader,SIGKILL);
-  waitpid(leader,NULL,WNOHANG);
+  /* This worker is the sole reaper after Stop invalidates launchGeneration.
+   * SIGKILL can precede exit notification: a one-shot WNOHANG leaks a zombie.
+   * Keep the PID reserved until the kill fence ends, then actually reap it. */
+  pid_t waited;
+  do{waited=waitpid(leader,NULL,0);}while(waited<0&&errno==EINTR);
  });
 }
 static void CopyControlString(char *destination,size_t capacity,NSString *value){if(!capacity)return;destination[0]=0;if(value.length) [value getCString:destination maxLength:capacity encoding:NSUTF8StringEncoding];}

@@ -1,4 +1,4 @@
-#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
 #import <errno.h>
 #import <fcntl.h>
 #import <objc/message.h>
@@ -72,21 +72,40 @@ static BOOL JuiceRotatePersistentLog(id self,NSString *path)
 }
 static void JuiceBoundedAppend(id self,SEL _cmd,NSString *text)
 {
-    if(JuiceLogOriginalAppend)JuiceLogOriginalAppend(self,_cmd,text);
     if(!text.length)return;
-    NSUInteger added=[text lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
-    if(!added)return;
-
+    /* Bound each forwarded UTF-16 slice as well as each on-disk segment. Never
+     * cut a surrogate pair; do not expand to an arbitrarily long grapheme. */
     @synchronized(self)
     {
-        unsigned long long bytes=[objc_getAssociatedObject(self,&JuiceLogByteCountKey) unsignedLongLongValue];
-        bytes+=added;
-        objc_setAssociatedObject(self,&JuiceLogByteCountKey,@(bytes),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        if(bytes<JuicePersistentLogSegmentBytes)return;
-        NSString *path=JuiceLogValue(self,@"persistentLogPath");
-        JuiceRotatePersistentLog(self,path);
+        for(NSUInteger offset=0;offset<text.length;)
+        {
+            @autoreleasepool
+            {
+                NSUInteger length=MIN((NSUInteger)16384,text.length-offset);
+                if(offset+length<text.length)
+                {
+                    unichar last=[text characterAtIndex:offset+length-1];
+                    unichar next=[text characterAtIndex:offset+length];
+                    if(last>=0xd800&&last<=0xdbff&&next>=0xdc00&&next<=0xdfff)length--;
+                }
+                NSString *part=[text substringWithRange:NSMakeRange(offset,length)];
+                NSUInteger added=[part lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
+                NSString *path=JuiceLogValue(self,@"persistentLogPath");
+                NSNumber *known=objc_getAssociatedObject(self,&JuiceLogByteCountKey);
+                unsigned long long bytes=known?known.unsignedLongLongValue:JuiceLogFileSize(path);
+                if(bytes>JuicePersistentLogSegmentBytes||added>JuicePersistentLogSegmentBytes-bytes)
+                {
+                    JuiceRotatePersistentLog(self,path);
+                    bytes=[objc_getAssociatedObject(self,&JuiceLogByteCountKey) unsignedLongLongValue];
+                }
+                if(JuiceLogOriginalAppend)JuiceLogOriginalAppend(self,_cmd,part);
+                objc_setAssociatedObject(self,&JuiceLogByteCountKey,@(bytes+added),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                offset+=length;
+            }
+        }
     }
 }
+
 static void JuiceLogViewDidLoad(id self,SEL _cmd)
 {
     if(JuiceLogOriginalViewDidLoad)JuiceLogOriginalViewDidLoad(self,_cmd);
@@ -111,6 +130,6 @@ static void JuiceInstallLogHardening(void)
     Class cls=NSClassFromString(@"JuiceController");if(!cls)return;
     Method append=class_getInstanceMethod(cls,NSSelectorFromString(@"append:"));
     if(append)JuiceLogOriginalAppend=(void(*)(id,SEL,NSString *))method_setImplementation(append,(IMP)JuiceBoundedAppend);
-    Method view=class_getInstanceMethod(cls,@selector(viewDidLoad));
+    Method view=class_getInstanceMethod(cls,NSSelectorFromString(@"viewDidLoad"));
     if(view)JuiceLogOriginalViewDidLoad=(void(*)(id,SEL))method_setImplementation(view,(IMP)JuiceLogViewDidLoad);
 }

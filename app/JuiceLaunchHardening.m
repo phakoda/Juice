@@ -38,6 +38,8 @@ static BOOL JuiceWhitespace(unichar c){static NSCharacterSet *set;static dispatc
 static NSArray<NSString *> *JuiceParseArguments(NSString *line,NSString **failure)
 {
     if(!line.length)return @[];
+    for(NSUInteger i=0;i<line.length;i++)if([line characterAtIndex:i]==0)
+    {if(failure)*failure=@"Arguments cannot contain a NUL character.";return nil;}
     NSMutableArray *arguments=[NSMutableArray array];NSMutableString *current=[NSMutableString string];
     unichar quote=0;BOOL started=NO;
     for(NSUInteger i=0;i<line.length;i++)
@@ -86,6 +88,38 @@ static NSString *JuiceDecodeOutput(NSData *data)
     return text?:@"";
 }
 
+/* Generation validation and the nonblocking reap execute in one main-queue
+ * turn. A separate check followed by a worker's blocking waitpid lets Stop
+ * begin its delayed PGID kill after the check but before the PID is released. */
+static void JuiceObserveChildExit(id self,pid_t child,uint64_t generation,int inputFD)
+{
+    if([JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation||
+       [JuiceLaunchValue(self,@"child") intValue]!=child)
+    {
+        JuiceLaunchAppend(self,[NSString stringWithFormat:
+            @"PROCESS_GROUP_REAP_DEFERRED pgid=%d generation=%llu pid_reuse_fence=1\n",
+            child,(unsigned long long)generation]);
+        return; /* stopAllWineProcesses owns the delayed kill AND final reap. */
+    }
+    int status=0;pid_t waited;
+    do{waited=waitpid(child,&status,WNOHANG);}while(waited<0&&errno==EINTR);
+    if(!waited)
+    {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,25*NSEC_PER_MSEC),dispatch_get_main_queue(),^{
+            JuiceObserveChildExit(self,child,generation,inputFD);
+        });
+        return;
+    }
+    int waitError=waited<0?errno:0;
+    JuiceLaunchSetValue(self,@"child",@(-1));
+    if([JuiceLaunchValue(self,@"childInput") intValue]==inputFD&&inputFD>=0)
+    {close(inputFD);JuiceLaunchSetValue(self,@"childInput",@(-1));}
+    NSString *result=waited==child&&WIFEXITED(status)?[NSString stringWithFormat:@"exit=%d",WEXITSTATUS(status)]:
+                     waited==child&&WIFSIGNALED(status)?[NSString stringWithFormat:@"signal=%d",WTERMSIG(status)]:
+                     [NSString stringWithFormat:@"wait=%d errno=%d",waited,waitError];
+    JuiceLaunchAppend(self,[NSString stringWithFormat:@"PROCESS_GROUP_EXITED pgid=%d %@\n",child,result]);
+}
+
 static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generation,int inputFD)
 {
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{@autoreleasepool{
@@ -102,34 +136,8 @@ static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generatio
         if(pending.length)JuiceLaunchAppend(self,JuiceDecodeOutput(pending));
     }close(readFD);
 
-    /* stopAllWineProcesses increments launchGeneration before it signals the
-     * old process group, then keeps the numeric PGID for a one-second SIGKILL
-     * fence. Do not reap an exited stale tracer before that fence completes:
-     * leaving it as a zombie prevents its PID/PGID from being recycled into a
-     * replacement launch that the delayed kill could otherwise target. The
-     * existing termination block performs the final WNOHANG reap. */
-    __block BOOL staleGeneration=NO;
-    dispatch_sync(dispatch_get_main_queue(),^{
-        staleGeneration=[JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation;
-    });
-    if(staleGeneration)
-    {
-        JuiceLaunchAppend(self,[NSString stringWithFormat:
-            @"PROCESS_GROUP_REAP_DEFERRED pgid=%d generation=%llu pid_reuse_fence=1\n",
-            child,(unsigned long long)generation]);
-        return;
-    }
-
-    int status=0;pid_t waited;do{waited=waitpid(child,&status,0);}while(waited<0&&errno==EINTR);
-    int waitError=waited<0?errno:0;
     dispatch_async(dispatch_get_main_queue(),^{
-        if([JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation)return;
-        if([JuiceLaunchValue(self,@"child") intValue]==child)JuiceLaunchSetValue(self,@"child",@(-1));
-        if([JuiceLaunchValue(self,@"childInput") intValue]==inputFD&&inputFD>=0){close(inputFD);JuiceLaunchSetValue(self,@"childInput",@(-1));}
-        NSString *result=waited==child&&WIFEXITED(status)?[NSString stringWithFormat:@"exit=%d",WEXITSTATUS(status)]:
-                         waited==child&&WIFSIGNALED(status)?[NSString stringWithFormat:@"signal=%d",WTERMSIG(status)]:
-                         [NSString stringWithFormat:@"wait=%d errno=%d",waited,waitError];
-        JuiceLaunchAppend(self,[NSString stringWithFormat:@"PROCESS_GROUP_EXITED pgid=%d %@\n",child,result]);
+        JuiceObserveChildExit(self,child,generation,inputFD);
     });});
 }
 

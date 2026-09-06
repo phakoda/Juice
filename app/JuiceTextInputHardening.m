@@ -1,6 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import "JuiceUTF16.h"
 
 #define JUICE_TEXT_MAGIC 0x4a554943u
 #define JUICE_TEXT_MESSAGE 101u
@@ -61,8 +62,8 @@ static BOOL JuiceSendTextPayload(id self,NSData *payload,uint64_t hwnd,int clien
     NSUInteger offset=0,chunks=0;
     while(offset<payload.length)
     {
-        NSUInteger length=MIN((NSUInteger)JUICE_TEXT_CHUNK_BYTES,payload.length-offset);
-        length&=~(NSUInteger)1; /* UTF-16LE code-unit alignment. */
+        NSUInteger length=JuiceUTF16ChunkLength((const uint8_t *)payload.bytes+offset,
+            payload.length-offset,JUICE_TEXT_CHUNK_BYTES);
         if(!length)return NO;
         NSData *part=[payload subdataWithRange:NSMakeRange(offset,length)];
         JuiceTextMsg message={JUICE_TEXT_MAGIC,JUICE_TEXT_MESSAGE,0,hwnd,0,0,0,0,0,0};
@@ -86,6 +87,11 @@ static BOOL JuiceSendText(id self,NSString *text,NSString *source)
         return NO;
     }
 
+    if(text.length>JUICE_TEXT_MAX_PASTE_BYTES/2u)
+    {
+        JuiceTextAppend(self,@"GUI_TEXT_REJECTED reason=too-large before-encoding=1\n");
+        return NO;
+    }
     NSData *payload=[text dataUsingEncoding:NSUTF16LittleEndianStringEncoding];
     if(!payload.length)return NO;
     if(payload.length>JUICE_TEXT_MAX_PASTE_BYTES)
@@ -99,7 +105,7 @@ static BOOL JuiceSendText(id self,NSString *text,NSString *source)
     NSUInteger chunks=0;
     BOOL delivered=JuiceSendTextPayload(self,payload,hwnd,client,&chunks);
     JuiceTextAppend(self,[NSString stringWithFormat:
-        @"GUI_TEXT_SENT hwnd=0x%llx fd=%d source=%@ utf16_units=%lu bytes=%lu chunks=%lu delivered=%d selected_only=1\n",
+        @"GUI_TEXT_SENT hwnd=0x%llx fd=%d source=%@ utf16_units=%lu bytes=%lu chunks=%lu delivered=%d selected_only=1 delivery=queued-not-acknowledged\n",
         (unsigned long long)hwnd,client,source?:@"unknown",
         (unsigned long)(payload.length/2),(unsigned long)payload.length,
         (unsigned long)chunks,delivered]);

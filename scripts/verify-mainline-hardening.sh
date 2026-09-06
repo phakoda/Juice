@@ -115,7 +115,7 @@ if grep -Fq 'failures++<20' "$SOCKET"; then
   echo "Socket accept recovery must not permanently stop after a fixed retry count." >&2
   exit 3
 fi
-grep -Fq 'errno==EINTR' "$HOSTIO"
+grep -Fq 'errno == EINTR' "$ROOT/app/JuiceSocketIO.h"
 grep -Fq '@synchronized(clients)' "$HOSTIO"
 
 # Short transport interruptions retain window geometry but never keep a closed

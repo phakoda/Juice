@@ -1,5 +1,5 @@
-#import <UIKit/UIKit.h>
-#import "JuiceAsyncWriter.h"
+#import <Foundation/Foundation.h>
+#import <CoreGraphics/CoreGraphics.h>
 #import <errno.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
@@ -8,6 +8,7 @@
 #import <sys/resource.h>
 #import <sys/socket.h>
 #import <unistd.h>
+#import "JuiceAsyncWriter.h"
 
 #define JUICE_DISPLAY_MAGIC 0x4a554943u
 #define JUICE_DISPLAY_HELLO 1u
@@ -16,6 +17,8 @@
 #define JUICE_DISPLAY_FRAME 5u
 #define JUICE_DISPLAY_DIRTY 0x20000000u
 #define JUICE_DISPLAY_MAX_BYTES (128u * 1024u * 1024u)
+#define JUICE_DISPLAY_MAX_RETAINED_BYTES (256u * 1024u * 1024u)
+#define JUICE_DISPLAY_MAX_RETAINED_WINDOWS 128u
 #define JUICE_DISPLAY_MAX_DESKTOP_DIMENSION 8192
 #define JUICE_DISPLAY_MAX_DESKTOP_PIXELS (4096ULL * 4096ULL)
 #define JUICE_DISPLAY_MAX_WINDOW_DIMENSION 8192
@@ -44,6 +47,7 @@ typedef struct
 @end
 
 static char JuiceDisplayFramesKey;
+static char JuiceDisplayPendingBytesKey;
 
 static id JuiceDisplayValue(id object, NSString *key)
 {
@@ -78,6 +82,29 @@ static NSMutableDictionary<NSNumber *,JuiceDisplayFramebuffer *> *JuiceDisplayFr
         }
     }
     return frames;
+}
+
+/* Bound aggregate payloads before allocation, not just each packet. Multiple
+ * readers must not each reserve the full per-packet limit simultaneously. */
+static BOOL JuiceReserveDisplayPayload(id self,NSUInteger bytes)
+{
+    NSMutableDictionary *frames=JuiceDisplayFrames(self);
+    @synchronized(frames)
+    {
+        NSUInteger pending=[objc_getAssociatedObject(self,&JuiceDisplayPendingBytesKey) unsignedIntegerValue];
+        if(bytes>JUICE_DISPLAY_MAX_BYTES-pending)return NO;
+        objc_setAssociatedObject(self,&JuiceDisplayPendingBytesKey,@(pending+bytes),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        return YES;
+    }
+}
+static void JuiceReleaseDisplayPayload(id self,NSUInteger bytes)
+{
+    NSMutableDictionary *frames=JuiceDisplayFrames(self);
+    @synchronized(frames)
+    {
+        NSUInteger pending=[objc_getAssociatedObject(self,&JuiceDisplayPendingBytesKey) unsignedIntegerValue];
+        objc_setAssociatedObject(self,&JuiceDisplayPendingBytesKey,@(pending-bytes),OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
 }
 
 /* Full framebuffer copies can be tens of MiB. Keep exactly one snapshot worker
@@ -152,13 +179,13 @@ static BOOL JuiceDirtyHeaderValid(JuiceDisplayMsg message)
     return expected==message.size&&expected<=JUICE_DISPLAY_MAX_BYTES;
 }
 
-static void JuiceInvalidateHWND(id self,uint64_t hwnd)
+static void JuiceInvalidateHWND(id self,uint64_t hwnd,int fd)
 {
     NSMutableDictionary *frames=JuiceDisplayFrames(self);
     @synchronized(frames)
     {
         JuiceDisplayFramebuffer *frame=frames[@(hwnd)];
-        if(frame)@synchronized(frame){frame.invalidated=YES;frame.bytes=nil;}
+        if(frame)@synchronized(frame){if(frame.clientFD!=fd)return;frame.invalidated=YES;frame.bytes=nil;}
         [frames removeObjectForKey:@(hwnd)];
     }
 }
@@ -199,6 +226,16 @@ static JuiceDisplayFramebuffer *JuiceApplyFull(id self,JuiceDisplayMsg message,N
     @synchronized(frames)
     {
         JuiceDisplayFramebuffer *frame=frames[@(message.hwnd)];
+        if(!frame&&frames.count>=JUICE_DISPLAY_MAX_RETAINED_WINDOWS)return nil;
+        NSUInteger retained=0;
+        for(NSNumber *key in frames)
+        {
+            if(key.unsignedLongLongValue==message.hwnd)continue;
+            JuiceDisplayFramebuffer *other=frames[key];
+            @synchronized(other){retained+=other.bytes.length;}
+        }
+        if(retained>JUICE_DISPLAY_MAX_RETAINED_BYTES||
+           data.length>JUICE_DISPLAY_MAX_RETAINED_BYTES-retained)return nil;
         if(frame)
         {
             @synchronized(frame)
@@ -206,10 +243,7 @@ static JuiceDisplayFramebuffer *JuiceApplyFull(id self,JuiceDisplayMsg message,N
                 if(!frame.invalidated&&frame.width==message.width&&frame.height==message.height&&
                    frame.stride==message.stride&&frame.bytes.length==data.length)
                 {
-                    /* The reader owns this new buffer and snapshots are immutable
-                     * copies. Replacing ownership avoids a redundant full-frame
-                     * memcpy on every baseline refresh. */
-                    frame.bytes=data;
+                    frame.bytes=data; /* Transfer ownership; no redundant full-frame memcpy. */
                     frame.clientFD=fd;frame.peerPID=peerPID;frame.generation++;frame.received++;
                     return frame;
                 }
@@ -371,11 +405,30 @@ static void JuiceHardenedReadClient(id self,SEL _cmd,int fd)
                 break;
             }
 
-            NSMutableData *data=nil;
-            if(message.size)
+            if(message.type==JUICE_DISPLAY_FRAME)
             {
-                data=[NSMutableData dataWithLength:message.size];
-                if(!data||!JuiceDisplayReadAll(fd,data.mutableBytes,message.size))break;
+                if(!JuiceReserveDisplayPayload(self,message.size))
+                {
+                    JuiceDisplayAppend(self,@"DISPLAY_BUDGET_EXCEEDED kind=in-flight disconnected=1\n");
+                    break;
+                }
+                @try
+                {
+                    NSMutableData *data=[NSMutableData dataWithLength:message.size];
+                    if(!data||!JuiceDisplayReadAll(fd,data.mutableBytes,message.size))break;
+                    BOOL dirty=(message.flags&JUICE_DISPLAY_DIRTY)!=0;
+                    JuiceDisplayFramebuffer *frame=dirty?
+                        JuiceApplyDirty(self,message,data,fd,peerPID):
+                        JuiceApplyFull(self,message,data,fd,peerPID);
+                    if(frame){JuiceScheduleFrame(self,frame,firstFrame);firstFrame=NO;}
+                    else if(!dirty)
+                    {
+                        JuiceDisplayAppend(self,@"DISPLAY_BUDGET_EXCEEDED kind=retained disconnected=1\n");
+                        break;
+                    }
+                }
+                @finally{JuiceReleaseDisplayPayload(self,message.size);}
+                continue;
             }
             if(message.type==JUICE_DISPLAY_HELLO)
             {
@@ -384,8 +437,9 @@ static void JuiceHardenedReadClient(id self,SEL _cmd,int fd)
                     @"DISPLAY_EVENT HELLO fd=%d pid=%d desktop=%dx%d dpi=%u\n",
                     fd,peerPID,message.width,message.height,message.stride]);
                 dispatch_async(dispatch_get_main_queue(),^{
+                    CGSize size=CGSizeMake(message.width,message.height);
                     JuiceDisplaySetValue(self,@"wineDesktopSize",
-                        [NSValue valueWithCGSize:CGSizeMake(message.width,message.height)]);
+                        [NSValue valueWithBytes:&size objCType:@encode(CGSize)]);
                 });
             }
             else if(message.type==JUICE_DISPLAY_WINDOW)
@@ -398,25 +452,22 @@ static void JuiceHardenedReadClient(id self,SEL _cmd,int fd)
             }
             else if(message.type==JUICE_DISPLAY_DESTROY)
             {
-                JuiceInvalidateHWND(self,message.hwnd);
+                JuiceInvalidateHWND(self,message.hwnd,fd);
                 dispatch_async(dispatch_get_main_queue(),^{
+                    NSDictionary *windows=JuiceDisplayValue(self,@"wineWindows");
+                    id state=windows[@(message.hwnd)];
+                    if(!state||[JuiceDisplayValue(state,@"clientFD") intValue]!=fd)return;
                     SEL selector=NSSelectorFromString(@"destroyWindowHwnd:");
                     if([self respondsToSelector:selector])
                         ((void (*)(id,SEL,uint64_t))objc_msgSend)(self,selector,message.hwnd);
                 });
             }
-            else if(message.type==JUICE_DISPLAY_FRAME)
-            {
-                BOOL dirty=(message.flags&JUICE_DISPLAY_DIRTY)!=0;
-                JuiceDisplayFramebuffer *frame=dirty?
-                    JuiceApplyDirty(self,message,data,fd,peerPID):
-                    JuiceApplyFull(self,message,data,fd,peerPID);
-                if(frame){JuiceScheduleFrame(self,frame,firstFrame);firstFrame=NO;}
-            }
+
         }
     }
 
     JuiceDisplayAppend(self,[NSString stringWithFormat:@"DISPLAY_CLIENT_CLOSED fd=%d pid=%d\n",fd,peerPID]);
+
     JuiceInvalidateClient(self,fd);
 
     /* A numeric descriptor must not become reusable until every host-side
