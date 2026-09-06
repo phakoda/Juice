@@ -5,6 +5,9 @@ on:
     paths: [.github/workflows/runtime-dev-snapshot.yml]
 permissions:
   contents: read
+concurrency:
+  group: runtime-development-snapshot
+  cancel-in-progress: true
 jobs:
   snapshot:
     runs-on: ubuntu-latest
@@ -14,16 +17,24 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Archive reviewed source revisions without credentials or build outputs
+      - name: Archive only integration source inputs
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p /tmp/juice-source
-          git archive 2d8db2cd1b37624f9f6e61af270f5f5d97cddea6 | gzip > /tmp/juice-source/pr4.tar.gz
-          git archive 7506d64138ae9227b5a8488b14891d4ccc036d3a | gzip > /tmp/juice-source/pr3.tar.gz
-          git archive 0112534a7bfb6d090c1cded3df0eb6b2b020011f | gzip > /tmp/juice-source/main.tar.gz
-          git archive "$(git merge-base 7506d64138ae9227b5a8488b14891d4ccc036d3a 2d8db2cd1b37624f9f6e61af270f5f5d97cddea6)" | gzip > /tmp/juice-source/base.tar.gz
+          refs=(2d8db2cd1b37624f9f6e61af270f5f5d97cddea6 7506d64138ae9227b5a8488b14891d4ccc036d3a 0112534a7bfb6d090c1cded3df0eb6b2b020011f)
+          names=(pr4 pr3 main)
+          refs+=("$(git merge-base "${refs[0]}" "${refs[1]}")")
+          names+=(base)
+          for i in 0 1 2 3; do
+            git archive "${refs[$i]}" app scripts config Makefile README.md patches launcher toolchain packaging docs .github wine/dlls/wineios.drv wine/dlls/winevulkan wine/include/juiceinput.h | gzip -1 > "/tmp/juice-source/${names[$i]}.tar.gz"
+          done
+          du -h /tmp/juice-source/*
+          test "$(du -sm /tmp/juice-source | cut -f1)" -lt 100
       - uses: actions/upload-artifact@v4
         with:
-          name: runtime-integration-sources
+          name: runtime-integration-code
           path: /tmp/juice-source/*.tar.gz
           retention-days: 1
+          compression-level: 0
           if-no-files-found: error
