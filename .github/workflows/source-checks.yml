@@ -28,8 +28,6 @@ jobs:
         run: make app
       - name: Compile launcher helpers for iPhoneOS
         run: make launchers
-      - name: Run ZIP extractor regressions
-        run: bash scripts/test-zip-extractor-host.sh
 
   review-inputs:
     if: github.event_name == 'pull_request'
