@@ -1,0 +1,95 @@
+name: Graphics FEX JIT bring-up
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/graphics-fex-jit.yml'
+      - 'wine/**'
+      - 'patches/**'
+      - 'app/JuiceJIT*'
+      - 'app/JuiceStikDebugJIT.m'
+      - 'app/tests/JIT*'
+      - 'config/*modules.txt'
+      - 'scripts/**'
+      - 'tests/**'
+permissions:
+  contents: read
+concurrency:
+  group: graphics-fex-jit-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cc: clang
+            cxx: clang++
+          - cc: gcc
+            cxx: g++
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: bash scripts/test-fex-codegen-host.sh
+      - run: bash scripts/test-graphics-policy-host.sh
+      - run: bash scripts/test-jit-host.sh
+      - run: python3 -m unittest discover -s scripts/tests -p test_graphics_api.py -v
+      - run: python3 scripts/verify_graphics_api.py
+  iphoneos-driver:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: brew install bison flex make
+      - name: Compile actual Wine iOS graphics and JIT objects
+        run: |
+          export PATH="$(brew --prefix bison)/bin:$(brew --prefix flex)/bin:$(brew --prefix make)/libexec/gnubin:$PATH"
+          bash scripts/test-wine-graphics-ios-compile.sh
+      - name: Preserve compiler diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wine-ios-graphics-${{ github.sha }}
+          path: |
+            build/wine-compile-logs/
+            build/wine-tools-macos/config.log
+            build/wine-ios-validation/config.log
+          retention-days: 7
+          if-no-files-found: warn
+  graphics-api-pe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64, arm64ec, i386]
+    env:
+      JUICE_JOBS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install build-host dependencies
+        run: sudo apt-get update && sudo apt-get install -y bison flex libvulkan-dev
+      - name: Compile actual graphics and API DLLs
+        run: bash scripts/test-graphics-api-pe-linux.sh "${{ matrix.arch }}"
+      - name: Preserve compiler logs and DLL checksums
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: graphics-api-${{ matrix.arch }}-${{ github.sha }}
+          path: |
+            build/graphics-api-logs/
+            build/graphics-api-*/config.log
+          retention-days: 7
+          if-no-files-found: warn

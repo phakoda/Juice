@@ -1,0 +1,181 @@
+diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+--- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+@@ -25,4 +25,5 @@
+ #include "Interface/Core/JIT/DebugData.h"
+ #include "Interface/Core/JIT/JITClass.h"
++#include "Interface/Core/JuiceCodegenPolicy.h"
+ #include "Interface/IR/Passes/RegisterAllocationPass.h"
+ 
+@@ -55,32 +56,31 @@
+       }
+ 
+-      // Ensure a replacement buffer is selected before Align16B writes padding.
+-      SetBuffer(CurrentCodeBuffer->Ptr, CurrentCodeBuffer->AllocatedSize);
++      // Recompute all offsets from the CURRENT buffer after a cache rollover.
++      uint64_t PublicationAlignment;
++      FEXCore::Juice::CodeSpan Span;
++      auto PlanPublication = [&]() {
+ #ifdef FEX_JUICE_IOS
+-      /*
+-       * Never reopen a page that already contains published code.  Darwin's
+-       * W^X protection is page-wide, so compiling into the unused tail of an
+-       * RX page can make code executing on another thread non-executable.
+-       */
+-      constexpr uint64_t JuiceHostPageSize = 0x4000;
+-      const auto AlignedOffset = AlignUp(CodeBuffers.LatestOffset, JuiceHostPageSize);
++        // Authorized dual aliases never reopen an RX page. Pack blocks at
++        // their 16-byte ABI alignment instead of wasting one 16 KiB page each.
++        PublicationAlignment = CurrentCodeBuffer->DualMapped ? 16 : 0x4000;
+ #else
+-      const auto AlignedOffset = AlignUp(CodeBuffers.LatestOffset, static_cast<uint64_t>(16));
++        PublicationAlignment = 16;
+ #endif
+-      if ((AlignedOffset + TempSize) > CurrentCodeBuffer->UsableSize()) {
++        return FEXCore::Juice::PlanCodeSpan(CodeBuffers.LatestOffset, TempSize,
++                                           CurrentCodeBuffer->UsableSize(), PublicationAlignment, Span);
++      };
++      if (!PlanPublication()) {
+         CTX->ClearCodeCache(ThreadState);
++        LOGMAN_THROW_A_FMT(PlanPublication(), "Generated block does not fit a fresh code buffer");
+       }
++      const auto AlignedOffset = Span.Offset;
+ 
+ #ifdef FEX_JUICE_IOS
+-      /*
+-       * Align16B emits padding directly into the destination buffer.  Include
+-       * that padding in the W^X write interval; protecting only the memcpy
+-       * destination is too late when the preceding block left this page RX.
+-       */
+-      constexpr uintptr_t JuiceHostPageMask = JuiceHostPageSize - 1;
+       const uintptr_t BufferBase = reinterpret_cast<uintptr_t>(CurrentCodeBuffer->Ptr);
+-      const uintptr_t CopyOffset = AlignedOffset;
+-      ProtectStart = BufferBase + CopyOffset;
+-      ProtectEnd = (BufferBase + CopyOffset + TempSize + JuiceHostPageMask) & ~JuiceHostPageMask;
++      LOGMAN_THROW_A_FMT(!(BufferBase & (PublicationAlignment - 1)) &&
++                        Span.End <= std::numeric_limits<uintptr_t>::max() - BufferBase,
++                        "Invalid iOS code publication interval");
++      ProtectStart = BufferBase + Span.Offset;
++      ProtectEnd = BufferBase + Span.End;
+       if (!CurrentCodeBuffer->DualMapped) {
+         LOGMAN_THROW_A_FMT(
+diff --git a/FEXCore/Source/Interface/Core/CPUBackend.h b/FEXCore/Source/Interface/Core/CPUBackend.h
+--- a/FEXCore/Source/Interface/Core/CPUBackend.h
++++ b/FEXCore/Source/Interface/Core/CPUBackend.h
+@@ -26,4 +26,5 @@
+ #include <atomic>
+ #include <cstdint>
++#include "Interface/Core/JuiceCodegenPolicy.h"
+ 
+ namespace FEXCore::CPU {
+@@ -54,8 +55,5 @@
+ 
+   private:
+-    struct RetiredCodeBufferRange {
+-      std::atomic<uintptr_t> Begin {};
+-      std::atomic<uintptr_t> End {};
+-    };
++    using RetiredCodeBufferRange = FEXCore::Juice::RetiredCodeRange;
+     static constexpr size_t RetiredCodeBufferRangeCount = 8;
+     std::array<RetiredCodeBufferRange, RetiredCodeBufferRangeCount> RetiredCodeBufferRanges {};
+diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+--- a/FEXCore/Source/Interface/Core/CPUBackend.cpp
++++ b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+@@ -25,7 +25,5 @@
+                                             RetiredCodeBufferRangeCount];
+       const uintptr_t Begin = reinterpret_cast<uintptr_t>(CodeBuffer->Ptr);
+-      Range.Begin.store(0, std::memory_order_release);
+-      Range.End.store(Begin + CodeBuffer->AllocatedSize, std::memory_order_relaxed);
+-      Range.Begin.store(Begin, std::memory_order_release);
++      (void)Range.Publish(Begin, CodeBuffer->AllocatedSize);
+     }
+ #endif
+@@ -57,7 +55,5 @@
+ #ifdef FEX_JUICE_IOS
+     for (const auto& Range : RetiredCodeBufferRanges) {
+-      const uintptr_t Begin = Range.Begin.load(std::memory_order_acquire);
+-      const uintptr_t End = Range.End.load(std::memory_order_relaxed);
+-      if (Begin && Address >= Begin && Address < End) {
++      if (Range.Contains(Address)) {
+         return true;
+       }
+diff --git a/FEXCore/Source/Interface/Core/JIT/MemoryOps.cpp b/FEXCore/Source/Interface/Core/JIT/MemoryOps.cpp
+--- a/FEXCore/Source/Interface/Core/JIT/MemoryOps.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/MemoryOps.cpp
+@@ -25,5 +25,5 @@
+         EffectiveAddr = TMP1;
+       } else if (SignedOffset < 0) {
+-        sub(ARMEmitter::Size::i64Bit, TMP1, MemReg, static_cast<uint64_t>(-SignedOffset));
++        sub(ARMEmitter::Size::i64Bit, TMP1, MemReg, uint64_t {0} - Offset);
+         EffectiveAddr = TMP1;
+       }
+@@ -55,5 +55,5 @@
+         EffectiveAddr = TMP1;
+       } else if (SignedOffset < 0) {
+-        sub(ARMEmitter::Size::i64Bit, TMP1, MemReg, static_cast<uint64_t>(-SignedOffset));
++        sub(ARMEmitter::Size::i64Bit, TMP1, MemReg, uint64_t {0} - Offset);
+         EffectiveAddr = TMP1;
+       }
+diff --git a/FEXCore/Source/Interface/Core/JuiceCodegenPolicy.h b/FEXCore/Source/Interface/Core/JuiceCodegenPolicy.h
+new file mode 100644
+--- /dev/null
++++ b/FEXCore/Source/Interface/Core/JuiceCodegenPolicy.h
+@@ -0,0 +1,58 @@
++// SPDX-License-Identifier: MIT
++#pragma once
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <limits>
++
++namespace FEXCore::Juice {
++struct CodeSpan { uint64_t Offset {}, End {}; };
++
++// Pure arithmetic only: does not allocate memory or grant execute permission.
++// Round both ends so publishing a block cannot reopen an older RX page or
++// include the trailing guard page. The caller must replan after cache rollover.
++inline bool PlanCodeSpan(uint64_t cursor, uint64_t bytes, uint64_t capacity,
++                         uint64_t alignment, CodeSpan& out) {
++  out = {};
++  constexpr uint64_t Max = std::numeric_limits<uint64_t>::max();
++  if (!bytes || !alignment || (alignment & (alignment - 1)) || cursor > capacity ||
++      cursor > Max - (alignment - 1)) return false;
++  const uint64_t begin = (cursor + alignment - 1) & ~(alignment - 1);
++  if (begin > capacity || bytes > capacity - begin) return false;
++  const uint64_t end = begin + bytes;
++  if (end > Max - (alignment - 1)) return false;
++  const uint64_t rounded = (end + alignment - 1) & ~(alignment - 1);
++  if (rounded > capacity) return false;
++  out = {begin, rounded};
++  return true;
++}
++
++// Used from the Windows fault bridge. Never spin on an interrupted writer,
++// allocate, or take a lock. A contended/in-progress record is simply not evidence.
++// Sequential consistency orders endpoints and sequence as one bounded snapshot;
++// separate acquire/release endpoints can combine different retired generations.
++class RetiredCodeRange {
++  static_assert(std::atomic<uintptr_t>::is_always_lock_free);
++  static_assert(std::atomic<uint64_t>::is_always_lock_free);
++  std::atomic<uint64_t> Sequence {};
++  std::atomic<uintptr_t> Begin {}, End {};
++public:
++  bool Publish(uintptr_t begin, size_t bytes) {
++    if (!begin || !bytes || bytes > std::numeric_limits<uintptr_t>::max() - begin) return false;
++    uint64_t sequence = Sequence.load();
++    // Do not wrap a sequence into a value a paused reader could have observed.
++    if ((sequence & 1) || sequence >= std::numeric_limits<uint64_t>::max() - 1) return false;
++    if (!Sequence.compare_exchange_strong(sequence, sequence + 1)) return false;
++    Begin.store(begin);
++    End.store(begin + bytes);
++    Sequence.store(sequence + 2);
++    return true;
++  }
++  bool Contains(uintptr_t address) const {
++    const uint64_t before = Sequence.load();
++    if (!before || (before & 1)) return false;
++    const uintptr_t begin = Begin.load(), end = End.load();
++    return before == Sequence.load() && begin && address >= begin && address < end;
++  }
++};
++} // namespace FEXCore::Juice

@@ -15,6 +15,8 @@
 #include <assert.h>
 #include <dlfcn.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include "graphics_policy.h"
 
 #include "ntstatus.h"
 #include "iosdrv.h"
@@ -30,6 +32,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(vulkan);
     id<CAMetalDrawable> last_drawable;
 }
 -(id<CAMetalDrawable>)copyLastDrawable;
+-(void)clearLastDrawable;
 @end
 
 @implementation JuiceIOSMetalLayer
@@ -46,6 +49,14 @@ WINE_DEFAULT_DEBUG_CHANNEL(vulkan);
 -(id<CAMetalDrawable>)copyLastDrawable
 {
     @synchronized(self) { return [last_drawable retain]; }
+}
+-(void)clearLastDrawable
+{
+    @synchronized(self)
+    {
+        [last_drawable release];
+        last_drawable = nil;
+    }
 }
 -(void)dealloc
 {
@@ -64,7 +75,18 @@ struct iosdrv_client_surface
     NSUInteger readback_size;
     NSUInteger readback_stride;
     unsigned int present_count;
+    BOOL detached;
 };
+
+static pthread_mutex_t readback_budget_lock = PTHREAD_MUTEX_INITIALIZER;
+static size_t readback_budget_used;
+static void iosdrv_release_readback_budget(size_t bytes)
+{
+    pthread_mutex_lock(&readback_budget_lock);
+    assert(bytes <= readback_budget_used);
+    readback_budget_used -= bytes;
+    pthread_mutex_unlock(&readback_budget_lock);
+}
 
 static const struct client_surface_funcs iosdrv_client_surface_funcs;
 static const struct vulkan_driver_funcs iosdrv_vulkan_driver_funcs;
@@ -78,7 +100,11 @@ static struct iosdrv_client_surface *impl_from_client_surface(struct client_surf
 static void iosdrv_client_surface_destroy(struct client_surface *client)
 {
     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
+    /* The final client reference owns teardown. Break the drawable/layer
+     * retention chain explicitly; dealloc alone cannot break a retain cycle. */
+    [surface->layer clearLastDrawable];
     [surface->readback release];
+    iosdrv_release_readback_budget(surface->readback_size);
     [surface->queue release];
     [surface->layer release];
     [surface->device release];
@@ -87,56 +113,101 @@ static void iosdrv_client_surface_destroy(struct client_surface *client)
 static void iosdrv_client_surface_detach(struct client_surface *client)
 {
     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
-    surface->layer.hidden = YES;
+    @synchronized(surface->queue)
+    {
+        surface->detached = TRUE;
+        surface->layer.hidden = YES;
+        [surface->layer clearLastDrawable];
+    }
 }
 
 static void iosdrv_client_surface_update(struct client_surface *client)
 {
     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
-    LONG width = max(1, client->monitor_rect.right - client->monitor_rect.left);
-    LONG height = max(1, client->monitor_rect.bottom - client->monitor_rect.top);
-    CGSize size = CGSizeMake(width, height);
+    size_t width = juice_rect_extent(client->monitor_rect.left, client->monitor_rect.right);
+    size_t height = juice_rect_extent(client->monitor_rect.top, client->monitor_rect.bottom);
+    struct juice_readback_layout layout;
+    CGSize size;
 
-    if (!CGSizeEqualToSize(surface->layer.drawableSize, size))
+    if (!juice_readback_layout(width, height, 256, &layout))
     {
-        surface->layer.bounds = CGRectMake(0, 0, width, height);
-        surface->layer.drawableSize = size;
-        TRACE("resized %s Metal surface to %dx%d\n", debugstr_client_surface(client), width, height);
+        WARN("refusing oversized Metal surface for %s\n", debugstr_client_surface(client));
+        return;
+    }
+    size = CGSizeMake(width, height);
+    @synchronized(surface->queue)
+    {
+        if (!surface->detached && !CGSizeEqualToSize(surface->layer.drawableSize, size))
+        {
+            surface->layer.bounds = CGRectMake(0, 0, width, height);
+            surface->layer.drawableSize = size;
+            TRACE("resized %s Metal surface to %lux%lu\n", debugstr_client_surface(client),
+                  (unsigned long)width, (unsigned long)height);
+        }
+    }
+}
+
+static enum juice_readback_format iosdrv_readback_format(MTLPixelFormat format)
+{
+    switch (format)
+    {
+    case MTLPixelFormatBGRA8Unorm: case MTLPixelFormatBGRA8Unorm_sRGB: return JUICE_READBACK_BGRA8;
+    case MTLPixelFormatRGBA8Unorm: case MTLPixelFormatRGBA8Unorm_sRGB: return JUICE_READBACK_RGBA8;
+    case MTLPixelFormatRGB10A2Unorm: return JUICE_READBACK_RGB10A2;
+    case MTLPixelFormatBGR10A2Unorm: return JUICE_READBACK_BGR10A2;
+    default: return JUICE_READBACK_UNSUPPORTED;
     }
 }
 
 static BOOL iosdrv_prepare_readback(struct iosdrv_client_surface *surface, NSUInteger width, NSUInteger height)
 {
-    NSUInteger stride = (width * 4u + 255u) & ~255u;
-    NSUInteger size;
+    struct juice_readback_layout layout;
+    id<MTLBuffer> replacement;
+    BOOL reserved;
+    if (!juice_readback_layout(width, height, 256, &layout)) return FALSE;
+    if (surface->readback && surface->readback_size >= layout.bytes && surface->readback_stride == layout.stride) return TRUE;
 
-    if (height && stride > NSUIntegerMax / height) return FALSE;
-    size = stride * height;
-    if (surface->readback && surface->readback_size >= size && surface->readback_stride == stride) return TRUE;
-
+    /* Reserve across all surfaces, including the old buffer while replacing. */
+    pthread_mutex_lock(&readback_budget_lock);
+    reserved = juice_readback_budget_reserve(&readback_budget_used, layout.bytes);
+    pthread_mutex_unlock(&readback_budget_lock);
+    if (!reserved) return FALSE;
+    replacement = [surface->device newBufferWithLength:layout.bytes options:MTLResourceStorageModeShared];
+    if (!replacement)
+    {
+        iosdrv_release_readback_budget(layout.bytes);
+        return FALSE; /* Keep a reusable previous buffer on allocation failure. */
+    }
     [surface->readback release];
-    surface->readback = [surface->device newBufferWithLength:size options:MTLResourceStorageModeShared];
-    surface->readback_size = surface->readback ? size : 0;
-    surface->readback_stride = surface->readback ? stride : 0;
-    return surface->readback != nil;
+    iosdrv_release_readback_budget(surface->readback_size);
+    surface->readback = replacement;
+    surface->readback_size = layout.bytes;
+    surface->readback_stride = layout.stride;
+    return TRUE;
 }
 
-static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc)
+static void iosdrv_present_readback(struct client_surface *client)
 {
     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
-    id<CAMetalDrawable> drawable = [surface->layer copyLastDrawable];
+    id<CAMetalDrawable> drawable = surface->detached ? nil : [surface->layer copyLastDrawable];
     id<MTLTexture> texture = drawable.texture;
     id<MTLCommandBuffer> command;
     id<MTLBlitCommandEncoder> blit;
+    enum juice_readback_format format;
     NSUInteger width, height;
     RECT dirty;
 
-    (void)hdc;
     if (!drawable || !texture) goto done;
     width = texture.width;
     height = texture.height;
-    if (!width || !height || !iosdrv_prepare_readback(surface, width, height)) goto done;
-
+    format = iosdrv_readback_format(texture.pixelFormat);
+    if (format == JUICE_READBACK_UNSUPPORTED || texture.sampleCount != 1 ||
+        texture.textureType != MTLTextureType2D || texture.framebufferOnly)
+    {
+        WARN("unsupported Metal readback format/type for %s\n", debugstr_client_surface(client));
+        goto done;
+    }
+    if (!iosdrv_prepare_readback(surface, width, height)) goto done;
     command = [surface->queue commandBuffer];
     blit = [command blitCommandEncoder];
     if (!command || !blit) goto done;
@@ -147,6 +218,8 @@ static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc
     destinationBytesPerImage:surface->readback_stride * height];
     [blit endEncoding];
     [command commit];
+    /* Preserve synchronous readback until producer-queue synchronization is
+     * available; completion on this queue is not a cross-queue render fence. */
     [command waitUntilCompleted];
     if (command.status != MTLCommandBufferStatusCompleted)
     {
@@ -154,17 +227,30 @@ static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc
             [[command.error description] UTF8String]);
         goto done;
     }
+    if (!juice_readback_to_bgra(surface->readback.contents, surface->readback_size, width, height,
+                                surface->readback_stride, format)) goto done;
 
     SetRect(&dirty, 0, 0, (INT)width, (INT)height);
     ios_ipc_present(client->hwnd, surface->readback.contents, (unsigned int)width,
                     (unsigned int)height, (unsigned int)surface->readback_stride, &dirty);
-    if (surface->present_count++ < 3)
+    if (surface->present_count < 3)
         fprintf(stderr, "JUICE_MOLTENVK_PRESENT_OK hwnd=%p width=%lu height=%lu stride=%lu frame=%u\n",
                 client->hwnd, (unsigned long)width, (unsigned long)height,
-                (unsigned long)surface->readback_stride, surface->present_count);
-
+                (unsigned long)surface->readback_stride, ++surface->present_count);
 done:
     [drawable release];
+}
+
+static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc)
+{
+    struct iosdrv_client_surface *surface = impl_from_client_surface(client);
+    (void)hdc;
+    /* Win32 threads need not have a Cocoa run loop. Drain temporary Metal
+     * objects per frame, and serialize buffer allocation/conversion/IPC reuse. */
+    @autoreleasepool
+    {
+        @synchronized(surface->queue) { iosdrv_present_readback(client); }
+    }
 }
 
 static const struct client_surface_funcs iosdrv_client_surface_funcs =
@@ -227,9 +313,20 @@ static VkResult iosdrv_vulkan_surface_create(struct client_surface *client,
 static VkBool32 iosdrv_get_physical_device_presentation_support(struct vulkan_physical_device *device,
                                                                  uint32_t queue)
 {
-    (void)device;
-    (void)queue;
-    return VK_TRUE;
+    /* VK_EXT_metal_surface guarantees presentation for every valid family.
+     * Still validate the caller's index against the actual physical device. */
+    VkQueueFamilyProperties *families;
+    uint32_t count = 0, capacity;
+    VkBool32 supported;
+    if (!device || !device->instance || !device->instance->p_vkGetPhysicalDeviceQueueFamilyProperties) return VK_FALSE;
+    device->instance->p_vkGetPhysicalDeviceQueueFamilyProperties(device->host.physical_device, &count, NULL);
+    if (!count || count > 4096 || queue >= count) return VK_FALSE;
+    capacity = count;
+    if (!(families = calloc(capacity, sizeof(*families)))) return VK_FALSE;
+    device->instance->p_vkGetPhysicalDeviceQueueFamilyProperties(device->host.physical_device, &count, families);
+    supported = count <= capacity && queue < count && families[queue].queueCount != 0;
+    free(families);
+    return supported;
 }
 
 static void iosdrv_map_instance_extensions(struct vulkan_instance_extensions *extensions)
@@ -253,6 +350,8 @@ static const struct vulkan_driver_funcs iosdrv_vulkan_driver_funcs =
 
 UINT iosdrv_VulkanInit(UINT version, void *vulkan_handle, const struct vulkan_driver_funcs **driver)
 {
+    if (!driver) return STATUS_INVALID_PARAMETER;
+    *driver = NULL;
     if (version != WINE_VULKAN_DRIVER_VERSION)
     {
         ERR("version mismatch, win32u wants %u but wineios has %u\n", version,

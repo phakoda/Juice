@@ -7,6 +7,7 @@ PATCH="$ROOT/patches/fex-juice-ios.patch"
 STIKDEBUG_PATCH="$ROOT/patches/fex-stikdebug-jit.patch"
 LIFECYCLE_PATCH="$ROOT/patches/fex-stikdebug-lifecycle.patch"
 VALIDATION_PATCH="$ROOT/patches/fex-stikdebug-validation.patch"
+CODEGEN_PATCH="$ROOT/patches/fex-juice-codegen.patch"
 RPMALLOC_PATCH="$ROOT/patches/fex-rpmalloc-juice-ios.patch"
 test "$(uname -s)" = Linux || { echo 'FEX source preparation requires Linux.' >&2; exit 2; }
 case "$SOURCE" in
@@ -32,15 +33,15 @@ test "$(git -C "$SOURCE" rev-parse HEAD)" = "$JUICE_FEX_REVISION"
 git -C "$SOURCE" submodule update --init --recursive --depth 1
 RPMALLOC_SOURCE="$SOURCE/External/rpmalloc"
 test "$(git -C "$RPMALLOC_SOURCE" rev-parse HEAD)" = "$JUICE_FEX_RPMALLOC_REVISION"
-# The base is disjoint from subsequent allocator overlays. All overlapping
-# optional layers are recognized as a complete prefix in an isolated copy.
-if ! git -C "$SOURCE" apply --reverse --check "$PATCH" 2>/dev/null; then
-  git -C "$SOURCE" apply --check "$PATCH"
+# Apply the base only to a clean base-shaped tree. A later codegen overlay
+# overlaps the base, so reversing just the base is not a valid reuse check.
+# The complete-prefix verifier below rejects partial or unrecognized layers.
+if git -C "$SOURCE" apply --check "$PATCH" 2>/dev/null; then
   git -C "$SOURCE" apply "$PATCH"
 fi
 applied="$(python3 "$ROOT/scripts/verify-patch-stack.py" "$SOURCE" "$PATCH" --optional \
-  "$STIKDEBUG_PATCH" "$LIFECYCLE_PATCH" "$VALIDATION_PATCH" --applied-count)"
-patches=("$STIKDEBUG_PATCH" "$LIFECYCLE_PATCH" "$VALIDATION_PATCH")
+  "$STIKDEBUG_PATCH" "$LIFECYCLE_PATCH" "$VALIDATION_PATCH" "$CODEGEN_PATCH" --applied-count)"
+patches=("$STIKDEBUG_PATCH" "$LIFECYCLE_PATCH" "$VALIDATION_PATCH" "$CODEGEN_PATCH")
 for ((index=applied;index<${#patches[@]};index++)); do
   git -C "$SOURCE" apply --recount --check "${patches[$index]}"
   git -C "$SOURCE" apply --recount "${patches[$index]}"
@@ -50,4 +51,4 @@ if ! git -C "$RPMALLOC_SOURCE" apply --reverse --check "$RPMALLOC_PATCH" 2>/dev/
   git -C "$RPMALLOC_SOURCE" apply "$RPMALLOC_PATCH"
 fi
 bash "$ROOT/scripts/verify-fex-patch.sh"
-echo "JUICE_FEX_SOURCE_OK path=$SOURCE revision=$JUICE_FEX_REVISION stikdebug_jit=1 lifecycle=1 validation=1"
+echo "JUICE_FEX_SOURCE_OK path=$SOURCE revision=$JUICE_FEX_REVISION stikdebug_jit=1 lifecycle=1 validation=1 codegen=1"

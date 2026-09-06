@@ -1,8 +1,15 @@
 name: FEX runtime build
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/fex-runtime-build.yml'
+      - 'patches/fex-*.patch'
+      - 'scripts/*fex*'
+      - 'config/x86_64-build.env'
+      - 'tests/test_fex_codegen.cpp'
   push:
-    branches: [feature/stikdebug-jit]
+    branches: [main, feature/stikdebug-jit]
     paths:
       - '.github/workflows/fex-runtime-build.yml'
       - 'patches/fex-*.patch'
@@ -28,6 +35,8 @@ jobs:
           persist-credentials: false
       - name: Compile the pinned translator with every Juice patch
         run: bash scripts/build-fex-${{ matrix.target }}-linux.sh
+      - name: Verify incremental source reuse after compilation
+        run: bash scripts/fetch-fex-linux.sh
       - name: Preserve compiler logs and checksummed translator output
         if: always()
         uses: actions/upload-artifact@v4
