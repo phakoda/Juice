@@ -52,6 +52,8 @@ mkdir -p "$OUT"
   "$ROOT/app/JuiceKeyboardRoutingHardening.m" "$ROOT/app/JuicePointerInput.m" \
   "$ROOT/app/JuiceMemoryPressure.m" "$ROOT/app/JuiceLifecycleHardening.m" \
   "$ROOT/app/JuiceLogHardening.m" "$ROOT/app/JuiceCLIInputHardening.m" \
+  "$ROOT/app/JuiceAppProfile.m" "$ROOT/app/JuiceRuntimePreflight.m" \
+  "$ROOT/app/JuiceProfilePolicy.c" "$ROOT/app/JuicePEInspect.c" "$ROOT/app/JuiceUTF8Stream.c" \
   "$ROOT/app/JuiceLaunchHardening.m" "$ROOT/app/JuiceAsyncWriter.m" "$ROOT/app/JuiceIO.c" \
   -framework UIKit -framework Foundation -framework QuartzCore -framework GameController \
   -framework CoreGraphics -framework Metal -lz -o "$OUT/Juice"
@@ -83,4 +85,4 @@ elif command -v codesign >/dev/null 2>&1; then
   codesign --force --sign - --entitlements "$APP_ENTITLEMENTS" "$OUT/Juice"
 fi
 
-echo "JUICE_APP_BUILD_OK path=$OUT/Juice icons=${#app_icons[@]} icon_source=generated-rgb8 entitlements=$APP_ENTITLEMENTS"
+echo "JUICE_APP_BUILD_OK path=$OUT/Juice icons=${#app_icons[@]} icon_source=generated-rgb8 entitlements=$APP_ENTITLEMENTS compatibility_bringup=1"
