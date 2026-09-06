@@ -1,5 +1,6 @@
 #import "JuiceAsyncWriter.h"
 #import "JuiceIO.h"
+#import "JuiceSocketIO.h"
 
 #import <errno.h>
 #import <fcntl.h>
@@ -49,8 +50,6 @@ static BOOL JuiceReserveBytes(size_t length)
     { int saved = errno; close(_fd); _fd = -1; errno = saved; }
 #endif
     if (_fd < 0) return nil;
-    /* dup shares file status flags. Display readers explicitly handle EAGAIN;
-     * setting only MSG_DONTWAIT does not bound socket writes on Darwin. */
     int flags = fcntl(_fd, F_GETFL);
     if (flags < 0 || fcntl(_fd, F_SETFL, flags | O_NONBLOCK) < 0) return nil;
 #ifdef SO_NOSIGPIPE
@@ -72,6 +71,9 @@ static BOOL JuiceReserveBytes(size_t length)
 - (BOOL)enqueueData:(NSData *)data
 {
     if (!data.length) return YES;
+    int64_t now=JuiceSocketNowMS();
+    if(now<0)return NO;
+    const int64_t deadline=now+JUICE_IO_WRITE_TIMEOUT_MS;
     @synchronized(self)
     {
         if (atomic_load_explicit(&_cancelled, memory_order_relaxed)) { errno = EPIPE; return NO; }
@@ -91,8 +93,14 @@ static BOOL JuiceReserveBytes(size_t length)
         dispatch_async(_queue, ^{
             @autoreleasepool
             {
-                int result = JuiceWriteWithDeadline(self->_fd, packet.bytes, packet.length,
-                    self->_socket, JUICE_IO_WRITE_TIMEOUT_MS, &self->_cancelled);
+                /* Queue residence consumes the same deadline as the syscall. */
+                int64_t current=JuiceSocketNowMS();
+                int64_t remaining=deadline-current;
+                int result;
+                if(current<0)result=-1;
+                else if(remaining<=0){errno=ETIMEDOUT;result=-1;}
+                else result=JuiceWriteWithDeadline(self->_fd,packet.bytes,packet.length,
+                    self->_socket,(unsigned)remaining,&self->_cancelled);
                 int saved = result ? errno : 0;
                 if (result && !atomic_exchange_explicit(&self->_cancelled, true, memory_order_relaxed))
                 {

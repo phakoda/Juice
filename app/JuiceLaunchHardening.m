@@ -39,6 +39,8 @@ static BOOL JuiceWhitespace(unichar c){static NSCharacterSet *set;static dispatc
 static NSArray<NSString *> *JuiceParseArguments(NSString *line,NSString **failure)
 {
     if(!line.length)return @[];
+    for(NSUInteger i=0;i<line.length;i++)if([line characterAtIndex:i]==0)
+    {if(failure)*failure=@"Arguments cannot contain a NUL character.";return nil;}
     NSMutableArray *arguments=[NSMutableArray array];NSMutableString *current=[NSMutableString string];
     unichar quote=0;BOOL started=NO;
     for(NSUInteger i=0;i<line.length;i++)

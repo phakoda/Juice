@@ -1,6 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import "JuiceLogTail.h"
 
 /*
  * Keep log exporting isolated from the main controller implementation. Juice's
@@ -19,25 +20,7 @@ static const unsigned long long JuiceLogExportTailBytes=8ull*1024ull*1024ull;
 
 static NSData *JuiceReadLogTail(NSString *path)
 {
-    if(!path.length)return nil;
-    NSFileHandle *handle=[NSFileHandle fileHandleForReadingAtPath:path];
-    if(!handle)return nil;
-    NSNumber *sizeNumber=[NSFileManager.defaultManager attributesOfItemAtPath:path error:nil][NSFileSize];
-    unsigned long long size=sizeNumber.unsignedLongLongValue;
-    unsigned long long start=size>JuiceLogExportTailBytes?size-JuiceLogExportTailBytes:0;
-    NSData *data=nil;
-    @try
-    {
-        if(start)[handle seekToFileOffset:start];
-        data=[handle readDataToEndOfFile];
-        [handle closeFile];
-    }
-    @catch(__unused NSException *exception)
-    {
-        @try{[handle closeFile];}@catch(__unused NSException *closeException){}
-        return nil;
-    }
-    return data.length?data:nil;
+    return JuiceBoundedLogTail(path,JuiceLogExportTailBytes);
 }
 
 static NSData *JuiceCombinedLogContents(NSString *source)

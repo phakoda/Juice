@@ -18,30 +18,9 @@ case "$base" in
   *) echo "Invalid Wine base commit: $base" >&2; exit 2;;
 esac
 
-# wine-ios.patch remains the audited base iOS delta. The mainline-hardening PR
-# intentionally changes only three files already introduced by that patch, so
-# keep those changes in a small incremental patch rather than rewriting the
-# historical 25+ path audit artifact. Verify both layers independently.
-#
-# git apply's --exclude matching is sensitive to prefix rewriting from
-# --directory, so build an explicit filtered base patch instead of depending on
-# that interaction. This makes it unambiguous which three paths belong to the
-# incremental layer.
-filtered="$(mktemp "${TMPDIR:-/tmp}/juice-wine-base-filtered.XXXXXX")"
-cleanup(){ rm -f "$filtered"; }
-trap cleanup EXIT
-awk '
-  /^diff --git a\// {
-    skip = ($0 ~ /^diff --git a\/dlls\/wineios[.]drv\/(iosdrv[.]c|ipc[.]c|ipc[.]h) b\//)
-  }
-  !skip { print }
-' "$PATCH" > "$filtered"
-test -s "$filtered" || { echo "Filtered Wine base patch is empty." >&2; exit 3; }
-(
-  cd "$ROOT"
-  git apply --reverse --check --directory=wine "$filtered"
-  git apply --reverse --check --directory=wine "$HARDENING_PATCH"
-)
+# Peel the overlay and then the COMPLETE base patch in an isolated copy. Never
+# mutate live build inputs or exclude files changed by an incremental layer.
+python3 "$ROOT/scripts/verify-patch-stack.py" "$ROOT/wine" "$PATCH" "$HARDENING_PATCH"
 
 path_count="$(grep -c '^diff --git a/' "$PATCH")"
 test "$path_count" -ge 25 || {

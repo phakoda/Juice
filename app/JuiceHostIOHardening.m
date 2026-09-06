@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import "JuiceAsyncWriter.h"
+#import "JuiceSocketIO.h"
 #import <errno.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
@@ -21,10 +22,6 @@ typedef struct
 static id JuiceHostValue(id object,NSString *key){@try{return [object valueForKey:key];}@catch(__unused NSException *e){return nil;}}
 static void JuiceHostSetValue(id object,NSString *key,id value){@try{[object setValue:value forKey:key];}@catch(__unused NSException *e){}}
 static void JuiceHostAppend(id self,NSString *line){SEL s=NSSelectorFromString(@"append:");if([self respondsToSelector:s])((void(*)(id,SEL,id))objc_msgSend)(self,s,line);}
-static BOOL JuiceReadExact(int fd,void *buffer,size_t length)
-{
-    uint8_t *p=buffer;while(length){ssize_t n=read(fd,p,length);if(n<0&&errno==EINTR)continue;if(n<=0)return NO;p+=n;length-=(size_t)n;}return YES;
-}
 static char JuiceHostWritersKey;
 
 /* Registry access and send membership share one lock. A writer owns a duplicate
@@ -91,8 +88,8 @@ static BOOL JuiceSendMessage(id self,SEL _cmd,JuiceHostMsg *message,NSData *payl
 {
     (void)_cmd;
     if(!message||fd<0||payload.length>64u*1024u)return NO;
-    message->size=(uint32_t)payload.length;
-    NSMutableData *packet=[NSMutableData dataWithBytes:message length:sizeof(*message)];
+    JuiceHostMsg header=*message;header.size=(uint32_t)payload.length;
+    NSMutableData *packet=[NSMutableData dataWithBytes:&header length:sizeof(header)];
     if(payload.length)[packet appendData:payload];
     return JuiceHostEnqueue(self,fd,packet);
 }
@@ -126,12 +123,11 @@ static void JuiceReply(id self,int fd,uint32_t request,int32_t status,NSString *
 static void JuiceReadControl(id self,SEL _cmd,int fd)
 {
     (void)_cmd;struct juice_control_message message;
-    /* A connected peer that never submits a request must not occupy a host
-     * reader indefinitely. This timeout does not cover the interactive picker. */
-    struct timeval timeout={10,0};
-    if(setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout)))
+    /* This request owns fd until its response, so the flag change is local. */
+    int descriptor_flags=fcntl(fd,F_GETFL);
+    if(descriptor_flags<0||fcntl(fd,F_SETFL,descriptor_flags|O_NONBLOCK)<0)
     {close(fd);return;}
-    if(!JuiceReadExact(fd,&message,sizeof(message))||message.magic!=JUICE_CONTROL_MAGIC||message.version!=JUICE_CONTROL_VERSION||message.size!=sizeof(message))
+    if(!JuiceSocketTransferUntil(fd,&message,sizeof(message),0,JuiceSocketNowMS()+5000)||message.magic!=JUICE_CONTROL_MAGIC||message.version!=JUICE_CONTROL_VERSION||message.size!=sizeof(message))
     {JuiceHostAppend(self,[NSString stringWithFormat:@"CONTROL_V1_PROTOCOL_REJECTED fd=%d\n",fd]);close(fd);return;}
     if(message.type==JUICE_CONTROL_IMPORT_REQUEST)
     {
@@ -141,12 +137,27 @@ static void JuiceReadControl(id self,SEL _cmd,int fd)
             else{JuiceHostSetValue(self,@"controlPickerFD",@(fd));JuiceHostSetValue(self,@"controlRequestID",@(message.request_id));JuiceHostSetValue(self,@"controlFilters",@(message.flags));}
         }
         if(busy){JuiceReply(self,fd,message.request_id,JUICE_CONTROL_STATUS_ERROR,@"",@"Another Juice import request is already active.");return;}
-        dispatch_async(dispatch_get_main_queue(),^{SEL s=NSSelectorFromString(@"presentControlPicker");if([self respondsToSelector:s])((void(*)(id,SEL))objc_msgSend)(self,s);else JuiceReply(self,fd,message.request_id,JUICE_CONTROL_STATUS_ERROR,@"",@"The host file picker is unavailable.");});
+        dispatch_async(dispatch_get_main_queue(),^{SEL s=NSSelectorFromString(@"presentControlPicker");if([self respondsToSelector:s])((void(*)(id,SEL))objc_msgSend)(self,s);else
+        {
+            @synchronized(self)
+            {
+                if([JuiceHostValue(self,@"controlPickerFD") intValue]==fd)
+                {
+                    JuiceHostSetValue(self,@"controlPickerFD",@(-1));
+                    JuiceHostSetValue(self,@"controlRequestID",@0);
+                    JuiceHostSetValue(self,@"controlFilters",@0);
+                }
+            }
+            JuiceReply(self,fd,message.request_id,JUICE_CONTROL_STATUS_ERROR,@"",@"The host file picker is unavailable.");
+        }});
         return;
     }
     if(message.type==JUICE_CONTROL_HOST_ACTION)
     {
-        NSString *path=[[NSString alloc]initWithBytes:message.path length:strnlen(message.path,sizeof(message.path)) encoding:NSUTF8StringEncoding]?:@"";
+        size_t pathLength=strnlen(message.path,sizeof(message.path));
+        if(pathLength==sizeof(message.path)){close(fd);return;}
+        NSString *path=[[NSString alloc]initWithBytes:message.path length:pathLength encoding:NSUTF8StringEncoding];
+        if(!path){close(fd);return;}
         uint32_t action=message.flags;close(fd);dispatch_async(dispatch_get_main_queue(),^{SEL s=NSSelectorFromString(@"handleControlAction:path:");if([self respondsToSelector:s])((void(*)(id,SEL,uint32_t,id))objc_msgSend)(self,s,action,path);});return;
     }
     close(fd);
