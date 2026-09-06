@@ -69,7 +69,10 @@ static BOOL JuiceIsFEXLaunch(const char *path, char *const envp[])
 
 static BOOL JuiceStikDebugDisabled(char *const envp[])
 {
-    return JuiceHasEnvironmentEntry(envp, "JUICE_DISABLE_STIKDEBUG_JIT=1");
+    /* Preserve existing translated launches unless this experimental backend
+     * is explicitly selected in the child environment. */
+    return !JuiceHasEnvironmentEntry(envp, "JUICE_ENABLE_STIKDEBUG_JIT=1") ||
+           JuiceHasEnvironmentEntry(envp, "JUICE_DISABLE_STIKDEBUG_JIT=1");
 }
 
 /* MeloNX detects TXM from the same preboot firmware marker. Keep that exact
@@ -279,26 +282,30 @@ static int JuiceSpawnSuspended(JuicePosixSpawnFn realSpawn, pid_t *pid, const ch
     if (result) return result;
 
     short flags = 0;
-    if (sourceAttributes) posix_spawnattr_getflags(sourceAttributes, &flags);
+    if (sourceAttributes) result = posix_spawnattr_getflags(sourceAttributes, &flags);
     flags |= POSIX_SPAWN_START_SUSPENDED;
-    result = posix_spawnattr_setflags(&attributes, flags);
+    if (!result) result = posix_spawnattr_setflags(&attributes, flags);
 
-    if (!result && sourceAttributes)
+    /* iPhoneOS does not expose the POSIX spawn scheduling-parameter APIs.
+     * Copy only attributes requested by the supported spawn flags and propagate
+     * getter errors instead of silently spawning with default values. */
+    if (!result && sourceAttributes && (flags & POSIX_SPAWN_SETPGROUP))
     {
         pid_t pgroup = 0;
-        sigset_t mask, defaults;
-        struct sched_param schedulingParameters;
-        int schedulingPolicy = 0;
-        if (!posix_spawnattr_getpgroup(sourceAttributes, &pgroup))
-            result = posix_spawnattr_setpgroup(&attributes, pgroup);
-        if (!result && !posix_spawnattr_getsigmask(sourceAttributes, &mask))
-            result = posix_spawnattr_setsigmask(&attributes, &mask);
-        if (!result && !posix_spawnattr_getsigdefault(sourceAttributes, &defaults))
-            result = posix_spawnattr_setsigdefault(&attributes, &defaults);
-        if (!result && !posix_spawnattr_getschedparam(sourceAttributes, &schedulingParameters))
-            result = posix_spawnattr_setschedparam(&attributes, &schedulingParameters);
-        if (!result && !posix_spawnattr_getschedpolicy(sourceAttributes, &schedulingPolicy))
-            result = posix_spawnattr_setschedpolicy(&attributes, schedulingPolicy);
+        result = posix_spawnattr_getpgroup(sourceAttributes, &pgroup);
+        if (!result) result = posix_spawnattr_setpgroup(&attributes, pgroup);
+    }
+    if (!result && sourceAttributes && (flags & POSIX_SPAWN_SETSIGMASK))
+    {
+        sigset_t mask;
+        result = posix_spawnattr_getsigmask(sourceAttributes, &mask);
+        if (!result) result = posix_spawnattr_setsigmask(&attributes, &mask);
+    }
+    if (!result && sourceAttributes && (flags & POSIX_SPAWN_SETSIGDEF))
+    {
+        sigset_t defaults;
+        result = posix_spawnattr_getsigdefault(sourceAttributes, &defaults);
+        if (!result) result = posix_spawnattr_setsigdefault(&attributes, &defaults);
     }
 
     if (!result) result = realSpawn(pid, path, actions, &attributes, argv, envp);
