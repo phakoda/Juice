@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -24,9 +25,11 @@ static void pause_ms(long ms)
     struct timespec t = { ms / 1000, (ms % 1000) * 1000000 };
     while (nanosleep(&t, &t) && errno == EINTR) {}
 }
+static void nonblocking(int fd);
 static void sockets(int fd[2])
 {
     CHECK(!socketpair(AF_UNIX, SOCK_STREAM, 0, fd));
+    nonblocking(fd[0]);
 #ifdef SO_NOSIGPIPE
     int one = 1;
     CHECK(!setsockopt(fd[0], SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one)));
@@ -42,7 +45,7 @@ static void fill(int fd, bool socket)
     char bytes[4096] = {0};
     for (;;)
     {
-        ssize_t n = socket ? send(fd, bytes, sizeof(bytes), MSG_DONTWAIT) : write(fd, bytes, sizeof(bytes));
+        ssize_t n = socket ? send(fd, bytes, sizeof(bytes), 0) : write(fd, bytes, sizeof(bytes));
         if (n < 0) { CHECK(errno == EAGAIN || errno == EWOULDBLOCK); return; }
         CHECK(n > 0);
     }
@@ -74,7 +77,7 @@ static void test_large_ordered_write(void)
     CHECK(!pthread_create(&thread, NULL, read_data, &r));
     CHECK(!JuiceWriteWithDeadline(fd[0], data, size, true, 5000, NULL));
     CHECK(!pthread_join(thread, NULL));
-    CHECK(!(fcntl(fd[0], F_GETFL) & O_NONBLOCK));
+    CHECK(fcntl(fd[0], F_GETFL) & O_NONBLOCK);
     free(data); close(fd[0]); close(fd[1]);
 }
 static void test_deadlines(void)
@@ -129,7 +132,12 @@ static void test_eintr(void)
 }
 static void test_closed_and_invalid(void)
 {
-    int fd[2]; sockets(fd); close(fd[1]);
+    int fd[2]; sockets(fd);
+    int flags = fcntl(fd[0], F_GETFL); CHECK(flags >= 0);
+    CHECK(!fcntl(fd[0], F_SETFL, flags & ~O_NONBLOCK));
+    CHECK(JuiceWriteWithDeadline(fd[0], "x", 1, true, 100, NULL) == -1);
+    CHECK(errno == EINVAL); /* Blocking sockets are rejected too, including Darwin. */
+    nonblocking(fd[0]); close(fd[1]);
     CHECK(JuiceWriteWithDeadline(fd[0], "x", 1, true, 100, NULL) == -1);
     CHECK(errno == EPIPE || errno == ECONNRESET); close(fd[0]);
     CHECK(!pipe(fd));
@@ -143,12 +151,13 @@ static void test_closed_and_invalid(void)
 }
 int main(void)
 {
+    alarm(30);setvbuf(stdout,NULL,_IONBF,0);
     CHECK(signal(SIGPIPE, SIG_IGN) != SIG_ERR);
-    test_large_ordered_write();
-    test_deadlines();
-    test_cancel();
-    test_eintr();
-    test_closed_and_invalid();
+    puts("JUICE_IO_CASE large_ordered_write");test_large_ordered_write();
+    puts("JUICE_IO_CASE deadlines");test_deadlines();
+    puts("JUICE_IO_CASE cancel");test_cancel();
+    puts("JUICE_IO_CASE eintr");test_eintr();
+    puts("JUICE_IO_CASE closed_and_invalid");test_closed_and_invalid();
     puts("JUICE_IO_TESTS_OK cases=5 socket_and_pipe=1");
     return 0;
 }

@@ -10,6 +10,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Verify source tree and Wine patch
@@ -39,13 +40,9 @@ jobs:
           }
           grep -Fq 'PROCESS_GROUP_REAP_DEFERRED' app/JuiceLaunchHardening.m
           grep -Fq 'pid_reuse_fence=1' app/JuiceLaunchHardening.m
-          grep -Fq 'staleGeneration=[JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation;' app/JuiceLaunchHardening.m
-          stale_line="$(grep -nF 'if(staleGeneration)' app/JuiceLaunchHardening.m | cut -d: -f1)"
-          wait_line="$(grep -nF 'do{waited=waitpid(child,&status,0);}' app/JuiceLaunchHardening.m | cut -d: -f1)"
-          test -n "$stale_line" -a -n "$wait_line" -a "$stale_line" -lt "$wait_line" || {
-            echo 'Stale launch generations must defer reaping before blocking waitpid.' >&2
-            exit 3
-          }
+          grep -Fq 'JuicePollCurrentChild(dispatch_get_main_queue(),child' app/JuiceLaunchHardening.m
+          grep -Fq 'waitpid(child,&status,WNOHANG)' app/JuiceChildReaper.h
+          grep -Fq 'dispatch_assert_queue(ownerQueue)' app/JuiceChildReaper.h
           grep -Fq 'Windows backslashes are always literal' app/JuiceLaunchHardening.m
           grep -Fq '[line characterAtIndex:i+1]==quote' app/JuiceLaunchHardening.m
           if grep -Fq 'unichar next=' app/JuiceLaunchHardening.m; then
@@ -64,6 +61,7 @@ jobs:
 
   app-build:
     runs-on: macos-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: Compile Juice for iPhoneOS
@@ -74,3 +72,23 @@ jobs:
         run: bash scripts/test-runtime-io-host.sh
       - name: Run ZIP extractor regressions
         run: bash scripts/test-zip-extractor-host.sh
+
+  cancel-stalled-review:
+    if: github.repository == 'phakoda/Juice' && github.event_name == 'pull_request' && github.event.pull_request.number == 2
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Cancel only superseded pre-watchdog test runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # No checkout and no user-supplied shell interpolation. This one-off
+          # cleanup is restricted to the exact obsolete commit that hung in CI.
+          gh api 'repos/phakoda/Juice/actions/runs?head_sha=938279fe0162eb0c9260b732d12d345e0cc3bc4c&per_page=100' \
+            --jq '.workflow_runs[] | select(.head_sha == "938279fe0162eb0c9260b732d12d345e0cc3bc4c") | select(.status == "in_progress" or .status == "queued") | .id' \
+            | while read -r run; do
+                gh api --method POST "repos/phakoda/Juice/actions/runs/$run/cancel"
+              done

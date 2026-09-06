@@ -2,7 +2,9 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/* Owns a CLOEXEC duplicate, not the caller's descriptor. Enqueue success means
+/* Owns a CLOEXEC duplicate, not the caller's descriptor. Sets O_NONBLOCK on
+ * the shared open-file description; concurrent readers MUST handle EAGAIN.
+ * Enqueue success means
  * accepted, not delivered. Frames are ordered per connection and never
  * interleaved. A timeout/partial-write failure shuts down a socket. */
 @interface JuiceAsyncWriter : NSObject

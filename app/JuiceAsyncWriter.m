@@ -49,13 +49,12 @@ static BOOL JuiceReserveBytes(size_t length)
     { int saved = errno; close(_fd); _fd = -1; errno = saved; }
 #endif
     if (_fd < 0) return nil;
-    if (!socket)
-    {
-        int flags = fcntl(_fd, F_GETFL);
-        if (flags < 0 || fcntl(_fd, F_SETFL, flags | O_NONBLOCK) < 0) return nil;
-    }
+    /* dup shares file status flags. Display readers explicitly handle EAGAIN;
+     * setting only MSG_DONTWAIT does not bound socket writes on Darwin. */
+    int flags = fcntl(_fd, F_GETFL);
+    if (flags < 0 || fcntl(_fd, F_SETFL, flags | O_NONBLOCK) < 0) return nil;
 #ifdef SO_NOSIGPIPE
-    else
+    if (socket)
     {
         int one = 1;
         if (setsockopt(_fd, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof(one))) return nil;

@@ -4,6 +4,7 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import <signal.h>
+#import <poll.h>
 #import <string.h>
 #import <sys/resource.h>
 #import <sys/socket.h>
@@ -101,6 +102,15 @@ static BOOL JuiceDisplayReadAll(int fd,void *buffer,size_t length)
     {
         ssize_t count=read(fd,cursor,length);
         if(count<0&&errno==EINTR)continue;
+        if(count<0&&(errno==EAGAIN||errno==EWOULDBLOCK))
+        {
+            /* The ordered writer makes the shared socket nonblocking. Keep
+             * the reader idle without treating normal backpressure as EOF. */
+            struct pollfd event={.fd=fd,.events=POLLIN};
+            int ready;do{ready=poll(&event,1,-1);}while(ready<0&&errno==EINTR);
+            if(ready<0||(event.revents&POLLNVAL))return NO;
+            continue;
+        }
         if(count<=0)return NO;
         cursor+=count;
         length-=(size_t)count;
