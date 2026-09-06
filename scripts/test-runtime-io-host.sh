@@ -19,6 +19,9 @@ if [[ "$(uname -s)" = Darwin ]]; then
     "$ROOT/app/JuiceAsyncWriter.m" "$ROOT/app/tests/AsyncWriterTests.m" "$OUT/io.o" \
     -o "$OUT/async-writer-tests"
   "$OUT/async-writer-tests"
+  "$CC" "${flags[@]}" -fobjc-arc -fblocks -framework Foundation \
+    "$ROOT/app/tests/ChildReaperTests.m" -o "$OUT/child-reaper-tests"
+  "$OUT/child-reaper-tests"
 else
   echo 'JUICE_ASYNC_WRITER_TESTS_SKIP reason=Foundation-requires-macOS'
 fi

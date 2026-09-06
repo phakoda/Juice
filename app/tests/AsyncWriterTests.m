@@ -33,7 +33,7 @@ static void OrderedCopies(void)
         [expected appendData:packet];CHECK([writer enqueueData:packet]);memset(packet.mutableBytes,255,packet.length);
     }
     CHECK([ReadBytes(fd[1],expected.length) isEqualToData:expected]);
-    CHECK(!(fcntl(fd[0],F_GETFL)&O_NONBLOCK));
+    CHECK(fcntl(fd[0],F_GETFL)&O_NONBLOCK);
     [writer cancel];close(fd[0]);close(fd[1]);
 }
 static void DescriptorReuse(void)
@@ -85,8 +85,12 @@ int main(void)
 {
     @autoreleasepool
     {
+        alarm(30);setvbuf(stdout,NULL,_IONBF,0);
         CHECK(signal(SIGPIPE,SIG_IGN)!=SIG_ERR);
-        OrderedCopies();DescriptorReuse();BoundsAndPipe();TimeoutAbandonsStream();
+        puts("JUICE_WRITER_CASE ordered");OrderedCopies();
+        puts("JUICE_WRITER_CASE descriptor_reuse");DescriptorReuse();
+        puts("JUICE_WRITER_CASE bounds_pipe");BoundsAndPipe();
+        puts("JUICE_WRITER_CASE timeout");TimeoutAbandonsStream();
         puts("JUICE_ASYNC_WRITER_TESTS_OK cases=4");
     }
     return 0;

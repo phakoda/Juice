@@ -123,6 +123,10 @@ static void JuiceReply(id self,int fd,uint32_t request,int32_t status,NSString *
 static void JuiceReadControl(id self,SEL _cmd,int fd)
 {
     (void)_cmd;struct juice_control_message message;
+    /* This request owns fd until its response, so the flag change is local. */
+    int descriptor_flags=fcntl(fd,F_GETFL);
+    if(descriptor_flags<0||fcntl(fd,F_SETFL,descriptor_flags|O_NONBLOCK)<0)
+    {close(fd);return;}
     if(!JuiceSocketTransferUntil(fd,&message,sizeof(message),0,JuiceSocketNowMS()+5000)||message.magic!=JUICE_CONTROL_MAGIC||message.version!=JUICE_CONTROL_VERSION||message.size!=sizeof(message))
     {JuiceHostAppend(self,[NSString stringWithFormat:@"CONTROL_V1_PROTOCOL_REJECTED fd=%d\n",fd]);close(fd);return;}
     if(message.type==JUICE_CONTROL_IMPORT_REQUEST)

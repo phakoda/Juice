@@ -23,12 +23,11 @@ int JuiceWriteWithDeadline(int fd, const void *bytes, size_t length, bool socket
         errno = EINVAL;
         return -1;
     }
-    if (!socket)
-    {
-        int flags = fcntl(fd, F_GETFL);
-        if (flags < 0) return -1;
-        if (!(flags & O_NONBLOCK)) { errno = EINVAL; return -1; }
-    }
+    /* Darwin's MSG_DONTWAIT alone does not prevent sosendcheck from waiting
+     * for socket-buffer space. Require O_NONBLOCK for sockets as well as pipes. */
+    int descriptor_flags = fcntl(fd, F_GETFL);
+    if (descriptor_flags < 0) return -1;
+    if (!(descriptor_flags & O_NONBLOCK)) { errno = EINVAL; return -1; }
     int64_t start = monotonic_ms();
     if (start < 0) return -1;
     int64_t deadline = start + timeout_ms;
@@ -46,7 +45,7 @@ int JuiceWriteWithDeadline(int fd, const void *bytes, size_t length, bool socket
         ssize_t count;
         if (socket)
         {
-            int flags = MSG_DONTWAIT;
+            int flags = 0;
 #ifdef MSG_NOSIGNAL
             flags |= MSG_NOSIGNAL;
 #endif

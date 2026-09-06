@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import "JuiceChildReaper.h"
 #import <errno.h>
 #import <fcntl.h>
 #import <objc/message.h>
@@ -88,38 +89,6 @@ static NSString *JuiceDecodeOutput(NSData *data)
     return text?:@"";
 }
 
-/* Generation validation and the nonblocking reap execute in one main-queue
- * turn. A separate check followed by a worker's blocking waitpid lets Stop
- * begin its delayed PGID kill after the check but before the PID is released. */
-static void JuiceObserveChildExit(id self,pid_t child,uint64_t generation,int inputFD)
-{
-    if([JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation||
-       [JuiceLaunchValue(self,@"child") intValue]!=child)
-    {
-        JuiceLaunchAppend(self,[NSString stringWithFormat:
-            @"PROCESS_GROUP_REAP_DEFERRED pgid=%d generation=%llu pid_reuse_fence=1\n",
-            child,(unsigned long long)generation]);
-        return; /* stopAllWineProcesses owns the delayed kill AND final reap. */
-    }
-    int status=0;pid_t waited;
-    do{waited=waitpid(child,&status,WNOHANG);}while(waited<0&&errno==EINTR);
-    if(!waited)
-    {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW,25*NSEC_PER_MSEC),dispatch_get_main_queue(),^{
-            JuiceObserveChildExit(self,child,generation,inputFD);
-        });
-        return;
-    }
-    int waitError=waited<0?errno:0;
-    JuiceLaunchSetValue(self,@"child",@(-1));
-    if([JuiceLaunchValue(self,@"childInput") intValue]==inputFD&&inputFD>=0)
-    {close(inputFD);JuiceLaunchSetValue(self,@"childInput",@(-1));}
-    NSString *result=waited==child&&WIFEXITED(status)?[NSString stringWithFormat:@"exit=%d",WEXITSTATUS(status)]:
-                     waited==child&&WIFSIGNALED(status)?[NSString stringWithFormat:@"signal=%d",WTERMSIG(status)]:
-                     [NSString stringWithFormat:@"wait=%d errno=%d",waited,waitError];
-    JuiceLaunchAppend(self,[NSString stringWithFormat:@"PROCESS_GROUP_EXITED pgid=%d %@\n",child,result]);
-}
-
 static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generation,int inputFD)
 {
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{@autoreleasepool{
@@ -136,8 +105,25 @@ static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generatio
         if(pending.length)JuiceLaunchAppend(self,JuiceDecodeOutput(pending));
     }close(readFD);
 
+    /* The generation check, nonblocking reap and owner-state update all run
+     * on the same queue as stopAllWineProcesses. A preflight check followed by
+     * a blocking waitpid on a worker has a check-to-use race: stop can schedule
+     * a delayed group kill while that worker makes the leader PID reusable. */
     dispatch_async(dispatch_get_main_queue(),^{
-        JuiceObserveChildExit(self,child,generation,inputFD);
+        JuicePollCurrentChild(dispatch_get_main_queue(),child,^BOOL{
+            BOOL current=[JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]==generation;
+            if(!current)JuiceLaunchAppend(self,[NSString stringWithFormat:
+                @"PROCESS_GROUP_REAP_DEFERRED pgid=%d generation=%llu pid_reuse_fence=1\n",
+                child,(unsigned long long)generation]);
+            return current;
+        },^(pid_t waited,int status,int waitError){
+            if([JuiceLaunchValue(self,@"child") intValue]==child)JuiceLaunchSetValue(self,@"child",@(-1));
+            if([JuiceLaunchValue(self,@"childInput") intValue]==inputFD&&inputFD>=0){close(inputFD);JuiceLaunchSetValue(self,@"childInput",@(-1));}
+            NSString *result=waited==child&&WIFEXITED(status)?[NSString stringWithFormat:@"exit=%d",WEXITSTATUS(status)]:
+                             waited==child&&WIFSIGNALED(status)?[NSString stringWithFormat:@"signal=%d",WTERMSIG(status)]:
+                             [NSString stringWithFormat:@"wait=%d errno=%d",waited,waitError];
+            JuiceLaunchAppend(self,[NSString stringWithFormat:@"PROCESS_GROUP_EXITED pgid=%d %@\n",child,result]);
+        });
     });});
 }
 

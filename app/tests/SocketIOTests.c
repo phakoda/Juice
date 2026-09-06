@@ -28,7 +28,15 @@ static void *produce(void *argument)
     return NULL;
 }
 static void ignore_signal(int signal_number) { (void)signal_number; }
-static void pair(int sockets[2]) { assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0); }
+static void pair(int sockets[2])
+{
+    assert(socketpair(AF_UNIX, SOCK_STREAM, 0, sockets) == 0);
+    for(int i=0;i<2;i++)
+    {
+        int flags=fcntl(sockets[i],F_GETFL);assert(flags>=0);
+        assert(fcntl(sockets[i],F_SETFL,flags|O_NONBLOCK)==0);
+    }
+}
 static void done(int sockets[2]) { close(sockets[0]); close(sockets[1]); }
 int main(void)
 {
@@ -84,7 +92,10 @@ int main(void)
     assert(JuiceSocketTransferUntil(sockets[0],NULL,0,1,JuiceSocketNowMS()+100));
     assert(!JuiceSocketTransferUntil(sockets[0],NULL,1,1,JuiceSocketNowMS()+100));
     assert(errno==EINVAL); done(sockets);
-    puts("PASS zero length and invalid arguments");
+    assert(socketpair(AF_UNIX,SOCK_STREAM,0,sockets)==0);
+    assert(!JuiceSocketTransferUntil(sockets[0],buffer,1,0,JuiceSocketNowMS()+100));
+    assert(errno==EINVAL);done(sockets);
+    puts("PASS zero length, invalid arguments and blocking-descriptor rejection");
 
     /* Exercise the production text chunker at every position around a 60 KiB
      * boundary, including a supplementary character spanning that boundary. */

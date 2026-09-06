@@ -1,11 +1,12 @@
 #ifndef JUICE_SOCKET_IO_H
 #define JUICE_SOCKET_IO_H
 
-/* Socket-only exact I/O. MSG_DONTWAIT avoids changing the shared descriptor's
- * file status flags. A single monotonic deadline includes all short transfers,
+/* Socket-only exact I/O. The caller must set O_NONBLOCK and coordinate that
+ * shared file status with other readers. A single deadline includes transfers,
  * EINTR retries and poll wakeups; a trickling peer cannot extend it forever.
  * Darwin callers must configure SO_NOSIGPIPE before writing. */
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <poll.h>
 #include <stdint.h>
@@ -25,6 +26,9 @@ static inline int JuiceSocketTransferUntil(int fd, void *buffer, size_t length,
     unsigned char *cursor = buffer;
     if (fd < 0 || (length && !buffer) || deadline < 0)
     { errno = EINVAL; return 0; }
+    int descriptor_flags = fcntl(fd, F_GETFL);
+    if (descriptor_flags < 0) return 0;
+    if (!(descriptor_flags & O_NONBLOCK)) { errno = EINVAL; return 0; }
     while (length)
     {
         int64_t now = JuiceSocketNowMS();
