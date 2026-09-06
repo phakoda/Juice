@@ -10,6 +10,8 @@
 #import <sys/socket.h>
 #import <unistd.h>
 #import "JuiceAsyncWriter.h"
+#import "JuicePresentationPolicy.h"
+#import <time.h>
 
 #define JUICE_DISPLAY_MAGIC 0x4a554943u
 #define JUICE_DISPLAY_HELLO 1u
@@ -36,7 +38,7 @@ typedef struct
 
 @interface JuiceDisplayFramebuffer : NSObject
 @property(nonatomic,strong) NSMutableData *bytes;
-@property(nonatomic) uint64_t hwnd;
+@property(nonatomic) uint64_t hwnd,lastSnapshotNS;
 @property(nonatomic) int32_t width,height;
 @property(nonatomic) uint32_t stride;
 @property(nonatomic) int clientFD;
@@ -329,6 +331,18 @@ static void JuiceDeliverFrame(id self,JuiceDisplayFramebuffer *frame)
         @synchronized(frame)
         {
             if(frame.invalidated){frame.scheduled=NO;return;}
+            struct timespec clock={0}; clock_gettime(CLOCK_MONOTONIC,&clock);
+            uint64_t now=(uint64_t)clock.tv_sec*1000000000ULL+(uint64_t)clock.tv_nsec;
+            uint64_t delay=frame.firstPending?0:JuiceSnapshotDelay(frame.lastSnapshotNS,now,JuiceGetSnapshotFPS());
+            if(delay)
+            {
+                /* Leave scheduled set while waiting: dirty packets merge into
+                 * one baseline instead of allocating snapshots at producer rate. */
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)delay),
+                    JuiceDisplaySnapshotQueue(),^{JuiceDeliverFrame(self,frame);});
+                return;
+            }
+            frame.lastSnapshotNS=now;
             snapshot=[frame.bytes copy];hwnd=frame.hwnd;width=frame.width;height=frame.height;
             stride=frame.stride;fd=frame.clientFD;peerPID=frame.peerPID;
             generation=frame.generation;first=frame.firstPending;frame.firstPending=NO;

@@ -2,6 +2,7 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import "JuiceUTF16.h"
+#import "JuiceKeyChord.h"
 
 #define JUICE_TEXT_MAGIC 0x4a554943u
 #define JUICE_TEXT_MESSAGE 101u
@@ -73,7 +74,7 @@ static BOOL JuiceSendTextPayload(id self,NSData *payload,uint64_t hwnd,int clien
     if(chunkCount)*chunkCount=chunks;
     return YES;
 }
-static BOOL JuiceSendText(id self,NSString *text,NSString *source)
+BOOL JuiceSendText(id self,NSString *text,NSString *source)
 {
     if(!text.length)return NO;
     id canvas=JuiceTextValue(self,@"canvas");

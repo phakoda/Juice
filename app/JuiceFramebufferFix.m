@@ -1,5 +1,7 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import "JuiceMetalCompositor.h"
+#import "JuicePresentationPolicy.h"
 
 /*
  * Correct the pixel interpretation used by the UIKit display transport.
@@ -26,13 +28,10 @@ static UIImage *JuiceOpaqueImageFromBGRA(id self, SEL _cmd, NSData *data,
     (void)self;
     (void)_cmd;
 
-    if (![data isKindOfClass:NSData.class] || width <= 0 || height <= 0) return nil;
-    if (stride < (uint32_t)width * 4u) return nil;
-
-    size_t required = (size_t)stride * (size_t)height;
-    if (required > data.length) return nil;
-
-    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
+    if (![data isKindOfClass:NSData.class] ||
+        !JuicePixelLayoutValid(width, height, stride, data.length, NULL)) return nil;
+    NSData *stable = [data copy];
+    CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)stable);
     if (!provider) return nil;
 
     CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
@@ -53,6 +52,7 @@ static UIImage *JuiceOpaqueImageFromBGRA(id self, SEL _cmd, NSData *data,
     if (cgImage) CGImageRelease(cgImage);
     CGColorSpaceRelease(colorSpace);
     CGDataProviderRelease(provider);
+    if (image) JuiceAttachPixelBacking(image, stable, width, height, stride);
     return image;
 }
 
