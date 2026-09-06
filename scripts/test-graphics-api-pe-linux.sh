@@ -36,6 +36,10 @@ export PATH="$TOOLCHAIN/bin:$PATH"
 python3 "$ROOT/scripts/verify_graphics_api.py" --build "$BUILD" --arch "$ARCH" --targets > "$LOG/targets.txt"
 mapfile -t targets < "$LOG/targets.txt"
 test "${#targets[@]}" -gt 0
+# Exercise the external build-host template generator before the large DLL
+# matrix. D3DX consumes this header even when Wine's basic host tools compiled.
+make -C "$BUILD" include/rmxftmpl.h 2>&1 | tee "$LOG/template-header.log"
+test -s "$BUILD/include/rmxftmpl.h"
 make --output-sync=target -C "$BUILD" -j"${JUICE_JOBS:-2}" "${targets[@]}" 2>&1 | tee "$LOG/build.log"
 python3 "$ROOT/scripts/verify_graphics_api.py" --build "$BUILD" --arch "$ARCH" > "$LOG/built-modules.json"
 echo "JUICE_GRAPHICS_API_PE_COMPILE_OK arch=$ARCH modules=${#targets[@]} linked_ios_runtime=0 device_test=0"

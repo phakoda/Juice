@@ -17,7 +17,7 @@ options=(--enable-archs=none --disable-tests --disable-win16 --without-mingw
   --without-pcap --without-pcsclite --without-pulse --without-sane --without-sdl
   --without-udev --without-usb --without-v4l2 --without-vulkan)
 (cd "$TOOLS"; CC=clang CXX=clang++ "$ROOT/wine/configure" "${options[@]}") 2>&1 | tee "$LOG/host-configure.log"
-make -C "$TOOLS" -j2 tools/makedep tools/winebuild/winebuild tools/winegcc/winegcc \
+make -C "$TOOLS" -j2 tools/makedep tools/make_xftmpl tools/winebuild/winebuild tools/winegcc/winegcc \
   tools/widl/widl tools/wrc/wrc tools/wmc/wmc 2>&1 | tee "$LOG/host-tools.log"
 # Apply the same translation-unit-specific low-VA shim as the production Linux
 # cross compiler, but use Xcode directly instead of distributing an SDK.
@@ -44,8 +44,9 @@ export wine_cv_64bit_compare_swap='none needed' ac_cv_func_pthread_create=yes
 # Compile the real platform translation units, not a stubbed allocator. Linking
 # a complete distributable runtime (fonts/TLS/graphics/translators) is a separate
 # packaging gate; this check specifically catches native JIT/ABI source errors.
-make -C "$TARGET" -j2 dlls/ntdll/unix/virtual.o dlls/ntdll/unix/signal_arm64.o \
+make -C "$TARGET" -j2 include/rmxftmpl.h dlls/ntdll/unix/virtual.o dlls/ntdll/unix/signal_arm64.o \
   loader/main.o server/main.o 2>&1 | tee "$LOG/ios-objects.log"
+test -s "$TARGET/include/rmxftmpl.h"
 for object in dlls/ntdll/unix/virtual.o dlls/ntdll/unix/signal_arm64.o loader/main.o server/main.o; do
   file "$TARGET/$object" | grep -q 'Mach-O 64-bit.*arm64'
 done

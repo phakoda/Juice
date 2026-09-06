@@ -144,7 +144,7 @@ index 7c95febb..04b3fd09 100644
      info.bmiHeader.biHeight=-(LONG)height;info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;
      info.bmiHeader.biCompression=BI_RGB;info.bmiHeader.biSizeImage=stride*height;
 diff --git a/dlls/wineios.drv/vulkan.m b/dlls/wineios.drv/vulkan.m
-index 57f886f3..681aa257 100644
+index 57f886f3..1e6862b2 100644
 --- a/dlls/wineios.drv/vulkan.m
 +++ b/dlls/wineios.drv/vulkan.m
 @@ -15,6 +15,8 @@
@@ -211,7 +211,7 @@ index 57f886f3..681aa257 100644
      [surface->queue release];
      [surface->layer release];
      [surface->device release];
-@@ -87,56 +113,100 @@ static void iosdrv_client_surface_destroy(struct client_surface *client)
+@@ -87,56 +113,101 @@ static void iosdrv_client_surface_destroy(struct client_surface *client)
  static void iosdrv_client_surface_detach(struct client_surface *client)
  {
      struct iosdrv_client_surface *surface = impl_from_client_surface(client);
@@ -280,12 +280,13 @@ index 57f886f3..681aa257 100644
 +{
 +    struct juice_readback_layout layout;
 +    id<MTLBuffer> replacement;
++    BOOL reserved;
 +    if (!juice_readback_layout(width, height, 256, &layout)) return FALSE;
 +    if (surface->readback && surface->readback_size >= layout.bytes && surface->readback_stride == layout.stride) return TRUE;
 +
 +    /* Reserve across all surfaces, including the old buffer while replacing. */
 +    pthread_mutex_lock(&readback_budget_lock);
-+    BOOL reserved = juice_readback_budget_reserve(&readback_budget_used, layout.bytes);
++    reserved = juice_readback_budget_reserve(&readback_budget_used, layout.bytes);
 +    pthread_mutex_unlock(&readback_budget_lock);
 +    if (!reserved) return FALSE;
 +    replacement = [surface->device newBufferWithLength:layout.bytes options:MTLResourceStorageModeShared];
@@ -336,7 +337,7 @@ index 57f886f3..681aa257 100644
      command = [surface->queue commandBuffer];
      blit = [command blitCommandEncoder];
      if (!command || !blit) goto done;
-@@ -147,6 +217,8 @@ static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc
+@@ -147,6 +218,8 @@ static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc
      destinationBytesPerImage:surface->readback_stride * height];
      [blit endEncoding];
      [command commit];
@@ -345,7 +346,7 @@ index 57f886f3..681aa257 100644
      [command waitUntilCompleted];
      if (command.status != MTLCommandBufferStatusCompleted)
      {
-@@ -154,19 +226,32 @@ static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc
+@@ -154,19 +227,32 @@ static void iosdrv_client_surface_present(struct client_surface *client, HDC hdc
              [[command.error description] UTF8String]);
          goto done;
      }
@@ -381,7 +382,7 @@ index 57f886f3..681aa257 100644
  static const struct client_surface_funcs iosdrv_client_surface_funcs =
  {
      .destroy = iosdrv_client_surface_destroy,
-@@ -227,9 +312,20 @@ static VkResult iosdrv_vulkan_surface_create(struct client_surface *client,
+@@ -227,9 +313,20 @@ static VkResult iosdrv_vulkan_surface_create(struct client_surface *client,
  static VkBool32 iosdrv_get_physical_device_presentation_support(struct vulkan_physical_device *device,
                                                                   uint32_t queue)
  {
@@ -405,7 +406,7 @@ index 57f886f3..681aa257 100644
  }
  
  static void iosdrv_map_instance_extensions(struct vulkan_instance_extensions *extensions)
-@@ -253,6 +349,8 @@ static void iosdrv_map_device_extensions(struct vulkan_device_extensions *extens
+@@ -253,6 +350,8 @@ static void iosdrv_map_device_extensions(struct vulkan_device_extensions *extens
  
  UINT iosdrv_VulkanInit(UINT version, void *vulkan_handle, const struct vulkan_driver_funcs **driver)
  {

@@ -163,12 +163,13 @@ static BOOL iosdrv_prepare_readback(struct iosdrv_client_surface *surface, NSUIn
 {
     struct juice_readback_layout layout;
     id<MTLBuffer> replacement;
+    BOOL reserved;
     if (!juice_readback_layout(width, height, 256, &layout)) return FALSE;
     if (surface->readback && surface->readback_size >= layout.bytes && surface->readback_stride == layout.stride) return TRUE;
 
     /* Reserve across all surfaces, including the old buffer while replacing. */
     pthread_mutex_lock(&readback_budget_lock);
-    BOOL reserved = juice_readback_budget_reserve(&readback_budget_used, layout.bytes);
+    reserved = juice_readback_budget_reserve(&readback_budget_used, layout.bytes);
     pthread_mutex_unlock(&readback_budget_lock);
     if (!reserved) return FALSE;
     replacement = [surface->device newBufferWithLength:layout.bytes options:MTLResourceStorageModeShared];

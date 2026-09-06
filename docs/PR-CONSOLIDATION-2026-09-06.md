@@ -24,6 +24,13 @@ including replacement overlap; explicit retained-drawable teardown; and serializ
 resize/detach/present handling. There is one graphics policy and one FEX policy,
 not two divergent implementations or tests of an unused alternative.
 
+The #8 graphics-only queue filter is intentionally not copied. The Khronos
+Vulkan WSI specification's "Querying for WSI Support / Metal Platform" section
+requires presentation support for every valid Metal queue family. The canonical
+query checks device/function availability, bounded family counts and the actual
+family's queue count without incorrectly requiring `VK_QUEUE_GRAPHICS_BIT`.
+Reference: https://docs.vulkan.org/spec/latest/chapters/VK_KHR_surface/wsi.html
+
 The two unmerged StikDebug follow-ups are accounted for: foreground readiness and
 the macOS compiler probe are already present in #7; background-budget denial now
 takes the normal owned failure/cleanup path before opening the external debugger.
@@ -40,6 +47,12 @@ The competing #8 Wine/FEX overlays are not applied on top of #7. Their initial
 jobs also failed during patch preparation. Useful behavior is integrated into
 the canonical graphics source and audit patch instead of weakening verification
 or retaining an unreplayable second stack.
+
+Once patch replay was repaired, the real D3DX build exposed an omitted external
+host generator: `tools/make_xftmpl`, needed by `include/rmxftmpl.h`. Both host-tool
+build paths now compile it, Linux verifies its executable architecture along
+with the other generators, and native/PE validation explicitly generates the
+template header before compiling the platform objects or complete DLL catalog.
 
 ## Validation boundary
 

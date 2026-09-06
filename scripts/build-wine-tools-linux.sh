@@ -45,6 +45,7 @@ fi
 # later target does not fail because only makedep/winebuild happened to exist.
 host_targets=(
   tools/makedep
+  tools/make_xftmpl
   tools/winebuild/winebuild
   tools/winegcc/winegcc
   tools/widl/widl
@@ -56,6 +57,7 @@ host_targets=(
 
 host_tools=(
   "$BUILD/tools/makedep"
+  "$BUILD/tools/make_xftmpl"
   "$BUILD/tools/winebuild/winebuild"
   "$BUILD/tools/winegcc/winegcc"
   "$BUILD/tools/widl/widl"
