@@ -1,0 +1,34 @@
+name: Bringup source snapshot
+on:
+  push:
+    branches: [feature/runtime-bringup-2026-09-06]
+    paths: [.github/workflows/bringup-source-snapshot.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6b194067ee170ce79ffa85597cf3a38fa985d65c
+          persist-credentials: false
+          path: main
+      - uses: actions/checkout@v4
+        with:
+          ref: 61e42a7d1d948a98b160ed14c8d409c7421b2a12
+          persist-credentials: false
+          path: pr3
+      - name: Archive tracked source only
+        run: |
+          mkdir snapshots
+          git -C main archive --format=tar HEAD | gzip -1 > snapshots/main.tar.gz
+          git -C pr3 archive --format=tar HEAD | gzip -1 > snapshots/pr3.tar.gz
+          sha256sum snapshots/*.tar.gz > snapshots/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bringup-pinned-source
+          path: snapshots/
+          retention-days: 1
+          compression-level: 0
