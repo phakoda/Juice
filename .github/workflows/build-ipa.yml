@@ -1,0 +1,69 @@
+name: Build Juice IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-juice-ipa-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      JUICE_JOBS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          persist-credentials: false
+
+      - name: Reclaim runner disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc || true
+          df -h /
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential clang lld cmake git python3 bison flex m4 curl file rsync \
+            zip unzip xz-utils tar pkg-config autoconf automake libtool \
+            libssl-dev libxml2-dev zlib1g-dev zstd
+
+      - name: Verify source and patch integrity
+        run: make verify
+
+      - name: Build complete Juice runtime and TIPA
+        run: |
+          mkdir -p dist
+          JUICE_TIPA_OUTPUT="$GITHUB_WORKSPACE/dist/Juice-${GITHUB_SHA}.tipa" \
+            make linux-x86_64-x64
+
+      - name: Produce IPA alias and checksums
+        run: |
+          tipa="$GITHUB_WORKSPACE/dist/Juice-${GITHUB_SHA}.tipa"
+          ipa="$GITHUB_WORKSPACE/dist/Juice-${GITHUB_SHA}.ipa"
+          test -s "$tipa"
+          cp "$tipa" "$ipa"
+          (cd dist && sha256sum "$(basename "$tipa")" "$(basename "$ipa")" > SHA256SUMS)
+          unzip -tq "$ipa"
+          unzip -l "$ipa" | grep -q 'Payload/Juice.app/Juice'
+          file "$ipa"
+          ls -lh "$tipa" "$ipa" dist/SHA256SUMS
+
+      - name: Upload installable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Juice-IPA-${{ github.sha }}
+          path: |
+            dist/Juice-${{ github.sha }}.ipa
+            dist/Juice-${{ github.sha }}.tipa
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
