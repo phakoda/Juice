@@ -24,7 +24,7 @@ esac
 # mutate live build inputs or exclude files changed by an incremental layer.
 python3 "$ROOT/scripts/verify-patch-stack.py" "$ROOT/wine" "$PATCH" "$HARDENING_PATCH" "$GRAPHICS_PATCH" --optional \
   "$ROOT/patches/wine-stikdebug-jit.patch" "$ROOT/patches/wine-stikdebug-lifecycle.patch" \
-  "$ROOT/patches/wine-stikdebug-handoff.patch"
+  "$ROOT/patches/wine-stikdebug-handoff.patch" "$ROOT/patches/wine-stikdebug-abi.patch"
 
 path_count="$(grep -c '^diff --git a/' "$PATCH")"
 test "$path_count" -ge 25 || {

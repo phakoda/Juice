@@ -90,7 +90,6 @@ msvcr90
 propsys
 usp10
 vcruntime140
-vcruntime140_1
 vulkan-1
 windowscodecs
 windowscodecsext

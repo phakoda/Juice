@@ -207,7 +207,6 @@ dlls/msvcp140/aarch64-windows/msvcp140.dll
 dlls/msvcp140_1/aarch64-windows/msvcp140_1.dll
 dlls/msvcp140_2/aarch64-windows/msvcp140_2.dll
 dlls/vcruntime140/aarch64-windows/vcruntime140.dll
-dlls/vcruntime140_1/aarch64-windows/vcruntime140_1.dll
 dlls/concrt140/aarch64-windows/concrt140.dll
 
 # Builtin DLL availability is not a claim of complete API or GPU support.

@@ -6,7 +6,7 @@ for path in app/JuiceStikDebugJIT.h app/JuiceStikDebugJIT.m app/JuiceJITState.h 
   test -s "$ROOT/$path" || { echo "Missing JIT integration: $path" >&2; exit 2; }
 done
 bash -n "$ROOT/scripts/apply-wine-stikdebug-jit.sh" "$ROOT/scripts/fetch-fex-linux.sh" "$ROOT/scripts/verify-fex-patch.sh"
-for patch in fex-stikdebug-jit fex-stikdebug-lifecycle fex-stikdebug-validation wine-stikdebug-jit wine-stikdebug-lifecycle wine-stikdebug-handoff; do
+for patch in fex-stikdebug-jit fex-stikdebug-lifecycle fex-stikdebug-validation wine-stikdebug-jit wine-stikdebug-lifecycle wine-stikdebug-handoff wine-stikdebug-abi; do
   git -C "$ROOT" apply --recount --numstat "$ROOT/patches/$patch.patch" >/dev/null
 done
 # Actual reverse/replay validation, not a grep-only claim of patch integrity.
@@ -32,4 +32,4 @@ grep -Fq 'AllocatedRanges' "$ROOT/patches/fex-stikdebug-validation.patch"
 if grep -Eq '^int posix_spawn\(' "$app"; then
   echo 'Process-wide spawn interposition must not return.' >&2; exit 3
 fi
-echo 'JUICE_STIKDEBUG_JIT_VERIFY_OK lifecycle=1 handoff=1 allocation_validation=1'
+echo 'JUICE_STIKDEBUG_JIT_VERIFY_OK lifecycle=1 handoff=1 allocation_validation=1 pointer_sized_abi=1'
