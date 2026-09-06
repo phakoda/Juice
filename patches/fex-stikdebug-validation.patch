@@ -1,14 +1,15 @@
 diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Interface/Core/CPUBackend.cpp
 --- a/FEXCore/Source/Interface/Core/CPUBackend.cpp
 +++ b/FEXCore/Source/Interface/Core/CPUBackend.cpp
-@@ -402,7 +402,8 @@
+@@ -395,6 +395,7 @@
      if (!FEXCore::Allocator::JuiceFreeJITMapping(
-           {WritablePtr, Ptr, DualMapped}, static_cast<size_t>(Size))) {
+           {WritablePtr, Ptr, DualMapped}, AllocatedSize)) {
 -      LogMan::Msg::EFmt("Failed to release StikDebug JIT mapping write={:p} exec={:p}", WritablePtr, Ptr);
 +      LogMan::Msg::EFmt("Failed to release StikDebug JIT mapping write={:p} exec={:p}",
 +                       static_cast<void*>(WritablePtr), static_cast<void*>(Ptr));
      }
-     return;
+ #else
+     FEXCore::Allocator::VirtualFree(Ptr, AllocatedSize);
 diff --git a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
 --- a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
 +++ b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
