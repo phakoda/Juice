@@ -54,6 +54,18 @@ build paths now compile it, Linux verifies its executable architecture along
 with the other generators, and native/PE validation explicitly generates the
 template header before compiling the platform objects or complete DLL catalog.
 
+The next complete build exposed an architecture-audit error rather than a
+compiler error: the checker expected the ARM64EC object identifier `0xA641` in
+linked DLL headers. Microsoft documents that linked ARM64EC images use AMD64
+`0x8664` plus hybrid metadata. The auditor now verifies that metadata with bounded
+PE32+ section, load-configuration and RVA checks; it does not accept plain x64
+as a substitute. Regressions cover both metadata versions, ordinary-x64/object
+rejection, malformed sizes/pointers/maps, ambiguous sections and all 1,024 byte
+truncations of a structural fixture. The corrected parser also accepted the
+actual previously built FEX ARM64EC DLL, whose machine field is `0x8664` and
+metadata version is 1. No compiled fixture is added to the runtime or source tree.
+Reference: https://learn.microsoft.com/en-us/windows/arm/arm64ec
+
 ## Validation boundary
 
 Every current-head check must complete before merging the runtime layer: source

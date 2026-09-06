@@ -105,4 +105,89 @@ class GraphicsAPITests(unittest.TestCase):
         (self.root / "demo.dll").write_bytes(b"MZ")
         with self.assertRaises(api.AuditError): api.inspect_build(self.root, ["demo.dll"], "aarch64")
 
+    def arm64ec_fixture(self):
+        # Structural test data only, not an executable runtime replacement.
+        data = bytearray(1024)
+        data[:2] = b"MZ"
+        struct.pack_into("<I", data, 60, 128)
+        data[128:132] = b"PE\0\0"
+        struct.pack_into("<HH", data, 132, 0x8664, 1)
+        struct.pack_into("<HH", data, 148, 240, 0x2000)
+        struct.pack_into("<H", data, 152, 0x20B)
+        struct.pack_into("<Q", data, 152 + 24, 0x180000000)
+        struct.pack_into("<II", data, 152 + 56, 0x2000, 512)
+        struct.pack_into("<I", data, 152 + 108, 16)
+        struct.pack_into("<II", data, 152 + 112 + 80, 0x1000, 208)
+        data[392:400] = b".rdata\0\0"
+        struct.pack_into("<IIII", data, 400, 512, 0x1000, 512, 512)
+        struct.pack_into("<I", data, 512, 208)
+        struct.pack_into("<Q", data, 512 + 200, 0x180001100)
+        struct.pack_into("<III", data, 768, 1, 0x1120, 1)
+        struct.pack_into("<II", data, 800, 0x1001, 4)
+        return data
+
+    def inspect_ec(self, data):
+        (self.root / "ec.dll").write_bytes(data)
+        return api.inspect_build(self.root, ["ec.dll"], "arm64ec")[0]
+
+    def test_arm64ec_linked_header_and_metadata_versions(self):
+        for version in (1, 2):
+            with self.subTest(version=version):
+                data = self.arm64ec_fixture()
+                struct.pack_into("<I", data, 768, version)
+                report = self.inspect_ec(data)
+                self.assertEqual(report["machine"], 0x8664)
+                self.assertEqual(report["architecture"], "arm64ec")
+                self.assertEqual(report["chpe_metadata"], {"version": version, "code_map_entries": 1})
+                self.assertEqual(report["bytes"], len(data))
+
+    def test_arm64ec_does_not_accept_object_machine_or_native_arm64(self):
+        for machine in (0xA641, 0xAA64, 0x14C, 0xA64E):
+            with self.subTest(machine=machine):
+                data = self.arm64ec_fixture()
+                struct.pack_into("<H", data, 132, machine)
+                with self.assertRaises(api.AuditError): self.inspect_ec(data)
+
+    def test_arm64ec_rejects_ordinary_x64(self):
+        for field, fmt, value in ((152 + 112 + 80, "<II", (0, 0)),
+                                  (512 + 200, "<Q", (0,))):
+            data = self.arm64ec_fixture()
+            struct.pack_into(fmt, data, field, *value)
+            with self.assertRaises(api.AuditError): self.inspect_ec(data)
+
+    def test_arm64ec_metadata_bounds(self):
+        mutations = (
+            (134, "<H", 97), (148, "<H", 199), (152, "<H", 0x10B),
+            (152 + 108, "<I", 10), (152 + 108, "<I", 0xFFFFFFFF),
+            (152 + 56, "<I", 1024), (152 + 60, "<I", 1025),
+            (152 + 112 + 84, "<I", 207), (152 + 112 + 84, "<I", 4097),
+            (512, "<I", 207), (512, "<I", 209),
+            (512 + 200, "<Q", 0x17FFFFFFF), (512 + 200, "<Q", 0x180003000),
+            (768, "<I", 0), (768, "<I", 3), (772, "<I", 0),
+            (772, "<I", 0x11FC), (776, "<I", 1024 * 1024 + 1),
+            (408, "<I", 1024), (412, "<I", 1024),
+        )
+        for offset, fmt, value in mutations:
+            with self.subTest(offset=offset, value=value):
+                data = self.arm64ec_fixture()
+                struct.pack_into(fmt, data, offset, value)
+                with self.assertRaises(api.AuditError): self.inspect_ec(data)
+
+    def test_arm64ec_ambiguous_rva_rejected(self):
+        data = self.arm64ec_fixture()
+        struct.pack_into("<H", data, 134, 2)
+        data[432:472] = data[392:432]
+        with self.assertRaises(api.AuditError): self.inspect_ec(data)
+
+    def test_arm64ec_all_file_truncations_rejected(self):
+        data = self.arm64ec_fixture()
+        for size in range(len(data)):
+            with self.subTest(size=size):
+                with self.assertRaises(api.AuditError): self.inspect_ec(data[:size])
+
+    def test_arm64ec_metadata_with_no_code_ranges(self):
+        data = self.arm64ec_fixture()
+        struct.pack_into("<II", data, 772, 0, 0)
+        self.assertEqual(self.inspect_ec(data)["chpe_metadata"]["code_map_entries"], 0)
+
 if __name__ == "__main__": unittest.main()

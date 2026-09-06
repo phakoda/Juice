@@ -4,10 +4,12 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import struct
 import sys
 from pathlib import Path
+from typing import BinaryIO, NoReturn
 
 NAME = re.compile(r"[a-z0-9][a-z0-9_.+-]*\Z")
 TARGET = re.compile(r"(?:dlls|programs)/[A-Za-z0-9_.+-]+/aarch64-windows/[A-Za-z0-9_.+-]+\.(?:dll|exe|drv|sys)\Z")
@@ -111,12 +113,82 @@ def make_targets(report: dict, makefile: str, arch: str) -> list[str]:
         targets.extend(matches)
     return targets
 
+def arm64ec_metadata(stream: BinaryIO, pe_offset: int, coff: bytes, file_size: int) -> dict:
+    """Validate linked-image CHPE metadata without mistaking ordinary x64 for EC.
+
+    A641 identifies intermediate COFF objects, not final ARM64EC DLLs. Linked
+    EC images use AMD64 plus a CHPEMetadataPointer in the PE32+ load configuration.
+    This is bounded structural evidence, not validation of executable semantics.
+    """
+    def reject(message: str) -> NoReturn:
+        raise AuditError(f"invalid ARM64EC image: {message}")
+
+    def read_at(offset: int, count: int) -> bytes:
+        if offset < 0 or count < 0 or offset > file_size or count > file_size - offset:
+            reject("truncated or out-of-file metadata")
+        stream.seek(offset)
+        data = stream.read(count)
+        if len(data) != count:
+            reject("short metadata read")
+        return data
+
+    sections_count = struct.unpack_from("<H", coff, 6)[0]
+    optional_size = struct.unpack_from("<H", coff, 20)[0]
+    if not 1 <= sections_count <= 96 or not 200 <= optional_size <= 4096:
+        reject("section count or optional header size")
+    optional = read_at(pe_offset + 24, optional_size)
+    if struct.unpack_from("<H", optional)[0] != 0x20B:
+        reject("expected a PE32+ optional header")
+    directories = struct.unpack_from("<I", optional, 108)[0]
+    if not 11 <= directories <= (optional_size - 112) // 8:
+        reject("missing or truncated load-configuration directory")
+    image_base = struct.unpack_from("<Q", optional, 24)[0]
+    image_size, headers_size = struct.unpack_from("<II", optional, 56)
+    section_offset = pe_offset + 24 + optional_size
+    if not section_offset + sections_count * 40 <= headers_size <= min(file_size, image_size):
+        reject("invalid image/header bounds")
+    sections = []
+    for i in range(sections_count):
+        entry = read_at(section_offset + i * 40, 40)
+        virtual_size, address, raw_size, raw_offset = struct.unpack_from("<IIII", entry, 8)
+        if address + max(virtual_size, raw_size) > image_size or raw_offset + raw_size > file_size:
+            reject("section extends beyond the image or file")
+        sections.append((address, raw_size, raw_offset))
+
+    def rva_offset(rva: int, count: int) -> int:
+        if rva <= 0 or count <= 0 or rva >= image_size or count > image_size - rva:
+            reject("out-of-image metadata RVA")
+        candidates = [rva] if rva + count <= headers_size else []
+        candidates += [raw + rva - address for address, size, raw in sections
+                       if address <= rva and rva - address + count <= size]
+        if len(candidates) != 1:
+            reject("unmapped or ambiguous metadata RVA")
+        return candidates[0]
+
+    config_rva, config_size = struct.unpack_from("<II", optional, 112 + 10 * 8)
+    if not 208 <= config_size <= 4096:
+        reject("missing or undersized CHPE load configuration")
+    config = read_at(rva_offset(config_rva, config_size), config_size)
+    declared_size = struct.unpack_from("<I", config)[0]
+    if not 208 <= declared_size <= config_size:
+        reject("inconsistent load-configuration size")
+    metadata_va = struct.unpack_from("<Q", config, 200)[0]
+    metadata = read_at(rva_offset(metadata_va - image_base, 12), 12)
+    version, code_map_rva, code_map_count = struct.unpack("<III", metadata)
+    if version not in (1, 2) or code_map_count > 1024 * 1024:
+        reject("unsupported CHPE version or unbounded code map")
+    if code_map_count:
+        rva_offset(code_map_rva, code_map_count * 8)
+    return {"version": version, "code_map_entries": code_map_count}
+
+
 def inspect_build(build: Path, targets: list[str], arch: str) -> list[dict]:
-    expected = {"aarch64": 0xAA64, "arm64ec": 0xA641, "i386": 0x14C}[arch]
+    expected = {"aarch64": 0xAA64, "arm64ec": 0x8664, "i386": 0x14C}[arch]
     result = []
     for target in targets:
         path = build / target
         with path.open("rb") as stream:
+            file_size = os.fstat(stream.fileno()).st_size
             dos = stream.read(64)
             if len(dos) != 64 or dos[:2] != b"MZ":
                 raise AuditError(f"{target}: missing PE DOS header")
@@ -129,12 +201,19 @@ def inspect_build(build: Path, targets: list[str], arch: str) -> list[dict]:
                 raise AuditError(f"{target}: wrong PE signature or machine")
             if not struct.unpack_from("<H", pe, 22)[0] & 0x2000:
                 raise AuditError(f"{target}: expected a DLL image")
+            try:
+                metadata = arm64ec_metadata(stream, offset, pe, file_size) if arch == "arm64ec" else None
+            except AuditError as error:
+                raise AuditError(f"{target}: {error}") from error
             stream.seek(0)
             hasher = hashlib.sha256()
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 hasher.update(block)
             digest = hasher.hexdigest()
-        result.append({"path": target, "machine": expected, "sha256": digest, "bytes": path.stat().st_size})
+        entry = {"path": target, "machine": expected, "architecture": arch, "sha256": digest, "bytes": file_size}
+        if metadata is not None:
+            entry["chpe_metadata"] = metadata
+        result.append(entry)
     return result
 
 def main() -> int:
