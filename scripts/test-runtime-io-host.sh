@@ -5,6 +5,8 @@ OUT="$(mktemp -d "${TMPDIR:-/tmp}/juice-io-tests.XXXXXX")"
 trap 'rm -rf "$OUT"' EXIT
 CC="${CC:-clang}"
 flags=(-std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -g -O1)
+# Darwin hides BSD socket flags under strict POSIX feature selection.
+if [[ "$(uname -s)" = Darwin ]]; then flags+=(-D_DARWIN_C_SOURCE); fi
 if [[ "${JUICE_TEST_SANITIZERS:-1}" = 1 ]]; then
   flags+=(-fsanitize=address,undefined -fno-omit-frame-pointer)
 fi
