@@ -1,12 +1,21 @@
 name: FEX runtime build
 on:
   workflow_dispatch:
-  push:
-    branches: [feature/stikdebug-jit]
+  pull_request:
     paths:
       - '.github/workflows/fex-runtime-build.yml'
       - 'patches/fex-*.patch'
+      - 'patches/fex-runtime/**'
       - 'scripts/*fex*'
+      - 'config/x86_64-build.env'
+  push:
+    branches: [main, feature/stikdebug-jit]
+    paths:
+      - '.github/workflows/fex-runtime-build.yml'
+      - 'patches/fex-*.patch'
+      - 'patches/fex-runtime/**'
+      - 'scripts/*fex*'
+      - 'config/x86_64-build.env'
 permissions:
   contents: read
 concurrency:

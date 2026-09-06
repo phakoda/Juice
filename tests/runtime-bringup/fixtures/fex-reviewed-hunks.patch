@@ -1,0 +1,199 @@
+diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+--- a/FEXCore/Source/Interface/Core/CPUBackend.cpp
++++ b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+@@ -325,6 +325,23 @@ namespace CPU {
+   }
+ 
+   void CPUBackend::RegisterForSignalHandler(fextl::shared_ptr<CodeBuffer> CodeBuffer) {
++#ifdef FEX_JUICE_IOS
++    /*
++     * A native branch target can be observed after its lookup generation was
++     * retired but before the translated thread reaches the replacement
++     * dispatcher.  Keep a small lock-free range history so the Windows fault
++     * bridge can distinguish that cold race from a genuine guest execute
++     * fault without retaining large code buffers indefinitely.
++     */
++    if (CodeBuffer) {
++      auto& Range = RetiredCodeBufferRanges[NextRetiredCodeBufferRange.fetch_add(1, std::memory_order_relaxed) %
++                                            RetiredCodeBufferRangeCount];
++      const uintptr_t Begin = reinterpret_cast<uintptr_t>(CodeBuffer->Ptr);
++      Range.Begin.store(0, std::memory_order_release);
++      Range.End.store(Begin + CodeBuffer->AllocatedSize, std::memory_order_relaxed);
++      Range.Begin.store(Begin, std::memory_order_release);
++    }
++#endif
+     if (ThreadState->CurrentFrame->SignalHandlerRefCounter != 0) {
+       // We have signal handlers that have generated code
+       // This means that we can not safely clear the code at this point in time
+@@ -452,5 +469,18 @@ namespace CPU {
+     return false;
+   }
+ 
++  bool CPUBackend::IsAddressInRetiredCodeBuffer(uintptr_t Address) const {
++#ifdef FEX_JUICE_IOS
++    for (const auto& Range : RetiredCodeBufferRanges) {
++      const uintptr_t Begin = Range.Begin.load(std::memory_order_acquire);
++      const uintptr_t End = Range.End.load(std::memory_order_relaxed);
++      if (Begin && Address >= Begin && Address < End) {
++        return true;
++      }
++    }
++#endif
++    return false;
++  }
++
+ } // namespace CPU
+ } // namespace FEXCore
+diff --git a/FEXCore/Source/Interface/Core/CPUBackend.h b/FEXCore/Source/Interface/Core/CPUBackend.h
+--- a/FEXCore/Source/Interface/Core/CPUBackend.h
++++ b/FEXCore/Source/Interface/Core/CPUBackend.h
+@@ -15,6 +15,8 @@
+ #include <FEXCore/fextl/vector.h>
+ #include <FEXCore/fextl/map.h>
+ 
++#include <array>
++#include <atomic>
+ #include <cstdint>
+ 
+ namespace FEXCore::CPU {
+@@ -202,6 +204,14 @@ namespace CPU {
+     CodeBufferManager& CodeBuffers;
+ 
+   private:
++    struct RetiredCodeBufferRange {
++      std::atomic<uintptr_t> Begin {};
++      std::atomic<uintptr_t> End {};
++    };
++    static constexpr size_t RetiredCodeBufferRangeCount = 8;
++    std::array<RetiredCodeBufferRange, RetiredCodeBufferRangeCount> RetiredCodeBufferRanges {};
++    std::atomic<size_t> NextRetiredCodeBufferRange {};
++
+     void RegisterForSignalHandler(fextl::shared_ptr<CodeBuffer>);
+   };
+ 
+diff --git a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
+--- a/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
++++ b/FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp
+@@ -36,11 +36,25 @@
+ 
+ constexpr size_t MAX_DISPATCHER_CODE_SIZE = FEXCore::Utils::FEX_PAGE_SIZE * 4;
+ 
++static void* AllocateDispatcherCode() {
++#ifdef FEX_JUICE_IOS
++  /* iOS accepts the RW -> RX transition but leaves a mapping created RWX
++   * hardware-NX, even though mmap itself succeeds. */
++  return FEXCore::Allocator::VirtualAllocECCode(MAX_DISPATCHER_CODE_SIZE, false);
++#else
++  return FEXCore::Allocator::VirtualAlloc(MAX_DISPATCHER_CODE_SIZE, true);
++#endif
++}
++
+ Dispatcher::Dispatcher(FEXCore::Context::ContextImpl* ctx)
+-  : Arm64Emitter(ctx, FEXCore::Allocator::VirtualAlloc(MAX_DISPATCHER_CODE_SIZE, true), MAX_DISPATCHER_CODE_SIZE)
++  : Arm64Emitter(ctx, AllocateDispatcherCode(), MAX_DISPATCHER_CODE_SIZE)
+   , CTX {ctx} {
+   EmitDispatcher();
+ 
++#ifdef FEX_JUICE_IOS
++  FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(GetBufferBase()), MAX_DISPATCHER_CODE_SIZE,
++                                     FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec);
++#endif
+   FEXCore::Allocator::VirtualName("FEXMem_Misc", reinterpret_cast<void*>(GetBufferBase()), MAX_DISPATCHER_CODE_SIZE);
+ }
+ 
+diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+--- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+@@ -1077,25 +1077,59 @@
+ 
+     // Query size of generated code
+     const auto TempSize = GetCursorOffset();
++#ifdef FEX_JUICE_IOS
++    uintptr_t ProtectStart {};
++    uintptr_t ProtectEnd {};
++#endif
+ 
+     // Bring CodeBuffer up to date
+     {
+       LOGMAN_THROW_A_FMT(CurrentCodeBuffer->LookupCache.get() == ThreadState->LookupCache->Shared, "INVARIANT VIOLATED: SharedLookupCache "
+                                                                                                    "doesn't match up!\n");
+       if (auto Prev = CheckCodeBufferUpdate()) {
+-        Allocator::VirtualDontNeed(ThreadState->CallRetStackBase, FEXCore::Core::InternalThreadState::CALLRET_STACK_SIZE);
++        FEXCore::Core::ResetCallRetStack(ThreadState);
+         auto lk = ThreadState->LookupCache->AcquireWriteLock();
+         ThreadState->LookupCache->ChangeGuestToHostMapping(*Prev, *CurrentCodeBuffer->LookupCache, lk);
+       }
+ 
+-      // NOTE: 16-byte alignment of the new cursor offset must be preserved for block linking records
++      // Ensure a replacement buffer is selected before Align16B writes padding.
+       SetBuffer(CurrentCodeBuffer->Ptr, CurrentCodeBuffer->AllocatedSize);
+-      SetCursorOffset(CodeBuffers.LatestOffset);
+-      Align16B();
+-      if ((GetCursorOffset() + TempSize) > CurrentCodeBuffer->UsableSize()) {
++#ifdef FEX_JUICE_IOS
++      /*
++       * Never reopen a page that already contains published code.  Darwin's
++       * W^X protection is page-wide, so compiling into the unused tail of an
++       * RX page can make code executing on another thread non-executable.
++       */
++      constexpr uint64_t JuiceHostPageSize = 0x4000;
++      const auto AlignedOffset = AlignUp(CodeBuffers.LatestOffset, JuiceHostPageSize);
++#else
++      const auto AlignedOffset = AlignUp(CodeBuffers.LatestOffset, static_cast<uint64_t>(16));
++#endif
++      if ((AlignedOffset + TempSize) > CurrentCodeBuffer->UsableSize()) {
+         CTX->ClearCodeCache(ThreadState);
+       }
+ 
++#ifdef FEX_JUICE_IOS
++      /*
++       * Align16B emits padding directly into the destination buffer.  Include
++       * that padding in the W^X write interval; protecting only the memcpy
++       * destination is too late when the preceding block left this page RX.
++       */
++      constexpr uintptr_t JuiceHostPageMask = JuiceHostPageSize - 1;
++      const uintptr_t BufferBase = reinterpret_cast<uintptr_t>(CurrentCodeBuffer->Ptr);
++      const uintptr_t CopyOffset = AlignedOffset;
++      ProtectStart = BufferBase + CopyOffset;
++      ProtectEnd = (BufferBase + CopyOffset + TempSize + JuiceHostPageMask) & ~JuiceHostPageMask;
++      LOGMAN_THROW_A_FMT(
++        FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(ProtectStart), ProtectEnd - ProtectStart,
++                                           FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Write),
++        "Couldn't make iOS JIT code buffer writable");
++#endif
++
++      // NOTE: 16-byte alignment of the new cursor offset must be preserved for block linking records
++      SetBuffer(CurrentCodeBuffer->Ptr, CurrentCodeBuffer->AllocatedSize);
++      SetCursorOffset(AlignedOffset);
++      Align16B();
+       CodeBuffers.LatestOffset = GetCursorOffset();
+     }
+ 
+@@ -1112,7 +1146,26 @@
+     }
+ 
+     // Copy over CodeBuffer contents
+-    memcpy(GetCursorAddress<uint8_t*>(), TempCodeBuffer, TempSize);
++    auto CopyStart = GetCursorAddress<uint8_t*>();
++#ifdef FEX_JUICE_IOS
++    /*
++     * The iOS host page is 16 KiB.  A mapping created RWX remains
++     * hardware-NX on the supported device, while a RW -> RX transition is
++     * executable.  Temporarily make only the pages receiving this block
++     * writable, then publish them RX before returning to the dispatcher.
++     */
++    LOGMAN_THROW_A_FMT(reinterpret_cast<uintptr_t>(CopyStart) >= ProtectStart &&
++                        reinterpret_cast<uintptr_t>(CopyStart) + TempSize <= ProtectEnd,
++                      "iOS JIT write interval doesn't cover generated block");
++#endif
++    memcpy(CopyStart, TempCodeBuffer, TempSize);
++#ifdef FEX_JUICE_IOS
++    ClearICache(CopyStart, TempSize);
++    LOGMAN_THROW_A_FMT(
++      FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(ProtectStart), ProtectEnd - ProtectStart,
++                                         FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec),
++      "Couldn't make iOS JIT code buffer executable");
++#endif
+     SetCursorOffset(CodeBuffers.LatestOffset + TempSize);
+ 
+     CodeBuffers.LatestOffset = GetCursorOffset();

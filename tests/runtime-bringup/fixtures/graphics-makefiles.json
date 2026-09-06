@@ -1,0 +1,74 @@
+{
+  "repository": "phakoda/Juice",
+  "commit": "644cf750f7c2ea1ece98f25fbbc5693c0c6ab8aa",
+  "files": {
+    "wine/dlls/d3d8/Makefile.in": {
+      "blob_sha": "55717eb91292c6eea6a8bf5902926faae919c333",
+      "content": "MODULE    = d3d8.dll\nIMPORTLIB = d3d8\nIMPORTS   = dxguid uuid wined3d\n\nVER_FILEDESCRIPTION_STR = \"Wine Direct3D\"\nVER_PRODUCTVERSION      = 5,3,1,904\n\nSOURCES = \\\n\tbuffer.c \\\n\td3d8_main.c \\\n\tdevice.c \\\n\tdirectx.c \\\n\tshader.c \\\n\tsurface.c \\\n\tswapchain.c \\\n\ttexture.c \\\n\tvertexdeclaration.c \\\n\tvolume.c\n"
+    },
+    "wine/dlls/d3d9/Makefile.in": {
+      "blob_sha": "8fee4e801a6a6ecbb997ea3a37cac53e5d50995f",
+      "content": "MODULE    = d3d9.dll\nIMPORTLIB = d3d9\nIMPORTS   = dxguid uuid wined3d\n\nVER_FILEDESCRIPTION_STR = \"Wine Direct3D\"\nVER_PRODUCTVERSION      = 5,3,1,904\n\nSOURCES = \\\n\tbuffer.c \\\n\td3d9_main.c \\\n\tdevice.c \\\n\tdirectx.c \\\n\tquery.c \\\n\tshader.c \\\n\tstateblock.c \\\n\tsurface.c \\\n\tswapchain.c \\\n\ttexture.c \\\n\tvertexdeclaration.c \\\n\tvolume.c\n"
+    },
+    "wine/dlls/d3d10/Makefile.in": {
+      "blob_sha": "2222434bbce981c1b973d027d462d3bdf7cfe9e7",
+      "content": "MODULE    = d3d10.dll\nIMPORTLIB = d3d10\nIMPORTS   = uuid d3d10core d3dcompiler_39 dxgi wined3d\nEXTRADEFS = -DD3D_COMPILER_VERSION=0\nPARENTSRC = ../d3dcompiler_43\nEXTRAINCL = $(VKD3D_PE_CFLAGS)\n\nVER_FILEDESCRIPTION_STR = \"Wine Direct3D\"\nVER_PRODUCTVERSION      = 6,0,6000,16386\n\nSOURCES = \\\n\tblob.c \\\n\td3d10_main.c \\\n\teffect.c \\\n\treflection.c \\\n\tshader.c \\\n\tstateblock.c \\\n\tutils.c\n"
+    },
+    "wine/dlls/ddraw/Makefile.in": {
+      "blob_sha": "1a91a3437b62baa75f4089986b5ca7eab3296272",
+      "content": "MODULE    = ddraw.dll\nIMPORTLIB = ddraw\nIMPORTS   = dxguid uuid wined3d user32 gdi32 advapi32\n\nVER_FILEDESCRIPTION_STR = \"Wine DirectDraw\"\nVER_PRODUCTVERSION      = 5,3,1,904\nVER_OLESELFREGISTER     = 1\n\nSOURCES = \\\n\tclipper.c \\\n\tddraw.c \\\n\tddraw_classes.idl \\\n\tdevice.c \\\n\texecutebuffer.c \\\n\tlight.c \\\n\tmain.c \\\n\tmaterial.c \\\n\tpalette.c \\\n\tsurface.c \\\n\tutils.c \\\n\tvertexbuffer.c \\\n\tviewport.c\n"
+    },
+    "wine/dlls/d3dcompiler_39/Makefile.in": {
+      "blob_sha": "803dd6fe0a548439f1fcea0adaea09d8a5364637",
+      "content": "MODULE    = d3dcompiler_39.dll\nIMPORTLIB = d3dcompiler_39\nIMPORTS   = wined3d\nEXTRADEFS = -DD3D_COMPILER_VERSION=39\nPARENTSRC = ../d3dcompiler_43\nEXTRAINCL = $(VKD3D_PE_CFLAGS)\n\nVER_FILEDESCRIPTION_STR = \"Wine D3DCompiler\"\nVER_PRODUCTVERSION      = 9,24,949,2307\n\nSOURCES = \\\n\tasmparser.c \\\n\tasmshader.l \\\n\tasmshader.y \\\n\tblob.c \\\n\tbytecodewriter.c \\\n\tcompiler.c \\\n\treflection.c \\\n\tutils.c\n"
+    },
+    "wine/dlls/d3dcompiler_43/Makefile.in": {
+      "blob_sha": "9b33433fa260496d39dba307f39bc78c5e2dffa4",
+      "content": "MODULE    = d3dcompiler_43.dll\nIMPORTLIB = d3dcompiler_43\nEXTRADEFS = -DD3D_COMPILER_VERSION=43\nIMPORTS   = wined3d\nEXTRAINCL = $(VKD3D_PE_CFLAGS)\n\nVER_FILEDESCRIPTION_STR = \"Wine D3DCompiler\"\nVER_PRODUCTVERSION      = 9,29,952,3111\n\nSOURCES = \\\n\tasmparser.c \\\n\tasmshader.l \\\n\tasmshader.y \\\n\tblob.c \\\n\tbytecodewriter.c \\\n\tcompiler.c \\\n\tlinker.c \\\n\treflection.c \\\n\tutils.c\n"
+    },
+    "wine/dlls/d3dcompiler_47/Makefile.in": {
+      "blob_sha": "4891ec909ff1973c1eb78f40d8d5c0669e5f8852",
+      "content": "MODULE    = d3dcompiler_47.dll\nIMPORTLIB = d3dcompiler\nIMPORTS   = wined3d\nEXTRADEFS = -DD3D_COMPILER_VERSION=47\nPARENTSRC = ../d3dcompiler_43\nEXTRAINCL = $(VKD3D_PE_CFLAGS)\n\nVER_FILEDESCRIPTION_STR = \"Wine D3DCompiler\"\nVER_PRODUCTVERSION      = 6,3,9600,16984\n\nSOURCES = \\\n\tasmparser.c \\\n\tasmshader.l \\\n\tasmshader.y \\\n\tblob.c \\\n\tbytecodewriter.c \\\n\tcompiler.c \\\n\tlinker.c \\\n\treflection.c \\\n\tutils.c\n"
+    },
+    "wine/dlls/d3dx9_43/Makefile.in": {
+      "blob_sha": "b9984e5f4fc6626d734c72847a0a3386e204176e",
+      "content": "EXTRADEFS = -DD3DX_SDK_VERSION=43\nMODULE    = d3dx9_43.dll\nIMPORTLIB = d3dx9_43\nIMPORTS   = d3d9 d3dcompiler_43 dxguid d3dxof ole32 gdi32 user32\nPARENTSRC = ../d3dx9_36\nDELAYIMPORTS = windowscodecs\n\nVER_FILEDESCRIPTION_STR = \"Wine D3DX9\"\nVER_PRODUCTVERSION      = 9,29,952,3111\n\nSOURCES = \\\n\tanimation.c \\\n\tcore.c \\\n\td3dx_helpers.c \\\n\teffect.c \\\n\tfont.c \\\n\tline.c \\\n\tmain.c \\\n\tmath.c \\\n\tmesh.c \\\n\tpreshader.c \\\n\trender.c \\\n\tshader.c \\\n\tskin.c \\\n\tsprite.c \\\n\tsurface.c \\\n\ttexture.c \\\n\tutil.c \\\n\tvolume.c \\\n\txfile.c\n"
+    },
+    "wine/dlls/d3dx10_43/Makefile.in": {
+      "blob_sha": "751087490c0cb81664c04ea7c6dd844c644716ef",
+      "content": "MODULE    = d3dx10_43.dll\nIMPORTLIB = d3dx10\nIMPORTS   = d3d10_1 d3dcompiler dxguid uuid gdi32 ole32 user32\nPARENTSRC = ../d3dx9_36\nDELAYIMPORTS = windowscodecs\n\nVER_FILEDESCRIPTION_STR = \"Wine D3DX10\"\nVER_PRODUCTVERSION      = 9,29,952,3111\n\nSOURCES = \\\n\tasync.c \\\n\tcompiler.c \\\n\td3dx10_43_main.c \\\n\td3dx_helpers.c \\\n\tfont.c \\\n\tmesh.c \\\n\tsprite.c \\\n\ttexture.c\n"
+    },
+    "wine/dlls/d3dx11_43/Makefile.in": {
+      "blob_sha": "e49a8c11c8db9793460ba91f1e29a588c562f57c",
+      "content": "EXTRADEFS = -DD3DX11_SDK_VERSION=43\nMODULE = d3dx11_43.dll\nIMPORTLIB = d3dx11\nIMPORTS   = d3dcompiler gdi32 ole32 user32\nPARENTSRC = ../d3dx9_36\nDELAYIMPORTS = windowscodecs\n\nVER_FILEDESCRIPTION_STR = \"Wine D3DX11\"\nVER_PRODUCTVERSION      = 9,29,952,3111\n\nSOURCES = \\\n\tasync.c \\\n\td3dx11_43_main.c \\\n\td3dx_helpers.c \\\n\ttexture.c\n"
+    },
+    "wine/dlls/d3dxof/Makefile.in": {
+      "blob_sha": "9cf3105f46aee01a7f1d6766c82965b59ce42134",
+      "content": "MODULE    = d3dxof.dll\nIMPORTLIB = d3dxof\nIMPORTS   = dxguid uuid ole32 advapi32\n\nVER_FILEDESCRIPTION_STR = \"DirectX Files dll\"\nVER_PRODUCTVERSION      = 5,0,2135,1\n\nSOURCES = \\\n\td3dxof.c \\\n\td3dxof.idl \\\n\tmain.c \\\n\tmszip.c \\\n\tparsing.c\n"
+    },
+    "wine/dlls/gdiplus/Makefile.in": {
+      "blob_sha": "1dad7557747c042d250392401ca410d6823e2ae0",
+      "content": "MODULE    = gdiplus.dll\nIMPORTLIB = gdiplus\nIMPORTS   = uuid shlwapi ole32 oleaut32 user32 gdi32\nDELAYIMPORTS = mlang windowscodecs\n\nVER_PRODUCTVERSION = 6,1,7601,17514\n\nSOURCES = \\\n\tbrush.c \\\n\tcustomlinecap.c \\\n\tfont.c \\\n\tgdiplus.c \\\n\tgdiplus.rc \\\n\tgraphics.c \\\n\tgraphicspath.c \\\n\timage.c \\\n\timageattributes.c \\\n\tmatrix.c \\\n\tmetafile.c \\\n\tpathiterator.c \\\n\tpen.c \\\n\tregion.c \\\n\tstringformat.c\n"
+    },
+    "wine/dlls/windowscodecs/Makefile.in": {
+      "blob_sha": "54b6b097293e69550a8c1d7f545dd23bf60488b0",
+      "content": "MODULE    = windowscodecs.dll\nIMPORTLIB = windowscodecs\nIMPORTS   = $(TIFF_PE_LIBS) $(JPEG_PE_LIBS) $(PNG_PE_LIBS) windowscodecs uuid ole32 oleaut32 propsys rpcrt4 shlwapi user32 gdi32 advapi32\nEXTRAINCL = $(TIFF_PE_CFLAGS) $(JPEG_PE_CFLAGS) $(PNG_PE_CFLAGS)\n\nVER_FILEDESCRIPTION_STR = \"Wine Windows Codecs Library\"\nVER_PRODUCTVERSION      = 6,0,6001,17009\n\nSOURCES = \\\n\tbitmap.c \\\n\tbmpdecode.c \\\n\tbmpencode.c \\\n\tclipper.c \\\n\tclsfactory.c \\\n\tcolorcontext.c \\\n\tcolortransform.c \\\n\tconverter.c \\\n\tddsformat.c \\\n\tdecoder.c \\\n\tencoder.c \\\n\tfliprotate.c \\\n\tgifformat.c \\\n\ticoformat.c \\\n\timgfactory.c \\\n\tinfo.c \\\n\tlibjpeg.c \\\n\tlibpng.c \\\n\tlibtiff.c \\\n\tmain.c \\\n\tmetadatahandler.c \\\n\tmetadataquery.c \\\n\tpalette.c \\\n\tpngformat.c \\\n\tpropertybag.c \\\n\tproxy.c \\\n\tregsvr.c \\\n\tscaler.c \\\n\tstream.c \\\n\tungif.c \\\n\tuuid.c \\\n\twincodecs_common.c \\\n\twindowscodecs_wincodec.idl\n\ndlldata_EXTRADEFS = -DENTRY_PREFIX=WIC_ -DPROXY_DELEGATION -DWINE_REGISTER_DLL\n"
+    },
+    "wine/dlls/propsys/Makefile.in": {
+      "blob_sha": "a8661ca17e96bd5159c906a769069a4596d91e18",
+      "content": "EXTRADEFS = -D_PROPSYS_\nMODULE    = propsys.dll\nIMPORTLIB = propsys\nIMPORTS   = ole32 oleaut32 uuid\n\nEXTRADLLFLAGS = -Wb,--prefer-native\n\nSOURCES = \\\n\tpropstore.c \\\n\tpropsys_classes.idl \\\n\tpropsys_main.c \\\n\tpropvar.c\n"
+    },
+    "wine/dlls/mlang/Makefile.in": {
+      "blob_sha": "6fe383da010460473fa90020ca628e86810e01b4",
+      "content": "MODULE    = mlang.dll\nIMPORTLIB = mlang\nIMPORTS   = uuid ole32 gdi32 advapi32\nDELAYIMPORTS = oleaut32\n\nSOURCES = \\\n\tmlang.c \\\n\tmlang.rc \\\n\tmlang_classes.idl\n"
+    },
+    "wine/libs/dxguid/Makefile.in": {
+      "blob_sha": "6839c83a61c6255689c23984418319652484db67",
+      "content": "STATICLIB = libdxguid.a\n\nSOURCES = \\\n\tdx10guid.c \\\n\tdx8guid.c \\\n\tdx9guid.c \\\n\tdxguid.c\n"
+    },
+    "wine/libs/uuid/Makefile.in": {
+      "blob_sha": "340338553acd1016eb048c625d9b32d87aa9f9de",
+      "content": "STATICLIB = libuuid.a\n\nSOURCES = \\\n\td2d.c \\\n\tuuid.c\n"
+    }
+  }
+}

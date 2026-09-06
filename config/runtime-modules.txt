@@ -96,6 +96,23 @@ dlls/xinput1_2/aarch64-windows/xinput1_2.dll
 dlls/xinput1_3/aarch64-windows/xinput1_3.dll
 dlls/xinput1_4/aarch64-windows/xinput1_4.dll
 dlls/xinput9_1_0/aarch64-windows/xinput9_1_0.dll
+# Extended graphics/API coverage from the bundled Wine source, including
+# explicit and delay-load dependencies. This enables building/staging these
+# modules; renderer feature levels and optional PE image codecs are NOT implied.
+dlls/d3d10/aarch64-windows/d3d10.dll
+dlls/d3d8/aarch64-windows/d3d8.dll
+dlls/d3d9/aarch64-windows/d3d9.dll
+dlls/d3dcompiler_39/aarch64-windows/d3dcompiler_39.dll
+dlls/d3dcompiler_43/aarch64-windows/d3dcompiler_43.dll
+dlls/d3dx10_43/aarch64-windows/d3dx10_43.dll
+dlls/d3dx11_43/aarch64-windows/d3dx11_43.dll
+dlls/d3dx9_43/aarch64-windows/d3dx9_43.dll
+dlls/d3dxof/aarch64-windows/d3dxof.dll
+dlls/ddraw/aarch64-windows/ddraw.dll
+dlls/gdiplus/aarch64-windows/gdiplus.dll
+dlls/mlang/aarch64-windows/mlang.dll
+dlls/propsys/aarch64-windows/propsys.dll
+dlls/windowscodecs/aarch64-windows/windowscodecs.dll
 programs/cmd/aarch64-windows/cmd.exe
 programs/conhost/aarch64-windows/conhost.exe
 programs/explorer/aarch64-windows/explorer.exe

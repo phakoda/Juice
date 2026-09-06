@@ -10,6 +10,7 @@
 #import <objc/runtime.h>
 #import "JuiceStikDebugJIT.h"
 #import "JuiceJITState.h"
+#import "JuiceJITAck.h"
 
 #ifndef CS_OPS_STATUS
 #define CS_OPS_STATUS 0u
@@ -204,6 +205,7 @@ static int JuiceSpawnSuspended(JuicePosixSpawnFn realSpawn, pid_t *pid, const ch
 @property(nonatomic) pid_t pid;
 @property(nonatomic) uint64_t generation;
 @property(nonatomic) JuiceJITState state;
+@property(nonatomic) JuiceJITAck acknowledgement;
 @property(nonatomic,copy) NSString *nonce;
 @property(nonatomic,strong) NSURL *url;
 @property(nonatomic,strong) dispatch_source_t timer;
@@ -331,13 +333,18 @@ int JuiceSpawnForLaunch(id owner,pid_t *pid,const char *path,
     for(size_t i=0;environment[i];i++)free(environment[i]);free(environment);
     if(result)return result;
     session.pid=*pid;
-    session.state=(JuiceJITState){JuiceJITOpening,JuiceJITNowMS()+120000,false};
+    session.state=(JuiceJITState){.phase=JuiceJITOpening,.deadlineMS=JuiceJITNowMS()+120000};
+    NSString *marker=[NSString stringWithFormat:@"JUICE_JIT_RUNTIME_READY pid=%d session=%@",*pid,session.nonce];
+    NSData *markerBytes=[marker dataUsingEncoding:NSUTF8StringEncoding];
+    JuiceJITAck acknowledgement;
+    BOOL markerValid=JuiceJITAckInit(&acknowledgement,markerBytes.bytes,markerBytes.length);
+    session.acknowledgement=acknowledgement;
     NSURLComponents *url=[NSURLComponents new];url.scheme=scheme;url.host=@"enable-jit";
     url.queryItems=@[
         [NSURLQueryItem queryItemWithName:@"bundle-id" value:NSBundle.mainBundle.bundleIdentifier],
         [NSURLQueryItem queryItemWithName:@"pid" value:[NSString stringWithFormat:@"%d",*pid]],
         [NSURLQueryItem queryItemWithName:@"script-name" value:@"universal.js"]];
-    session.url=url.URL;
+    session.url=markerValid?url.URL:nil;
     objc_setAssociatedObject(owner,&JuiceJITSessionKey,session,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     /* Never return an error after spawn succeeds. The caller first adopts the
      * child, installs its pipe/reaper owner, then calls JuiceJITAdoptLaunch. */
@@ -372,12 +379,16 @@ void JuiceJITAdoptLaunch(id owner,pid_t pid,uint64_t generation)
 }
 void JuiceJITObserveOutput(id owner,pid_t pid,uint64_t generation,NSString *line)
 {
-    if(![line hasPrefix:@"JUICE_JIT_RUNTIME_READY "])return;
+    if(!line.length)return;
     dispatch_async(dispatch_get_main_queue(),^{
         JuiceJITSession *session=objc_getAssociatedObject(owner,&JuiceJITSessionKey);
-        if(!session || session.pid!=pid || session.generation!=generation)return;
-        NSString *expected=[NSString stringWithFormat:@"JUICE_JIT_RUNTIME_READY pid=%d session=%@\n",pid,session.nonce];
-        if([line isEqualToString:expected])JuiceJITEventReceived(session,JuiceJITRuntimeAck);
+        if(!session || session.pid!=pid || session.generation!=generation ||
+           !JuiceJITOwnsChild(session) || !JuiceJITPending(session.state))return;
+        NSData *bytes=[line dataUsingEncoding:NSUTF8StringEncoding];
+        JuiceJITAck acknowledgement=session.acknowledgement;
+        BOOL ready=JuiceJITAckFeed(&acknowledgement,bytes.bytes,bytes.length);
+        session.acknowledgement=acknowledgement;
+        if(ready)JuiceJITEventReceived(session,JuiceJITRuntimeAck);
     });
 }
 void JuiceJITWillReap(id owner,pid_t pid,uint64_t generation)

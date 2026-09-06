@@ -1,12 +1,21 @@
-name: Wine iOS JIT compile
+name: Wine iOS JIT and graphics compile
 on:
   workflow_dispatch:
-  push:
-    branches: [feature/stikdebug-jit]
+  pull_request:
     paths:
       - '.github/workflows/wine-jit-compile.yml'
       - 'scripts/test-wine-ios-compile.sh'
       - 'patches/wine-stikdebug-*.patch'
+      - 'patches/wine-ios*.patch'
+      - 'wine/dlls/wineios.drv/**'
+  push:
+    branches: [main, feature/stikdebug-jit]
+    paths:
+      - '.github/workflows/wine-jit-compile.yml'
+      - 'scripts/test-wine-ios-compile.sh'
+      - 'patches/wine-stikdebug-*.patch'
+      - 'patches/wine-ios*.patch'
+      - 'wine/dlls/wineios.drv/**'
 permissions:
   contents: read
 concurrency:

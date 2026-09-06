@@ -40,10 +40,13 @@ export wine_cv_64bit_compare_swap='none needed' ac_cv_func_pthread_create=yes
   --host=aarch64-apple-darwin --with-wine-tools="$TOOLS" "${options[@]}") 2>&1 | tee "$LOG/ios-configure.log"
 # Compile the real platform translation units, not a stubbed allocator. Linking
 # a complete distributable runtime (fonts/TLS/graphics/translators) is a separate
-# packaging gate; this check specifically catches native JIT/ABI source errors.
+# packaging gate; this also compiles the actual Metal bridge and GDI driver.
+# --without-vulkan avoids a build-host loader dependency; wineios.drv uses
+# Wine's internal Vulkan declarations and dynamically loads MoltenVK at runtime.
 make -C "$TARGET" -j2 dlls/ntdll/unix/virtual.o dlls/ntdll/unix/signal_arm64.o \
-  loader/main.o server/main.o 2>&1 | tee "$LOG/ios-objects.log"
-for object in dlls/ntdll/unix/virtual.o dlls/ntdll/unix/signal_arm64.o loader/main.o server/main.o; do
+  loader/main.o server/main.o dlls/wineios.drv/vulkan.o dlls/wineios.drv/iosdrv.o 2>&1 | tee "$LOG/ios-objects.log"
+for object in dlls/ntdll/unix/virtual.o dlls/ntdll/unix/signal_arm64.o loader/main.o server/main.o \
+              dlls/wineios.drv/vulkan.o dlls/wineios.drv/iosdrv.o; do
   file "$TARGET/$object" | grep -q 'Mach-O 64-bit.*arm64'
 done
-echo 'JUICE_WINE_IOS_COMPILE_OK ntdll_virtual=1 ntdll_signal=1 loader=1 server=1 linked_runtime=0'
+echo 'JUICE_WINE_IOS_COMPILE_OK ntdll_virtual=1 ntdll_signal=1 loader=1 server=1 wineios_vulkan=1 wineios_driver=1 linked_runtime=0'

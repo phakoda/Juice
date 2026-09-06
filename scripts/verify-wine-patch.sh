@@ -4,11 +4,13 @@ set -euo pipefail
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 PATCH="$ROOT/patches/wine-ios.patch"
 HARDENING_PATCH="$ROOT/patches/wine-ios-runtime-hardening.patch"
+RUNTIME_CORE_PATCH="$ROOT/patches/wine-ios-runtime-core.patch"
 BASE_FILE="$ROOT/config/wine-base.txt"
 IPC_C="$ROOT/wine/dlls/wineios.drv/ipc.c"
 
 test -s "$PATCH" || { echo "Missing Wine patch: $PATCH" >&2; exit 2; }
 test -s "$HARDENING_PATCH" || { echo "Missing Wine runtime hardening patch: $HARDENING_PATCH" >&2; exit 2; }
+test -s "$RUNTIME_CORE_PATCH" || { echo "Missing Wine runtime core patch: $RUNTIME_CORE_PATCH" >&2; exit 2; }
 test -s "$BASE_FILE" || { echo "Missing Wine base revision: $BASE_FILE" >&2; exit 2; }
 test -s "$IPC_C" || { echo "Missing Wine IPC source: $IPC_C" >&2; exit 2; }
 base="$(tr -d '[:space:]' < "$BASE_FILE")"
@@ -18,9 +20,10 @@ case "$base" in
   *) echo "Invalid Wine base commit: $base" >&2; exit 2;;
 esac
 
-# Peel the overlay and then the COMPLETE base patch in an isolated copy. Never
-# mutate live build inputs or exclude files changed by an incremental layer.
-python3 "$ROOT/scripts/verify-patch-stack.py" "$ROOT/wine" "$PATCH" "$HARDENING_PATCH" --optional \
+# Peel the runtime-core and hardening overlays and then the COMPLETE base patch
+# in an isolated copy. Never mutate live build inputs or exclude files changed
+# by an incremental layer.
+python3 "$ROOT/scripts/verify-patch-stack.py" "$ROOT/wine" "$PATCH" "$HARDENING_PATCH" "$RUNTIME_CORE_PATCH" --optional \
   "$ROOT/patches/wine-stikdebug-jit.patch" "$ROOT/patches/wine-stikdebug-lifecycle.patch" \
   "$ROOT/patches/wine-stikdebug-handoff.patch"
 
@@ -56,6 +59,14 @@ if grep '^diff --git a/' "$HARDENING_PATCH" | grep -Ev '^diff --git a/dlls/winei
   exit 3
 fi
 
+runtime_core_path_count="$(grep -c '^diff --git a/' "$RUNTIME_CORE_PATCH")"
+test "$runtime_core_path_count" -eq 2 || {
+  echo "Wine runtime core patch must contain exactly 2 paths; found $runtime_core_path_count." >&2
+  exit 3
+}
+grep -Fq 'diff --git a/dlls/wineios.drv/vulkan.m b/dlls/wineios.drv/vulkan.m' "$RUNTIME_CORE_PATCH"
+grep -Fq 'diff --git a/dlls/wineios.drv/graphics_layout.h b/dlls/wineios.drv/graphics_layout.h' "$RUNTIME_CORE_PATCH"
+
 # Reconnect/input invariants: a drag capture belongs only to the IPC generation
 # that created it, and retained child keyboard/text focus may be reused only
 # when that child still belongs to the selected top-level HWND's root.
@@ -70,4 +81,4 @@ test "$(grep -Fc 'target=selected_input_target(hwnd);' "$IPC_C")" -eq 3 || {
 grep -Fq 'pointer_generation=generation;' "$HARDENING_PATCH"
 grep -Fq 'selected_input_target(HWND hwnd)' "$HARDENING_PATCH"
 
-echo "JUICE_WINE_PATCH_VERIFY_OK base=$base paths=$path_count hardening_paths=$hardening_path_count"
+echo "JUICE_WINE_PATCH_VERIFY_OK base=$base paths=$path_count hardening_paths=$hardening_path_count runtime_core_paths=$runtime_core_path_count"

@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static JuiceJITState fresh(void) { return (JuiceJITState){JuiceJITOpening, 120000, false}; }
+static JuiceJITState fresh(void) { return (JuiceJITState){.phase=JuiceJITOpening, .deadlineMS=120000}; }
 static JuiceJITAction step(JuiceJITState *s,JuiceJITEvent e,uint64_t now,bool owns,bool active)
 { return JuiceJITTransition(s,e,now,owns,active); }
 int main(void)
@@ -30,10 +30,14 @@ int main(void)
     s=fresh();step(&s,JuiceJITCancel,1,true,true);
     assert(step(&s,JuiceJITOpenAccepted,2,true,true)==JuiceJITNoAction);
     s=fresh();step(&s,JuiceJITOpenAccepted,1,true,true);
-    step(&s,JuiceJITRuntimeAck,2,true,false);assert(s.phase==JuiceJITReady);
+    step(&s,JuiceJITRuntimeAck,2,true,false);assert(s.phase==JuiceJITAttaching);
+    step(&s,JuiceJITTick,3,true,true);assert(s.phase==JuiceJITAttaching);
+    step(&s,JuiceJITDebugged,4,true,false);assert(s.phase==JuiceJITAttaching);
+    step(&s,JuiceJITTick,5,true,true);assert(s.phase==JuiceJITReady);
     s=fresh();step(&s,JuiceJITRuntimeAck,0,true,false);
     assert(s.phase==JuiceJITOpening);step(&s,JuiceJITOpenAccepted,1,true,true);
-    assert(s.phase==JuiceJITReady);
+    assert(s.phase==JuiceJITAttaching);
+    step(&s,JuiceJITDebugged,2,true,true);assert(s.phase==JuiceJITReady);
     /* Exhaustively exercise short callback orderings, including an ownership
      * revocation. No ordering can resume twice or signal after revocation. */
     unsigned sequences=1;
@@ -48,6 +52,7 @@ int main(void)
             resumes+=a==JuiceJITResume;stops+=a==JuiceJITStop;
             assert(resumes<=1 && stops<=1);
             if(i>=4)assert(a==JuiceJITNoAction);
+            if(s.phase==JuiceJITReady)assert(s.runtimeAcknowledged && s.debuggerObserved);
         }
     }
     printf("JUICE_JIT_STATE_TESTS_OK cases=9 orderings=%u\n",sequences);

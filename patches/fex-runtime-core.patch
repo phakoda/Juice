@@ -1,0 +1,207 @@
+diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+--- a/FEXCore/Source/Interface/Core/CPUBackend.cpp
++++ b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+@@ -336,8 +336,4 @@
+     if (CodeBuffer) {
+-      auto& Range = RetiredCodeBufferRanges[NextRetiredCodeBufferRange.fetch_add(1, std::memory_order_relaxed) %
+-                                            RetiredCodeBufferRangeCount];
+       const uintptr_t Begin = reinterpret_cast<uintptr_t>(CodeBuffer->Ptr);
+-      Range.Begin.store(0, std::memory_order_release);
+-      Range.End.store(Begin + CodeBuffer->AllocatedSize, std::memory_order_relaxed);
+-      Range.Begin.store(Begin, std::memory_order_release);
++      RetiredCodeBufferRanges.Record(Begin, CodeBuffer->AllocatedSize);
+     }
+@@ -473,9 +469,3 @@
+ #ifdef FEX_JUICE_IOS
+-    for (const auto& Range : RetiredCodeBufferRanges) {
+-      const uintptr_t Begin = Range.Begin.load(std::memory_order_acquire);
+-      const uintptr_t End = Range.End.load(std::memory_order_relaxed);
+-      if (Begin && Address >= Begin && Address < End) {
+-        return true;
+-      }
+-    }
++    return RetiredCodeBufferRanges.Contains(Address);
+ #endif
+diff --git a/FEXCore/Source/Interface/Core/CPUBackend.h b/FEXCore/Source/Interface/Core/CPUBackend.h
+--- a/FEXCore/Source/Interface/Core/CPUBackend.h
++++ b/FEXCore/Source/Interface/Core/CPUBackend.h
+@@ -17,4 +17,4 @@
+ 
+-#include <array>
+-#include <atomic>
++#include "Interface/Core/JuiceCodePlacement.h"
++#include "Interface/Core/JuiceRangeHistory.h"
+ #include <cstdint>
+@@ -206,9 +206,3 @@ namespace FEXCore::CPU {
+   private:
+-    struct RetiredCodeBufferRange {
+-      std::atomic<uintptr_t> Begin {};
+-      std::atomic<uintptr_t> End {};
+-    };
+-    static constexpr size_t RetiredCodeBufferRangeCount = 8;
+-    std::array<RetiredCodeBufferRange, RetiredCodeBufferRangeCount> RetiredCodeBufferRanges {};
+-    std::atomic<size_t> NextRetiredCodeBufferRange {};
++    FEXCore::Juice::RangeHistory<8> RetiredCodeBufferRanges {};
+ 
+diff --git a/FEXCore/Source/Interface/Core/JIT/JIT.cpp b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+--- a/FEXCore/Source/Interface/Core/JIT/JIT.cpp
++++ b/FEXCore/Source/Interface/Core/JIT/JIT.cpp
+@@ -1,41 +1,41 @@
+       // Ensure a replacement buffer is selected before Align16B writes padding.
+       SetBuffer(CurrentCodeBuffer->Ptr, CurrentCodeBuffer->AllocatedSize);
+ #ifdef FEX_JUICE_IOS
+       /*
+-       * Never reopen a page that already contains published code.  Darwin's
+-       * W^X protection is page-wide, so compiling into the unused tail of an
+-       * RX page can make code executing on another thread non-executable.
++       * Never reopen a page that already contains published code. Darwin's
++       * W^X protection is page-wide, so each placement begins on a host page.
+        */
+-      constexpr uint64_t JuiceHostPageSize = 0x4000;
+-      const auto AlignedOffset = AlignUp(CodeBuffers.LatestOffset, JuiceHostPageSize);
++      constexpr uint64_t PlacementAlignment = 0x4000;
+ #else
+-      const auto AlignedOffset = AlignUp(CodeBuffers.LatestOffset, static_cast<uint64_t>(16));
++      constexpr uint64_t PlacementAlignment = 16;
+ #endif
+-      if ((AlignedOffset + TempSize) > CurrentCodeBuffer->UsableSize()) {
++      FEXCore::Juice::CodePlacement Placement {};
++      auto PlanPlacement = [&]() {
++        return FEXCore::Juice::PlanCodePlacement(
++          reinterpret_cast<uintptr_t>(CurrentCodeBuffer->Ptr), CurrentCodeBuffer->UsableSize(),
++          CodeBuffers.LatestOffset, TempSize, PlacementAlignment, Placement);
++      };
++      if (!PlanPlacement()) {
+         CTX->ClearCodeCache(ThreadState);
++        // Clearing the cache changes both the backing buffer and its cursor.
++        // Reusing a pre-clear offset can skip space or write past the new end.
++        LOGMAN_THROW_A_FMT(PlanPlacement(), "Generated block doesn't fit a fresh code buffer");
+       }
++      const auto AlignedOffset = Placement.Offset;
+ 
+ #ifdef FEX_JUICE_IOS
+-      /*
+-       * Align16B emits padding directly into the destination buffer.  Include
+-       * that padding in the W^X write interval; protecting only the memcpy
+-       * destination is too late when the preceding block left this page RX.
+-       */
+-      constexpr uintptr_t JuiceHostPageMask = JuiceHostPageSize - 1;
+-      const uintptr_t BufferBase = reinterpret_cast<uintptr_t>(CurrentCodeBuffer->Ptr);
+-      const uintptr_t CopyOffset = AlignedOffset;
+-      ProtectStart = BufferBase + CopyOffset;
+-      ProtectEnd = (BufferBase + CopyOffset + TempSize + JuiceHostPageMask) & ~JuiceHostPageMask;
++      ProtectStart = Placement.Begin;
++      ProtectEnd = Placement.End;
+       if (!CurrentCodeBuffer->DualMapped) {
+         LOGMAN_THROW_A_FMT(
+           FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(ProtectStart), ProtectEnd - ProtectStart,
+                                              FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Write),
+           "Couldn't make iOS JIT code buffer writable");
+       }
+ #endif
+ 
+       // NOTE: 16-byte alignment of the new cursor offset must be preserved for block linking records
+       SetBuffer(CurrentCodeBuffer->Ptr, CurrentCodeBuffer->AllocatedSize);
+       SetCursorOffset(AlignedOffset);
+       Align16B();
+       CodeBuffers.LatestOffset = GetCursorOffset();
+@@ -1,3 +1,4 @@
+     LOGMAN_THROW_A_FMT(reinterpret_cast<uintptr_t>(CopyStart) >= ProtectStart &&
+-                        reinterpret_cast<uintptr_t>(CopyStart) + TempSize <= ProtectEnd,
++                        reinterpret_cast<uintptr_t>(CopyStart) <= ProtectEnd &&
++                        TempSize <= ProtectEnd - reinterpret_cast<uintptr_t>(CopyStart),
+                       "iOS JIT write interval doesn't cover generated block");
+diff --git a/FEXCore/Source/Interface/Core/JuiceCodePlacement.h b/FEXCore/Source/Interface/Core/JuiceCodePlacement.h
+new file mode 100644
+--- /dev/null
++++ b/FEXCore/Source/Interface/Core/JuiceCodePlacement.h
+@@ -0,0 +1,33 @@
++// Juice-original code, MIT. Checked placement in unpublished JIT pages.
++#pragma once
++#include <cstddef>
++#include <cstdint>
++#include <limits>
++
++namespace FEXCore::Juice {
++struct CodePlacement {
++  uint64_t Offset {};
++  uintptr_t Begin {}, End {};
++};
++
++// Usable excludes the code buffer's guard page. Round BOTH boundaries so a
++// 4 KiB guest guard never gets reopened by a 16 KiB host protection operation.
++// This performs arithmetic only; it does not grant executable-memory rights.
++inline bool PlanCodePlacement(uintptr_t Base, uint64_t Usable, uint64_t Latest,
++                              uint64_t Size, uint64_t PageSize, CodePlacement& Out) noexcept {
++  Out = {};
++  constexpr auto Max = std::numeric_limits<uintptr_t>::max();
++  if (!Base || !Size || PageSize < 16 || (PageSize & (PageSize - 1)) ||
++      PageSize > Max || (Base & (PageSize - 1)) || Usable > Max - Base || Latest > Usable) return false;
++  const uint64_t Mask = PageSize - 1;
++  if (Latest > Max - Mask) return false;
++  const uint64_t Offset = (Latest + Mask) & ~Mask;
++  if (Offset > Usable || Size > Usable - Offset) return false;
++  const uint64_t End = Offset + Size;
++  if (End > Max - Mask) return false;
++  const uint64_t PageEnd = (End + Mask) & ~Mask;
++  if (PageEnd > Usable) return false;
++  Out = {Offset, Base + static_cast<uintptr_t>(Offset), Base + static_cast<uintptr_t>(PageEnd)};
++  return true;
++}
++}
+diff --git a/FEXCore/Source/Interface/Core/JuiceRangeHistory.h b/FEXCore/Source/Interface/Core/JuiceRangeHistory.h
+new file mode 100644
+--- /dev/null
++++ b/FEXCore/Source/Interface/Core/JuiceRangeHistory.h
+@@ -0,0 +1,51 @@
++// Juice-original code, MIT. Bounded advisory history, not a lifetime guarantee.
++#pragma once
++#include <array>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <limits>
++
++namespace FEXCore::Juice {
++template<size_t Count>
++class RangeHistory {
++  static_assert(Count > 0);
++  static_assert(std::atomic<uintptr_t>::is_always_lock_free);
++  static_assert(std::atomic<uint64_t>::is_always_lock_free);
++  static_assert(std::atomic<size_t>::is_always_lock_free);
++  struct Slot {
++    std::atomic<uint64_t> Version {};
++    std::atomic<uintptr_t> Begin {}, End {};
++  };
++  std::array<Slot, Count> Slots {};
++  std::atomic<size_t> Next {};
++public:
++  // Do not wait if another writer owns the selected slot. This code can run
++  // around signal handling: a signal must never spin on an interrupted writer.
++  bool Record(uintptr_t Begin, size_t Size) noexcept {
++    if (!Begin || !Size || Size > std::numeric_limits<uintptr_t>::max() - Begin) return false;
++    Slot& S = Slots[Next.fetch_add(1, std::memory_order_relaxed) % Count];
++    uint64_t Version = S.Version.load(std::memory_order_seq_cst);
++    if ((Version & 1) || Version > std::numeric_limits<uint64_t>::max() - 2 ||
++        !S.Version.compare_exchange_strong(Version, Version + 1, std::memory_order_seq_cst)) return false;
++    // All snapshot atomics are SC deliberately. Relaxed bounds with only an
++    // acquire version read do not establish a consistent seqlock snapshot.
++    S.Begin.store(Begin, std::memory_order_seq_cst);
++    S.End.store(Begin + Size, std::memory_order_seq_cst);
++    S.Version.store(Version + 2, std::memory_order_seq_cst);
++    return true;
++  }
++
++  bool Contains(uintptr_t Address) const noexcept {
++    for (const Slot& S : Slots) {
++      const uint64_t Before = S.Version.load(std::memory_order_seq_cst);
++      if (!Before || (Before & 1)) continue;
++      const uintptr_t Begin = S.Begin.load(std::memory_order_seq_cst);
++      const uintptr_t End = S.End.load(std::memory_order_seq_cst);
++      const uint64_t After = S.Version.load(std::memory_order_seq_cst);
++      if (Before == After && Begin && Address >= Begin && Address < End) return true;
++    }
++    return false;
++  }
++};
++}

@@ -1,0 +1,49 @@
+name: Runtime core bring-up
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: runtime-core-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  host:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            cc: clang
+            cxx: clang++
+          - os: ubuntu-latest
+            cc: gcc
+            cxx: g++
+          - os: macos-latest
+            cc: clang
+            cxx: clang++
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+      JUICE_RUNTIME_CORE_FIXTURE: '0'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test production policies, extracted integration code and manifest
+        run: |
+          set -o pipefail
+          mkdir -p build/runtime-core-logs
+          bash scripts/test-runtime-core-host.sh 2>&1 | tee build/runtime-core-logs/host.log
+      - name: Preserve exact compiler and sanitizer output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-core-${{ matrix.os }}-${{ matrix.cc }}-${{ github.sha }}
+          path: build/runtime-core-logs/
+          retention-days: 7
+          if-no-files-found: warn

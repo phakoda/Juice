@@ -11,16 +11,21 @@ typedef enum { JuiceJITOpening, JuiceJITAttaching, JuiceJITStarting,
 typedef enum { JuiceJITTick, JuiceJITOpenAccepted, JuiceJITOpenRejected,
                JuiceJITDebugged, JuiceJITRuntimeAck, JuiceJITCancel } JuiceJITEvent;
 typedef enum { JuiceJITNoAction, JuiceJITResume, JuiceJITStop } JuiceJITAction;
-typedef struct { JuiceJITPhase phase; uint64_t deadlineMS; bool runtimeAcknowledged; } JuiceJITState;
+typedef struct {
+    JuiceJITPhase phase;
+    uint64_t deadlineMS;
+    bool runtimeAcknowledged, debuggerObserved;
+} JuiceJITState;
 
 static inline bool JuiceJITPending(JuiceJITState state)
 {
-    return state.phase <= JuiceJITStarting;
+    return state.phase == JuiceJITOpening || state.phase == JuiceJITAttaching ||
+           state.phase == JuiceJITStarting;
 }
 static inline JuiceJITAction JuiceJITTransition(JuiceJITState *state,
     JuiceJITEvent event, uint64_t nowMS, bool ownsChild, bool foreground)
 {
-    if (!JuiceJITPending(*state)) return JuiceJITNoAction;
+    if (!state || !JuiceJITPending(*state)) return JuiceJITNoAction;
     if (!ownsChild || event == JuiceJITCancel)
     { state->phase = JuiceJITCancelled; return JuiceJITNoAction; }
     if (nowMS >= state->deadlineMS || event == JuiceJITOpenRejected)
@@ -28,9 +33,15 @@ static inline JuiceJITAction JuiceJITTransition(JuiceJITState *state,
     if (event == JuiceJITRuntimeAck) state->runtimeAcknowledged = true;
     if (event == JuiceJITOpenAccepted && state->phase == JuiceJITOpening)
         state->phase = JuiceJITAttaching;
-    /* The debugger may itself resume the stopped process. An acknowledged
-     * runtime can therefore complete from Attaching as well as Starting. */
-    if (state->runtimeAcknowledged && state->phase != JuiceJITOpening)
+    /* Runtime output cannot authorize JIT. Only the coordinator's OS-backed
+     * observation for this still-owned child supplies the second condition.
+     * Do not end the handoff while Juice is inactive: a subsequent lifecycle
+     * callback would otherwise stop an already-resumed guest on the return trip.
+     * An early observation before openURL completes is resampled by the timer. */
+    if (event == JuiceJITDebugged && state->phase != JuiceJITOpening)
+        state->debuggerObserved = true;
+    if (state->runtimeAcknowledged && state->debuggerObserved && foreground &&
+        state->phase != JuiceJITOpening)
         state->phase = JuiceJITReady;
     if (event == JuiceJITDebugged && foreground && state->phase == JuiceJITAttaching)
     { state->phase = JuiceJITStarting; return JuiceJITResume; }

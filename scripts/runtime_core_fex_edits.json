@@ -1,0 +1,37 @@
+[
+  {
+    "path": "FEXCore/Source/Interface/Core/CPUBackend.h",
+    "old": "#include <array>\n#include <atomic>\n",
+    "new": "#include \"Interface/Core/JuiceCodePlacement.h\"\n#include \"Interface/Core/JuiceRangeHistory.h\"\n"
+  },
+  {
+    "path": "FEXCore/Source/Interface/Core/CPUBackend.h",
+    "old": "    struct RetiredCodeBufferRange {\n      std::atomic<uintptr_t> Begin {};\n      std::atomic<uintptr_t> End {};\n    };\n    static constexpr size_t RetiredCodeBufferRangeCount = 8;\n    std::array<RetiredCodeBufferRange, RetiredCodeBufferRangeCount> RetiredCodeBufferRanges {};\n    std::atomic<size_t> NextRetiredCodeBufferRange {};\n",
+    "new": "    FEXCore::Juice::RangeHistory<8> RetiredCodeBufferRanges {};\n"
+  },
+  {
+    "path": "FEXCore/Source/Interface/Core/CPUBackend.cpp",
+    "old": "      auto& Range = RetiredCodeBufferRanges[NextRetiredCodeBufferRange.fetch_add(1, std::memory_order_relaxed) %\n                                            RetiredCodeBufferRangeCount];\n      const uintptr_t Begin = reinterpret_cast<uintptr_t>(CodeBuffer->Ptr);\n      Range.Begin.store(0, std::memory_order_release);\n      Range.End.store(Begin + CodeBuffer->AllocatedSize, std::memory_order_relaxed);\n      Range.Begin.store(Begin, std::memory_order_release);\n",
+    "new": "      const uintptr_t Begin = reinterpret_cast<uintptr_t>(CodeBuffer->Ptr);\n      RetiredCodeBufferRanges.Record(Begin, CodeBuffer->AllocatedSize);\n"
+  },
+  {
+    "path": "FEXCore/Source/Interface/Core/CPUBackend.cpp",
+    "old": "    for (const auto& Range : RetiredCodeBufferRanges) {\n      const uintptr_t Begin = Range.Begin.load(std::memory_order_acquire);\n      const uintptr_t End = Range.End.load(std::memory_order_relaxed);\n      if (Begin && Address >= Begin && Address < End) {\n        return true;\n      }\n    }\n",
+    "new": "    return RetiredCodeBufferRanges.Contains(Address);\n"
+  },
+  {
+    "path": "FEXCore/Source/Interface/Core/Dispatcher/Dispatcher.cpp",
+    "old": "  FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(GetBufferBase()), MAX_DISPATCHER_CODE_SIZE,\n                                     FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec);\n",
+    "new": "  LOGMAN_THROW_A_FMT(\n    FEXCore::Allocator::VirtualProtect(reinterpret_cast<void*>(GetBufferBase()), MAX_DISPATCHER_CODE_SIZE,\n                                       FEXCore::Allocator::ProtectOptions::Read | FEXCore::Allocator::ProtectOptions::Exec),\n    \"Couldn't publish the authorized iOS dispatcher as executable\");\n"
+  },
+  {
+    "path": "FEXCore/Source/Interface/Core/JIT/JIT.cpp",
+    "old": "      constexpr uint64_t JuiceHostPageSize = 0x4000;\n      const auto AlignedOffset = AlignUp(CodeBuffers.LatestOffset, JuiceHostPageSize);\n#else\n      const auto AlignedOffset = AlignUp(CodeBuffers.LatestOffset, static_cast<uint64_t>(16));\n#endif\n      if ((AlignedOffset + TempSize) > CurrentCodeBuffer->UsableSize()) {\n        CTX->ClearCodeCache(ThreadState);\n      }\n\n#ifdef FEX_JUICE_IOS\n      /*\n       * Align16B emits padding directly into the destination buffer.  Include\n       * that padding in the W^X write interval; protecting only the memcpy\n       * destination is too late when the preceding block left this page RX.\n       */\n      constexpr uintptr_t JuiceHostPageMask = JuiceHostPageSize - 1;\n      const uintptr_t BufferBase = reinterpret_cast<uintptr_t>(CurrentCodeBuffer->Ptr);\n      const uintptr_t CopyOffset = AlignedOffset;\n      ProtectStart = BufferBase + CopyOffset;\n      ProtectEnd = (BufferBase + CopyOffset + TempSize + JuiceHostPageMask) & ~JuiceHostPageMask;\n",
+    "new": "      constexpr uint64_t PlacementAlignment = 0x4000;\n#else\n      constexpr uint64_t PlacementAlignment = 16;\n#endif\n      FEXCore::Juice::CodePlacement Placement {};\n      auto PlanPlacement = [&]() {\n        return FEXCore::Juice::PlanCodePlacement(\n          reinterpret_cast<uintptr_t>(CurrentCodeBuffer->Ptr), CurrentCodeBuffer->UsableSize(),\n          CodeBuffers.LatestOffset, TempSize, PlacementAlignment, Placement);\n      };\n      if (!PlanPlacement()) {\n        CTX->ClearCodeCache(ThreadState);\n        // Clearing the cache changes both the backing buffer and its cursor.\n        // Reusing a pre-clear offset can skip space or write past the new end.\n        LOGMAN_THROW_A_FMT(PlanPlacement(), \"Generated block doesn't fit a fresh code buffer\");\n      }\n      const auto AlignedOffset = Placement.Offset;\n\n#ifdef FEX_JUICE_IOS\n      ProtectStart = Placement.Begin;\n      ProtectEnd = Placement.End;\n"
+  },
+  {
+    "path": "FEXCore/Source/Interface/Core/JIT/JIT.cpp",
+    "old": "    LOGMAN_THROW_A_FMT(reinterpret_cast<uintptr_t>(CopyStart) >= ProtectStart &&\n                        reinterpret_cast<uintptr_t>(CopyStart) + TempSize <= ProtectEnd,\n",
+    "new": "    LOGMAN_THROW_A_FMT(reinterpret_cast<uintptr_t>(CopyStart) >= ProtectStart &&\n                        reinterpret_cast<uintptr_t>(CopyStart) <= ProtectEnd &&\n                        TempSize <= ProtectEnd - reinterpret_cast<uintptr_t>(CopyStart),\n"
+  }
+]
