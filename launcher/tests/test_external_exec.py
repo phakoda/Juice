@@ -11,7 +11,8 @@ class ExternalExecTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.work = tempfile.TemporaryDirectory()
-        cls.root = Path(cls.work.name)
+        # macOS getcwd resolves /var to /private/var; compare canonical paths.
+        cls.root = Path(cls.work.name).resolve()
         cls.helper = cls.root / "grape-trace-parent"
         cls.probe = cls.root / "Grape" / "probe"
         cls.probe.parent.mkdir()

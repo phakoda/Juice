@@ -1,7 +1,8 @@
 diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
 --- a/dlls/ntdll/unix/virtual.c
 +++ b/dlls/ntdll/unix/virtual.c
-@@ -1,5 +1,13 @@
+@@ -4399,6 +4399,14 @@
+             }
              else
              {
 +                const char *external = getenv( "JUICE_EXTERNAL_DEBUG_EXEC" );
@@ -15,7 +16,7 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
                  errno = 0;
  
                  if (ptrace( PT_TRACE_ME, 0, NULL, 0 ))
-@@ -72,6 +80,14 @@
+@@ -5870,6 +5878,14 @@
  /* Once FEX has initialized its preallocated dual-map arena, no caller may
   * create another executable view through the breakpoint protocol. */
  static BOOL juice_jit_allocation_sealed;
@@ -30,7 +31,7 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
  
  static BOOL juice_invalid_breakpoint_mapping( const void *address )
  {
-@@ -101,11 +117,19 @@
+@@ -5899,11 +5915,19 @@
      return status;
  }
  
@@ -55,7 +56,7 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
      return TRUE;
  }
  #endif
-@@ -127,12 +151,20 @@
+@@ -5925,12 +5949,20 @@
      void *exec;
      kern_return_t result;
      NTSTATUS status;
@@ -77,7 +78,7 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
      }
      *write_address = NULL;
      *exec_address = NULL;
-@@ -145,12 +177,12 @@
+@@ -5943,12 +5975,12 @@
           * legacy sentinel. */
          exec = juice_break_mark_jit_mapping( size );
          if (juice_invalid_breakpoint_mapping( exec )) exec = juice_break_get_jit_mapping( NULL, size );
@@ -92,7 +93,7 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
      }
  
      result = vm_remap( mach_task_self(), &write, size, 0, VM_FLAGS_ANYWHERE,
-@@ -159,7 +191,8 @@
+@@ -5957,7 +5989,8 @@
      if (result != KERN_SUCCESS)
      {
          vm_deallocate( mach_task_self(), (vm_address_t)exec, size );
@@ -102,7 +103,7 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
      }
  
      result = vm_protect( mach_task_self(), write, size, FALSE, VM_PROT_READ | VM_PROT_WRITE );
-@@ -167,7 +200,8 @@
+@@ -5965,7 +5998,8 @@
      {
          vm_deallocate( mach_task_self(), write, size );
          vm_deallocate( mach_task_self(), (vm_address_t)exec, size );
@@ -112,7 +113,7 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
      }
  
      status = juice_register_jit_views( (void *)write, exec, size );
-@@ -175,13 +209,55 @@
+@@ -5973,13 +6007,55 @@
      {
          vm_deallocate( mach_task_self(), write, size );
          vm_deallocate( mach_task_self(), (vm_address_t)exec, size );
@@ -171,7 +172,7 @@ diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
      return STATUS_SUCCESS;
  #else
      return STATUS_NOT_SUPPORTED;
-@@ -189,41 +265,36 @@
+@@ -5987,41 +6063,36 @@
  }
  
  /***********************************************************************
