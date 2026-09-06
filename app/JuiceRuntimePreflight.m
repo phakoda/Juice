@@ -48,7 +48,7 @@ NSDictionary<NSString *, id> *JuiceRuntimePreflight(NSString *exe, NSString *run
             BOOL directory = NO;
             NSDictionary *attributes = [files attributesOfItemAtPath:path error:nil];
             if (![files fileExistsAtPath:path isDirectory:&directory] || directory ||
-                ![files isReadableFileAtPath:path] || ![attributes fileSize])
+                ![files isReadableFileAtPath:path] || ![attributes[NSFileSize] unsignedLongLongValue])
                 [failures addObject:[@"Missing or unreadable runtime component: " stringByAppendingString:relative]];
         }
     }
