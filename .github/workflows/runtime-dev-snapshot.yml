@@ -22,18 +22,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/juice-source
-          refs=(2d8db2cd1b37624f9f6e61af270f5f5d97cddea6 7506d64138ae9227b5a8488b14891d4ccc036d3a 0112534a7bfb6d090c1cded3df0eb6b2b020011f)
-          names=(pr4 pr3 main)
-          refs+=("$(git merge-base "${refs[0]}" "${refs[1]}")")
-          names+=(base)
-          for i in 0 1 2 3; do
-            git archive "${refs[$i]}" app scripts config Makefile README.md patches launcher toolchain packaging docs .github wine/dlls/wineios.drv wine/dlls/winevulkan wine/include/juiceinput.h | gzip -1 > "/tmp/juice-source/${names[$i]}.tar.gz"
-          done
-          du -h /tmp/juice-source/*
+          git archive e57347a66f00ff9af02c287e507ddaa79d4be183 app scripts config Makefile README.md patches launcher toolchain packaging docs .github wine/dlls/ntdll wine/dlls/wineios.drv wine/dlls/winevulkan wine/include wine/server wine/tools/winemaker | gzip -1 > /tmp/juice-source/integrated.tar.gz
           test "$(du -sm /tmp/juice-source | cut -f1)" -lt 100
       - uses: actions/upload-artifact@v4
         with:
-          name: runtime-integration-code
+          name: runtime-integrated-code
           path: /tmp/juice-source/*.tar.gz
           retention-days: 1
           compression-level: 0
