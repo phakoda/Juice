@@ -7,6 +7,7 @@ TOOLS="$ROOT/build/wine-tools-macos"
 TARGET="$ROOT/build/wine-ios-validation"
 LOG="$ROOT/build/wine-compile-logs"
 mkdir -p "$TOOLS" "$TARGET" "$LOG"
+trap 'status=$?; if test "$status" != 0 && test -f "$TARGET/config.log"; then tail -n 100 "$TARGET/config.log" >&2; fi' EXIT
 bash "$ROOT/scripts/apply-wine-stikdebug-jit.sh"
 options=(--enable-archs=none --disable-tests --disable-win16 --without-mingw
   --without-x --without-wayland --without-coreaudio --without-cups --without-dbus
@@ -23,19 +24,21 @@ make -C "$TOOLS" -j2 tools/makedep tools/winebuild/winebuild tools/winegcc/wineg
 cat > "$TARGET/ios-cc" <<'WRAPPER'
 #!/bin/bash
 set -euo pipefail
-extra=()
+# Keep the array nonempty: macOS Bash 3.2 treats an empty array as unset
+# under nounset, even after extra=().
+extra=(-target arm64-apple-ios14.0 -isysroot "$IOS_SDK")
 for arg in "$@"; do
   case "$arg" in
-    */dlls/ntdll/unix/virtual.c) extra=(-include "$JUICE_COMPILE_ROOT/toolchain/juice-ios-map-tryfixed.h");;
-    */loader/main.c) extra=(-DJUICE_IOS_LOWVA_BOOTSTRAP=1 -include "$JUICE_COMPILE_ROOT/toolchain/juice-ios-lowva-bootstrap.h");;
+    */dlls/ntdll/unix/virtual.c) extra+=(-include "$JUICE_COMPILE_ROOT/toolchain/juice-ios-map-tryfixed.h");;
+    */loader/main.c) extra+=(-DJUICE_IOS_LOWVA_BOOTSTRAP=1 -include "$JUICE_COMPILE_ROOT/toolchain/juice-ios-lowva-bootstrap.h");;
   esac
 done
-exec xcrun --sdk iphoneos clang -target arm64-apple-ios14.0 -isysroot "$IOS_SDK" "${extra[@]}" "$@"
+exec xcrun --sdk iphoneos clang "${extra[@]}" "$@"
 WRAPPER
 chmod +x "$TARGET/ios-cc"
 export IOS_SDK="$SDK" JUICE_COMPILE_ROOT="$ROOT" JUICE_IOS_DEVICE=1
 export wine_cv_64bit_compare_swap='none needed' ac_cv_func_pthread_create=yes
-(cd "$TARGET"; CC="$TARGET/ios-cc" CXX="$TARGET/ios-cc" \
+(cd "$TARGET"; CC="$TARGET/ios-cc" CXX="$TARGET/ios-cc" OBJC="$TARGET/ios-cc" \
   "$ROOT/wine/configure" --build="$("$ROOT/wine/tools/config.guess")" \
   --host=aarch64-apple-darwin --with-wine-tools="$TOOLS" "${options[@]}") 2>&1 | tee "$LOG/ios-configure.log"
 # Compile the real platform translation units, not a stubbed allocator. Linking
