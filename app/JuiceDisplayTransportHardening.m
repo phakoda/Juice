@@ -1,4 +1,5 @@
 #import <UIKit/UIKit.h>
+#import "JuiceAsyncWriter.h"
 #import <errno.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
@@ -157,7 +158,7 @@ static void JuiceInvalidateHWND(id self,uint64_t hwnd)
     @synchronized(frames)
     {
         JuiceDisplayFramebuffer *frame=frames[@(hwnd)];
-        if(frame)@synchronized(frame){frame.invalidated=YES;}
+        if(frame)@synchronized(frame){frame.invalidated=YES;frame.bytes=nil;}
         [frames removeObjectForKey:@(hwnd)];
     }
 }
@@ -174,7 +175,7 @@ static void JuiceInvalidateClient(id self,int fd)
             @synchronized(frame)
             {
                 if(frame.clientFD!=fd)return;
-                frame.invalidated=YES;
+                frame.invalidated=YES;frame.bytes=nil;
                 received+=frame.received;
                 rendered+=frame.rendered;
                 coalesced+=frame.coalesced;
@@ -205,11 +206,14 @@ static JuiceDisplayFramebuffer *JuiceApplyFull(id self,JuiceDisplayMsg message,N
                 if(!frame.invalidated&&frame.width==message.width&&frame.height==message.height&&
                    frame.stride==message.stride&&frame.bytes.length==data.length)
                 {
-                    memcpy(frame.bytes.mutableBytes,data.bytes,data.length);
+                    /* The reader owns this new buffer and snapshots are immutable
+                     * copies. Replacing ownership avoids a redundant full-frame
+                     * memcpy on every baseline refresh. */
+                    frame.bytes=data;
                     frame.clientFD=fd;frame.peerPID=peerPID;frame.generation++;frame.received++;
                     return frame;
                 }
-                frame.invalidated=YES;
+                frame.invalidated=YES;frame.bytes=nil;
             }
         }
         frame=[JuiceDisplayFramebuffer new];
@@ -237,7 +241,7 @@ static JuiceDisplayFramebuffer *JuiceApplyDirty(id self,JuiceDisplayMsg message,
     }
     @synchronized(frame)
     {
-        if(frame.invalidated||
+        if(frame.invalidated||frame.clientFD!=fd||frame.peerPID!=peerPID||
            (uint64_t)(uint32_t)message.x+(uint32_t)message.width>(uint32_t)frame.width||
            (uint64_t)(uint32_t)message.y+(uint32_t)message.height>(uint32_t)frame.height)
             return nil;
@@ -423,7 +427,7 @@ static void JuiceHardenedReadClient(id self,SEL _cmd,int fd)
     NSMutableArray *clients=JuiceDisplayValue(self,@"clients");
     if([clients isKindOfClass:NSMutableArray.class])
     {
-        @synchronized(clients){[clients removeObject:@(fd)];}
+        @synchronized(clients){[clients removeObject:@(fd)];JuiceCancelDisplayWriter(self,fd);}
     }
     void (^invalidateWindowTransport)(void)=^{
         SEL selector=NSSelectorFromString(@"removeWindowsForClient:");

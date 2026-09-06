@@ -1,9 +1,12 @@
 #import <Foundation/Foundation.h>
+#import "JuiceAsyncWriter.h"
 #import <errno.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import <stdint.h>
 #import <string.h>
+#import <sys/socket.h>
+#import <sys/time.h>
 #import <unistd.h>
 #import "../wine/dlls/wineios.drv/control_protocol.h"
 
@@ -22,9 +25,63 @@ static BOOL JuiceReadExact(int fd,void *buffer,size_t length)
 {
     uint8_t *p=buffer;while(length){ssize_t n=read(fd,p,length);if(n<0&&errno==EINTR)continue;if(n<=0)return NO;p+=n;length-=(size_t)n;}return YES;
 }
-static BOOL JuiceWriteExact(int fd,const void *buffer,size_t length)
+static char JuiceHostWritersKey;
+
+/* Registry access and send membership share one lock. A writer owns a duplicate
+ * of this connection, so queued work can never target a recycled numeric fd. */
+static NSMutableDictionary *JuiceHostWriters(NSMutableArray *clients)
 {
-    const uint8_t *p=buffer;while(length){ssize_t n=write(fd,p,length);if(n<0&&errno==EINTR)continue;if(n<=0)return NO;p+=n;length-=(size_t)n;}return YES;
+    NSMutableDictionary *writers=objc_getAssociatedObject(clients,&JuiceHostWritersKey);
+    if(!writers)
+    {
+        writers=[NSMutableDictionary dictionary];
+        objc_setAssociatedObject(clients,&JuiceHostWritersKey,writers,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    return writers;
+}
+
+void JuiceCancelDisplayWriter(id self,int fd)
+{
+    NSMutableArray *clients=JuiceHostValue(self,@"clients");
+    if(![clients isKindOfClass:NSMutableArray.class])return;
+    @synchronized(clients)
+    {
+        NSMutableDictionary *writers=JuiceHostWriters(clients);
+        [writers[@(fd)] cancel];
+        [writers removeObjectForKey:@(fd)];
+    }
+}
+
+static BOOL JuiceHostEnqueue(id self,int fd,NSData *packet)
+{
+    NSMutableArray *clients=JuiceHostValue(self,@"clients");
+    if(![clients isKindOfClass:NSMutableArray.class])return NO;
+    @synchronized(clients)
+    {
+        if(![clients containsObject:@(fd)])return NO;
+        NSMutableDictionary *writers=JuiceHostWriters(clients);
+        JuiceAsyncWriter *writer=writers[@(fd)];
+        if(!writer)
+        {
+            __weak id weakSelf=self;
+            writer=[[JuiceAsyncWriter alloc]initWithFD:fd socket:YES limit:2u*1024u*1024u failure:^(int error){
+                id target=weakSelf;
+                if(target)JuiceHostAppend(target,[NSString stringWithFormat:
+                    @"HOST_IO_WRITE_FAILED channel=display fd=%d errno=%d connection_shutdown=1\n",fd,error]);
+            }];
+            if(writer)writers[@(fd)]=writer;
+        }
+        if(writer&&[writer enqueueData:packet])return YES;
+        int saved=errno;
+        /* Never silently lose key/button-up events when the queue is full.
+         * Disconnect instead, so reconnect resets the input route/state. */
+        shutdown(fd,SHUT_RDWR);
+        [writer cancel];
+        [writers removeObjectForKey:@(fd)];
+        JuiceHostAppend(self,[NSString stringWithFormat:
+            @"HOST_IO_QUEUE_REJECTED fd=%d errno=%d connection_shutdown=1\n",fd,saved]);
+        return NO;
+    }
 }
 static void JuiceControlCopy(char *destination,size_t capacity,NSString *value)
 {
@@ -32,24 +89,18 @@ static void JuiceControlCopy(char *destination,size_t capacity,NSString *value)
 }
 static BOOL JuiceSendMessage(id self,SEL _cmd,JuiceHostMsg *message,NSData *payload,int fd)
 {
-    (void)_cmd;if(!message||fd<0||payload.length>UINT32_MAX)return NO;message->size=(uint32_t)payload.length;
-    NSMutableArray *clients=JuiceHostValue(self,@"clients");if(![clients isKindOfClass:NSMutableArray.class])return NO;
-    @synchronized(clients)
-    {
-        if(![clients containsObject:@(fd)]||!JuiceWriteExact(fd,message,sizeof(*message)))return NO;
-        if(payload.length&&!JuiceWriteExact(fd,payload.bytes,payload.length))return NO;
-    }
-    return YES;
+    (void)_cmd;
+    if(!message||fd<0||payload.length>64u*1024u)return NO;
+    message->size=(uint32_t)payload.length;
+    NSMutableData *packet=[NSMutableData dataWithBytes:message length:sizeof(*message)];
+    if(payload.length)[packet appendData:payload];
+    return JuiceHostEnqueue(self,fd,packet);
 }
 static void JuiceBroadcast(id self,SEL _cmd,const void *buffer,size_t length)
 {
-    (void)_cmd;int fd=[JuiceHostValue(self,@"activeClient") intValue];if(fd<0||!buffer||!length)return;
-    NSMutableArray *clients=JuiceHostValue(self,@"clients");if(![clients isKindOfClass:NSMutableArray.class])return;
-    @synchronized(clients)
-    {
-        if([clients containsObject:@(fd)]&&!JuiceWriteExact(fd,buffer,length))
-            JuiceHostAppend(self,[NSString stringWithFormat:@"HOST_IO_WRITE_FAILED channel=display fd=%d errno=%d\n",fd,errno]);
-    }
+    (void)_cmd;int fd=[JuiceHostValue(self,@"activeClient") intValue];
+    if(fd<0||!buffer||!length||length>sizeof(JuiceHostMsg)+64u*1024u)return;
+    JuiceHostEnqueue(self,fd,[NSData dataWithBytes:buffer length:length]);
 }
 static void JuiceControlResponse(id self,SEL _cmd,int fd,uint32_t request,int32_t status,NSString *path,NSString *detail)
 {
@@ -57,7 +108,15 @@ static void JuiceControlResponse(id self,SEL _cmd,int fd,uint32_t request,int32_
     message.type=JUICE_CONTROL_IMPORT_RESPONSE;message.size=sizeof(message);message.request_id=request;message.status=status;
     JuiceControlCopy(message.path,sizeof(message.path),path);JuiceControlCopy(message.detail,sizeof(message.detail),detail);
     NSData *wire=[NSData dataWithBytes:&message length:sizeof(message)];
-    dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY,0),^{BOOL ok=JuiceWriteExact(fd,wire.bytes,wire.length);int saved=ok?0:errno;close(fd);if(!ok)JuiceHostAppend(self,[NSString stringWithFormat:@"HOST_IO_WRITE_FAILED channel=control request=%u errno=%d\n",request,saved]);});
+    __weak id weakSelf=self;
+    JuiceAsyncWriter *writer=[[JuiceAsyncWriter alloc]initWithFD:fd socket:YES limit:sizeof(message) failure:^(int error){
+        id target=weakSelf;
+        if(target)JuiceHostAppend(target,[NSString stringWithFormat:@"HOST_IO_WRITE_FAILED channel=control request=%u errno=%d\n",request,error]);
+    }];
+    int setupError=writer?0:errno;
+    close(fd); /* The queued writer owns the only remaining host reference. */
+    if(!writer||![writer enqueueData:wire])
+        JuiceHostAppend(self,[NSString stringWithFormat:@"HOST_IO_QUEUE_REJECTED channel=control request=%u errno=%d\n",request,setupError?:errno]);
 }
 static void JuiceReply(id self,int fd,uint32_t request,int32_t status,NSString *path,NSString *detail)
 {
@@ -67,6 +126,11 @@ static void JuiceReply(id self,int fd,uint32_t request,int32_t status,NSString *
 static void JuiceReadControl(id self,SEL _cmd,int fd)
 {
     (void)_cmd;struct juice_control_message message;
+    /* A connected peer that never submits a request must not occupy a host
+     * reader indefinitely. This timeout does not cover the interactive picker. */
+    struct timeval timeout={10,0};
+    if(setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout)))
+    {close(fd);return;}
     if(!JuiceReadExact(fd,&message,sizeof(message))||message.magic!=JUICE_CONTROL_MAGIC||message.version!=JUICE_CONTROL_VERSION||message.size!=sizeof(message))
     {JuiceHostAppend(self,[NSString stringWithFormat:@"CONTROL_V1_PROTOCOL_REJECTED fd=%d\n",fd]);close(fd);return;}
     if(message.type==JUICE_CONTROL_IMPORT_REQUEST)

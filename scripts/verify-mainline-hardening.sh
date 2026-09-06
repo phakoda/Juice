@@ -250,10 +250,14 @@ grep -Fq 'JuiceCombinedLogContents' "$LOG_EXPORT"
 grep -Fq 'JuiceCleanupLogExportStaging' "$LOG_EXPORT"
 grep -Fq 'retained_segments=2 bounded=1' "$LOG_EXPORT"
 
-# CLI stdin uses the same exact-write semantics as socket I/O: EINTR retries and
-# hard failures close/invalidate the child pipe rather than reusing a dead fd.
-grep -Fq 'JuiceCLIWriteAll' "$CLI_INPUT"
-grep -Fq 'errno==EINTR' "$CLI_INPUT"
+# CLI stdin queues bounded nonblocking writes; stopping a launch cancels its
+# writer before the borrowed descriptor may be reused. Behavioral tests exercise
+# deadlines, EINTR, cancellation, ordering and descriptor reuse.
+grep -Fq 'JuiceAsyncWriter' "$CLI_INPUT"
+grep -Fq 'JuiceCLIOriginalStop' "$CLI_INPUT"
+grep -Fq 'state.generation!=generation' "$CLI_INPUT"
+grep -Fq 'JuiceCancelDisplayWriter(self,fd)' "$DISPLAY"
+grep -Fq 'frame.clientFD!=fd||frame.peerPID!=peerPID' "$DISPLAY"
 grep -Fq 'CLI_STDIN_FAILED' "$CLI_INPUT"
 grep -Fq 'childInput",@(-1)' "$CLI_INPUT"
 
@@ -290,7 +294,7 @@ grep -Fq 'unlink(outputPath.fileSystemRepresentation)' "$ZIP"
 grep -Fq 'large_size = 48 * 1024 * 1024' "$ZIP_TEST"
 grep -Fq 'local-crc-mismatch' "$ZIP_TEST"
 
-for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuiceWindowsDataImport.m JuiceTextInputHardening.m JuiceKeyboardRoutingHardening.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLifecycleHardening.m JuiceLogHardening.m JuiceCLIInputHardening.m JuiceLaunchHardening.m; do
+for source in JuiceSocketHardening.m JuiceHostIOHardening.m JuiceDisplayTransportHardening.m JuiceReconnectGrace.m JuiceWindowsDataImport.m JuiceTextInputHardening.m JuiceKeyboardRoutingHardening.m JuicePointerInput.m JuiceMemoryPressure.m JuiceLifecycleHardening.m JuiceLogHardening.m JuiceCLIInputHardening.m JuiceLaunchHardening.m JuiceAsyncWriter.m JuiceIO.c; do
   grep -Fq "app/$source" "$BUILD" || { echo "build-app.sh does not compile $source" >&2; exit 3; }
 done
 
