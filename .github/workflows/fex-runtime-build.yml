@@ -35,6 +35,8 @@ jobs:
           persist-credentials: false
       - name: Compile the pinned translator with every Juice patch
         run: bash scripts/build-fex-${{ matrix.target }}-linux.sh
+      - name: Verify incremental source reuse after compilation
+        run: bash scripts/fetch-fex-linux.sh
       - name: Preserve compiler logs and checksummed translator output
         if: always()
         uses: actions/upload-artifact@v4

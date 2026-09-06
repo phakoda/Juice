@@ -216,3 +216,7 @@ dlls/concrt140/aarch64-windows/concrt140.dll
 # Modern C++ synchronization and locale identifier helpers.
 dlls/msvcp140_atomic_wait/aarch64-windows/msvcp140_atomic_wait.dll
 dlls/msvcp140_codecvt_ids/aarch64-windows/msvcp140_codecvt_ids.dll
+
+# Literal imports needed by Direct2D and GDI+.
+dlls/xmllite/aarch64-windows/xmllite.dll
+dlls/mlang/aarch64-windows/mlang.dll

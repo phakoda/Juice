@@ -20,6 +20,14 @@ enum juice_readback_format {
 };
 struct juice_readback_layout { size_t stride, bytes; };
 
+/* Win32 rectangle subtraction must widen before subtracting; minimized or
+ * empty surfaces preserve the driver's historical one-pixel minimum. */
+static inline size_t juice_rect_extent(int32_t begin, int32_t end)
+{
+    int64_t extent = (int64_t)end - begin;
+    return extent > 0 ? (size_t)extent : 1;
+}
+
 static inline bool juice_readback_layout(size_t width, size_t height, size_t alignment,
                                          struct juice_readback_layout *out)
 {

@@ -10,7 +10,7 @@ diff --git a/dlls/wineios.drv/vulkan.m b/dlls/wineios.drv/vulkan.m
  
  #include "ntstatus.h"
  #include "iosdrv.h"
-@@ -93,50 +95,79 @@
+@@ -93,50 +95,77 @@
  static void iosdrv_client_surface_update(struct client_surface *client)
  {
      struct iosdrv_client_surface *surface = impl_from_client_surface(client);
@@ -18,10 +18,8 @@ diff --git a/dlls/wineios.drv/vulkan.m b/dlls/wineios.drv/vulkan.m
 -    LONG height = max(1, client->monitor_rect.bottom - client->monitor_rect.top);
 -    CGSize size = CGSizeMake(width, height);
 -
-+    int64_t wide_width = (int64_t)client->monitor_rect.right - client->monitor_rect.left;
-+    int64_t wide_height = (int64_t)client->monitor_rect.bottom - client->monitor_rect.top;
-+    size_t width = wide_width > 0 ? (size_t)wide_width : 1;
-+    size_t height = wide_height > 0 ? (size_t)wide_height : 1;
++    size_t width = juice_rect_extent(client->monitor_rect.left, client->monitor_rect.right);
++    size_t height = juice_rect_extent(client->monitor_rect.top, client->monitor_rect.bottom);
 +    struct juice_readback_layout layout;
 +    CGSize size;
 +
@@ -112,7 +110,7 @@ diff --git a/dlls/wineios.drv/vulkan.m b/dlls/wineios.drv/vulkan.m
      command = [surface->queue commandBuffer];
      blit = [command blitCommandEncoder];
      if (!command || !blit) goto done;
-@@ -147,6 +178,8 @@
+@@ -147,6 +176,8 @@
      destinationBytesPerImage:surface->readback_stride * height];
      [blit endEncoding];
      [command commit];
@@ -121,7 +119,7 @@ diff --git a/dlls/wineios.drv/vulkan.m b/dlls/wineios.drv/vulkan.m
      [command waitUntilCompleted];
      if (command.status != MTLCommandBufferStatusCompleted)
      {
-@@ -154,17 +187,30 @@
+@@ -154,17 +185,30 @@
              [[command.error description] UTF8String]);
          goto done;
      }
@@ -155,13 +153,15 @@ diff --git a/dlls/wineios.drv/vulkan.m b/dlls/wineios.drv/vulkan.m
  }
  
  static const struct client_surface_funcs iosdrv_client_surface_funcs =
-@@ -227,9 +273,18 @@
+@@ -227,9 +271,20 @@
  static VkBool32 iosdrv_get_physical_device_presentation_support(struct vulkan_physical_device *device,
                                                                   uint32_t queue)
  {
 -    (void)device;
 -    (void)queue;
 -    return VK_TRUE;
++    /* VK_EXT_metal_surface guarantees presentation for every valid family.
++     * Still validate the caller's index against the actual physical device. */
 +    VkQueueFamilyProperties *families;
 +    uint32_t count = 0, capacity;
 +    VkBool32 supported;
@@ -186,11 +186,51 @@ diff --git a/dlls/wineios.drv/vulkan.m b/dlls/wineios.drv/vulkan.m
      if (version != WINE_VULKAN_DRIVER_VERSION)
      {
          ERR("version mismatch, win32u wants %u but wineios has %u\n", version,
+diff --git a/dlls/wineios.drv/iosdrv.c b/dlls/wineios.drv/iosdrv.c
+--- a/dlls/wineios.drv/iosdrv.c
++++ b/dlls/wineios.drv/iosdrv.c
+@@ -8,6 +8,7 @@
+ #include <stdlib.h>
+ #include <string.h>
+ #include "iosdrv.h"
++#include "graphics_policy.h"
+ #include <unistd.h>
+ #include "ipc.h"
+ #include "wine/unixlib.h"
+@@ -171,9 +172,17 @@
+ static const struct window_surface_funcs surface_funcs={surface_set_clip,surface_flush,surface_destroy};
+ static BOOL ios_CreateWindowSurface(HWND hwnd,BOOL layered,const RECT *rect,struct window_surface **out)
+ {
+-    struct iosdrv_surface *surface; struct window_surface *header,*previous=*out;
++    struct iosdrv_surface *surface; struct window_surface *header,*previous;
+     D3DKMT_CREATEDCFROMMEMORY desc={.Format=D3DDDIFMT_A8R8G8B8}; BITMAPINFO info; HBITMAP bitmap=0;
+-    unsigned int width=max(1,rect->right-rect->left),height=max(1,rect->bottom-rect->top),stride=width*4; void *bits;
++    struct juice_readback_layout layout;
++    size_t wide_width,wide_height;
++    unsigned int width,height,stride; void *bits;
++    if(!rect||!out||rect->right<rect->left||rect->bottom<rect->top)return FALSE;
++    previous=*out;
++    wide_width=juice_rect_extent(rect->left,rect->right);
++    wide_height=juice_rect_extent(rect->top,rect->bottom);
++    if(!juice_readback_layout(wide_width,wide_height,1,&layout))return FALSE;
++    width=(unsigned int)wide_width;height=(unsigned int)wide_height;stride=(unsigned int)layout.stride;
+     ios_ipc_register_queue();
+     fprintf(stderr,"[JuiceGeom] surface hwnd=%p rect=%d,%d,%d,%d size=%ux%u previous=%p\n",hwnd,rect->left,rect->top,rect->right,rect->bottom,width,height,previous);
+     if(previous&&previous->funcs==&surface_funcs)
+@@ -182,7 +191,7 @@
+         if(old->width==width&&old->height==height)return TRUE;
+         fprintf(stderr,"[JuiceGeom] surface-resize hwnd=%p old=%ux%u new=%ux%u\n",hwnd,old->width,old->height,width,height);
+     }
+-    if(!(bits=calloc(height,stride)))return FALSE;
++    if(!(bits=calloc(1,layout.bytes)))return FALSE;
+     memset(&info,0,sizeof(info));info.bmiHeader.biSize=sizeof(info.bmiHeader);info.bmiHeader.biWidth=width;
+     info.bmiHeader.biHeight=-(LONG)height;info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;
+     info.bmiHeader.biCompression=BI_RGB;info.bmiHeader.biSizeImage=stride*height;
 diff --git a/dlls/wineios.drv/graphics_policy.h b/dlls/wineios.drv/graphics_policy.h
 new file mode 100644
 --- /dev/null
 +++ b/dlls/wineios.drv/graphics_policy.h
-@@ -0,0 +1,79 @@
+@@ -0,0 +1,87 @@
 +/* Software transport policy for Metal surfaces. LGPL-2.1-or-later. */
 +#ifndef JUICE_GRAPHICS_POLICY_H
 +#define JUICE_GRAPHICS_POLICY_H
@@ -212,6 +252,14 @@ new file mode 100644
 +    JUICE_READBACK_BGR10A2
 +};
 +struct juice_readback_layout { size_t stride, bytes; };
++
++/* Win32 rectangle subtraction must widen before subtracting; minimized or
++ * empty surfaces preserve the driver's historical one-pixel minimum. */
++static inline size_t juice_rect_extent(int32_t begin, int32_t end)
++{
++    int64_t extent = (int64_t)end - begin;
++    return extent > 0 ? (size_t)extent : 1;
++}
 +
 +static inline bool juice_readback_layout(size_t width, size_t height, size_t alignment,
 +                                         struct juice_readback_layout *out)

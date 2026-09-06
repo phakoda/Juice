@@ -36,6 +36,11 @@ class GraphicsAPITests(unittest.TestCase):
         with self.assertRaisesRegex(api.AuditError, "not packaged"):
             api.audit(self.root)
 
+    def test_missing_source(self):
+        (self.root / "wine/dlls/demo/Makefile.in").unlink()
+        with self.assertRaisesRegex(api.AuditError, "no source module"):
+            api.audit(self.root)
+
     def test_wrong_module(self):
         self.write("wine/dlls/demo/Makefile.in", "MODULE = unrelated.dll\n")
         with self.assertRaises(api.AuditError): api.audit(self.root)

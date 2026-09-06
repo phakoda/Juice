@@ -59,7 +59,11 @@ def audit(root: Path) -> dict:
         if packaged.get(name + ".dll") != expected:
             errors.append(f"{name}: missing or mismatched runtime target")
             continue
-        declarations = assignments(read_bounded(root / f"wine/dlls/{name}/Makefile.in", root))
+        try:
+            declarations = assignments(read_bounded(root / f"wine/dlls/{name}/Makefile.in", root))
+        except FileNotFoundError:
+            errors.append(f"{name}: no source module in the pinned Wine tree")
+            continue
         if declarations.get("MODULE") != name + ".dll":
             errors.append(f"{name}: Wine MODULE does not match the catalog")
             continue

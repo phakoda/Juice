@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "iosdrv.h"
+#include "graphics_policy.h"
 #include <unistd.h>
 #include "ipc.h"
 #include "wine/unixlib.h"
@@ -171,9 +172,17 @@ static void surface_destroy(struct window_surface *header)
 static const struct window_surface_funcs surface_funcs={surface_set_clip,surface_flush,surface_destroy};
 static BOOL ios_CreateWindowSurface(HWND hwnd,BOOL layered,const RECT *rect,struct window_surface **out)
 {
-    struct iosdrv_surface *surface; struct window_surface *header,*previous=*out;
+    struct iosdrv_surface *surface; struct window_surface *header,*previous;
     D3DKMT_CREATEDCFROMMEMORY desc={.Format=D3DDDIFMT_A8R8G8B8}; BITMAPINFO info; HBITMAP bitmap=0;
-    unsigned int width=max(1,rect->right-rect->left),height=max(1,rect->bottom-rect->top),stride=width*4; void *bits;
+    struct juice_readback_layout layout;
+    size_t wide_width,wide_height;
+    unsigned int width,height,stride; void *bits;
+    if(!rect||!out||rect->right<rect->left||rect->bottom<rect->top)return FALSE;
+    previous=*out;
+    wide_width=juice_rect_extent(rect->left,rect->right);
+    wide_height=juice_rect_extent(rect->top,rect->bottom);
+    if(!juice_readback_layout(wide_width,wide_height,1,&layout))return FALSE;
+    width=(unsigned int)wide_width;height=(unsigned int)wide_height;stride=(unsigned int)layout.stride;
     ios_ipc_register_queue();
     fprintf(stderr,"[JuiceGeom] surface hwnd=%p rect=%d,%d,%d,%d size=%ux%u previous=%p\n",hwnd,rect->left,rect->top,rect->right,rect->bottom,width,height,previous);
     if(previous&&previous->funcs==&surface_funcs)
@@ -182,7 +191,7 @@ static BOOL ios_CreateWindowSurface(HWND hwnd,BOOL layered,const RECT *rect,stru
         if(old->width==width&&old->height==height)return TRUE;
         fprintf(stderr,"[JuiceGeom] surface-resize hwnd=%p old=%ux%u new=%ux%u\n",hwnd,old->width,old->height,width,height);
     }
-    if(!(bits=calloc(height,stride)))return FALSE;
+    if(!(bits=calloc(1,layout.bytes)))return FALSE;
     memset(&info,0,sizeof(info));info.bmiHeader.biSize=sizeof(info.bmiHeader);info.bmiHeader.biWidth=width;
     info.bmiHeader.biHeight=-(LONG)height;info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;
     info.bmiHeader.biCompression=BI_RGB;info.bmiHeader.biSizeImage=stride*height;

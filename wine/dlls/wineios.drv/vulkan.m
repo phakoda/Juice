@@ -95,10 +95,8 @@ static void iosdrv_client_surface_detach(struct client_surface *client)
 static void iosdrv_client_surface_update(struct client_surface *client)
 {
     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
-    int64_t wide_width = (int64_t)client->monitor_rect.right - client->monitor_rect.left;
-    int64_t wide_height = (int64_t)client->monitor_rect.bottom - client->monitor_rect.top;
-    size_t width = wide_width > 0 ? (size_t)wide_width : 1;
-    size_t height = wide_height > 0 ? (size_t)wide_height : 1;
+    size_t width = juice_rect_extent(client->monitor_rect.left, client->monitor_rect.right);
+    size_t height = juice_rect_extent(client->monitor_rect.top, client->monitor_rect.bottom);
     struct juice_readback_layout layout;
     CGSize size;
 
@@ -273,6 +271,8 @@ static VkResult iosdrv_vulkan_surface_create(struct client_surface *client,
 static VkBool32 iosdrv_get_physical_device_presentation_support(struct vulkan_physical_device *device,
                                                                  uint32_t queue)
 {
+    /* VK_EXT_metal_surface guarantees presentation for every valid family.
+     * Still validate the caller's index against the actual physical device. */
     VkQueueFamilyProperties *families;
     uint32_t count = 0, capacity;
     VkBool32 supported;

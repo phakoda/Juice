@@ -64,6 +64,7 @@ dwmapi
 dwrite
 dxgi
 gdiplus
+mlang
 mscms
 msimg32
 msvcp100
@@ -95,3 +96,4 @@ windowscodecs
 windowscodecsext
 wined3d
 winevulkan
+xmllite

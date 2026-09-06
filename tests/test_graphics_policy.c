@@ -10,6 +10,11 @@ static void put32(uint8_t *out, uint32_t value)
 int main(void)
 {
     struct juice_readback_layout layout;
+    assert(juice_rect_extent(INT32_MIN, INT32_MAX) == UINT32_MAX);
+    assert(juice_rect_extent(INT32_MAX, INT32_MIN) == 1);
+    assert(juice_rect_extent(20, 20) == 1);
+    assert(juice_rect_extent(-20, 20) == 40);
+    assert(!juice_readback_layout(juice_rect_extent(INT32_MIN, INT32_MAX), 1, 1, &layout));
     assert(juice_readback_layout(1920, 1080, 256, &layout));
     assert(layout.stride == 7680 && layout.bytes == 8294400);
     assert(!juice_readback_layout(1, 1, 3, &layout));
