@@ -1,0 +1,49 @@
+diff --git a/FEXCore/Source/Interface/Core/CPUBackend.cpp b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+--- a/FEXCore/Source/Interface/Core/CPUBackend.cpp
++++ b/FEXCore/Source/Interface/Core/CPUBackend.cpp
+@@ -402,7 +402,8 @@
+     if (!FEXCore::Allocator::JuiceFreeJITMapping(
+           {WritablePtr, Ptr, DualMapped}, static_cast<size_t>(Size))) {
+-      LogMan::Msg::EFmt("Failed to release StikDebug JIT mapping write={:p} exec={:p}", WritablePtr, Ptr);
++      LogMan::Msg::EFmt("Failed to release StikDebug JIT mapping write={:p} exec={:p}",
++                       static_cast<void*>(WritablePtr), static_cast<void*>(Ptr));
+     }
+     return;
+diff --git a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+--- a/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
++++ b/FEXCore/include/FEXCore/Utils/AllocatorHooks.h
+@@ -150,6 +150,7 @@
+   size_t Size {};
+   bool Detached {};
+   std::vector<JuiceJITPoolRange> FreeRanges;
++  std::vector<JuiceJITPoolRange> AllocatedRanges;
+ };
+ 
+@@ -222,6 +223,9 @@
+       }
+ 
+       const size_t Offset = Range.Offset;
++      // Record the exact requested extent before publishing or modifying the
++      // free list. Page-rounding must not authorize a partial/wrong-size free.
++      Pool.AllocatedRanges.push_back({Offset, Size});
+       Range.Offset += AlignedSize;
+       Range.Size -= AlignedSize;
+@@ -267,6 +271,13 @@
+     const size_t ExecOffset = Exec - ExecBase;
+     if (WriteOffset != ExecOffset || WriteOffset > Pool.Size || AlignedSize > Pool.Size - WriteOffset) return false;
+ 
++    size_t Allocation = 0;
++    while (Allocation < Pool.AllocatedRanges.size() &&
++           (Pool.AllocatedRanges[Allocation].Offset != WriteOffset ||
++            Pool.AllocatedRanges[Allocation].Size != Size)) ++Allocation;
++    if (Allocation == Pool.AllocatedRanges.size()) return false;
++
+     size_t Index = 0;
+     while (Index < Pool.FreeRanges.size() && Pool.FreeRanges[Index].Offset < WriteOffset) {
+@@ -279,6 +290,7 @@
+     if (Index < Pool.FreeRanges.size() && WriteOffset + AlignedSize > Pool.FreeRanges[Index].Offset) return false;
+ 
+     Pool.FreeRanges.insert(Pool.FreeRanges.begin() + Index, {WriteOffset, AlignedSize});
++    Pool.AllocatedRanges.erase(Pool.AllocatedRanges.begin() + Allocation);
+     if (Index && Pool.FreeRanges[Index - 1].Offset + Pool.FreeRanges[Index - 1].Size == Pool.FreeRanges[Index].Offset) {
+       Pool.FreeRanges[Index - 1].Size += Pool.FreeRanges[Index].Size;

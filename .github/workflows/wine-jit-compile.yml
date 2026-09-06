@@ -1,0 +1,39 @@
+name: Wine iOS JIT compile
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/stikdebug-jit]
+    paths:
+      - '.github/workflows/wine-jit-compile.yml'
+      - 'scripts/test-wine-ios-compile.sh'
+      - 'patches/wine-stikdebug-*.patch'
+permissions:
+  contents: read
+concurrency:
+  group: wine-ios-jit-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  compile:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install current build-host generators
+        run: brew install bison flex make
+      - name: Build Wine host tools and actual iPhoneOS runtime objects
+        run: |
+          export PATH="$(brew --prefix bison)/bin:$(brew --prefix flex)/bin:$(brew --prefix make)/libexec/gnubin:$PATH"
+          bash scripts/test-wine-ios-compile.sh
+      - name: Preserve native compiler diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wine-ios-compile-${{ github.sha }}
+          path: |
+            build/wine-compile-logs/
+            build/wine-tools-macos/config.log
+            build/wine-ios-validation/config.log
+          retention-days: 7
+          if-no-files-found: warn
