@@ -1,0 +1,30 @@
+name: Graphics FEX JIT bring-up
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: graphics-fex-jit-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cc: clang
+            cxx: clang++
+          - cc: gcc
+            cxx: g++
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: bash scripts/test-fex-codegen-host.sh
+      - run: bash scripts/test-jit-host.sh
