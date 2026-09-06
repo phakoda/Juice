@@ -5,6 +5,9 @@ on:
     paths: [.github/workflows/bringup-source-snapshot.yml]
 permissions:
   contents: read
+concurrency:
+  group: bringup-source-snapshot
+  cancel-in-progress: true
 jobs:
   snapshot:
     runs-on: ubuntu-latest
@@ -20,11 +23,12 @@ jobs:
           ref: 61e42a7d1d948a98b160ed14c8d409c7421b2a12
           persist-credentials: false
           path: pr3
-      - name: Archive tracked source only
+      - name: Archive tracked source only, excluding historical device captures
         run: |
           mkdir snapshots
-          git -C main archive --format=tar HEAD | gzip -1 > snapshots/main.tar.gz
-          git -C pr3 archive --format=tar HEAD | gzip -1 > snapshots/pr3.tar.gz
+          for ref in main pr3; do
+            git -C "$ref" archive --format=tar HEAD app scripts config docs launcher Makefile patches wine packaging toolchain .github README.md .gitattributes .gitignore | gzip -9 > "snapshots/$ref.tar.gz"
+          done
           sha256sum snapshots/*.tar.gz > snapshots/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
