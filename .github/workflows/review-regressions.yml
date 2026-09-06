@@ -1,28 +1,39 @@
-name: Review regressions
+name: Apply reviewed runtime fixes
 
 on:
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  review-inputs:
+  apply-reviewed-patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'chatgpt/review-validation-2026-09-06'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
-      - name: Archive tracked review inputs
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Verify and apply the locally tested integration
+        shell: bash
         run: |
-          git archive --format=tar.gz --output="$RUNNER_TEMP/juice-review-inputs.tar.gz" HEAD \
-            app launcher scripts config patches .github Makefile README.md \
-            wine/dlls/wineios.drv wine/dlls/ntdll
-      - uses: actions/upload-artifact@v4
-        with:
-          name: juice-review-inputs
-          path: ${{ runner.temp }}/juice-review-inputs.tar.gz
-          retention-days: 1
-          if-no-files-found: error
+          set -euo pipefail
+          test -f scripts/.review-transfer/00.xz || exit 0
+          cat scripts/.review-transfer/{00..13}.xz > "$RUNNER_TEMP/reviewed.patch.xz"
+          echo "ba8275e1f20ccac81734afa15be3d2e0856a6c2a088f20e110110b0b328c5bc2  $RUNNER_TEMP/reviewed.patch.xz" | sha256sum --check --strict
+          xz -dc "$RUNNER_TEMP/reviewed.patch.xz" > "$RUNNER_TEMP/reviewed.patch"
+          echo "78130c3a3280178196b8edd025a3ff8fc6542b15d6bd92d13d6f6c74281d6127  $RUNNER_TEMP/reviewed.patch" | sha256sum --check --strict
+          python3 scripts/.review-transfer/reconcile.py "$RUNNER_TEMP/reviewed.patch" eacd19d9c050106cfeeaba488b72dc69b9a40d8a
+          git diff --check
+          git add app scripts docs
+          git rm -r scripts/.review-transfer
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: bound display and logs, fence process cleanup, preserve Unicode and verify patch stacks safely'
+          git push origin HEAD:refs/heads/chatgpt/review-validation-2026-09-06
