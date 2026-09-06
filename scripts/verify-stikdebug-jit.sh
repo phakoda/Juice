@@ -26,6 +26,9 @@ grep -Fq 'JUICE_ENABLE_STIKDEBUG_JIT=1' "$app"
 grep -Fq 'get-task-allow' "$app"
 grep -Fq 'JuiceStikDebugJIT.m' "$ROOT/scripts/build-app.sh"
 grep -Fq 'JUICE_JIT_RUNTIME_READY' "$ROOT/patches/wine-stikdebug-handoff.patch"
+for name in NtWineAllocateJitMemory NtWineFreeJitMemory NtWineDetachJitDebugger; do
+  grep -Fq "DEFINE_SYSCALL($name," "$ROOT/patches/wine-stikdebug-jit.patch"
+done
 grep -Fq 'execve(argv[1], &argv[1], environ)' "$ROOT/launcher/grape-trace-parent.c"
 grep -Fq 'verify-patch-stack.py' "$ROOT/scripts/verify-fex-patch.sh"
 grep -Fq 'AllocatedRanges' "$ROOT/patches/fex-stikdebug-validation.patch"

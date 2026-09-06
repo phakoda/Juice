@@ -136,6 +136,10 @@ class RepositoryWineStackTests(unittest.TestCase):
             for name in ("NtWineAllocateJitMemory", "NtWineFreeJitMemory"):
                 self.assertIn(f"@ stdcall -private -syscall -arch=win64 {name}(ptr ptr ptr)", text)
             self.assertIn("NtWineDetachJitDebugger()", text)
+            arm64ec = (isolated / "dlls/ntdll/signal_arm64ec.c").read_text()
+            self.assertIn("DEFINE_SYSCALL(NtWineAllocateJitMemory,", arm64ec)
+            self.assertIn("DEFINE_SYSCALL(NtWineFreeJitMemory,", arm64ec)
+            self.assertIn("DEFINE_SYSCALL(NtWineDetachJitDebugger,", arm64ec)
             # A partial/incorrect ABI overlay must still fail, not be mistaken
             # for an unapplied stack or accepted by weakening the verifier.
             spec.write_text(text.replace("NtWineAllocateJitMemory(ptr ptr ptr)",

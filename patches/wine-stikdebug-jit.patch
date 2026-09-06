@@ -26,6 +26,18 @@ diff --git a/dlls/ntdll/ntsyscalls.h b/dlls/ntdll/ntsyscalls.h
  #else
  #define ALL_SYSCALLS ALL_SYSCALLS32
  #endif
+diff --git a/dlls/ntdll/signal_arm64ec.c b/dlls/ntdll/signal_arm64ec.c
+--- a/dlls/ntdll/signal_arm64ec.c
++++ b/dlls/ntdll/signal_arm64ec.c
+@@ -622,6 +622,9 @@ DEFINE_SYSCALL(NtWriteFileGather, (HANDLE file, HANDLE event, PIO_APC_ROUTINE a
+ DEFINE_SYSCALL(NtWriteRequestData, (HANDLE handle, LPC_MESSAGE *request, ULONG id, void *buffer, ULONG len, ULONG *retlen))
+ DEFINE_SYSCALL(NtWriteVirtualMemory, (HANDLE process, void *addr, const void *buffer, SIZE_T size, SIZE_T *bytes_written))
++DEFINE_SYSCALL(NtWineAllocateJitMemory, (void **write_address, void **exec_address, SIZE_T size))
++DEFINE_SYSCALL(NtWineFreeJitMemory, (void *write_address, void *exec_address, SIZE_T size))
++DEFINE_SYSCALL(NtWineDetachJitDebugger, (void))
+ DEFINE_SYSCALL(NtWineGetCurrentTebAccessor, (void **accessor))
+ DEFINE_SYSCALL(NtYieldExecution, (void))
+ 
 diff --git a/dlls/ntdll/unix/unix_private.h b/dlls/ntdll/unix/unix_private.h
 --- a/dlls/ntdll/unix/unix_private.h
 +++ b/dlls/ntdll/unix/unix_private.h
