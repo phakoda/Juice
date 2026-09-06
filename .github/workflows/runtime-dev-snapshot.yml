@@ -1,0 +1,29 @@
+name: Runtime development snapshot
+on:
+  push:
+    branches: [chatgpt/runtime-bringup]
+    paths: [.github/workflows/runtime-dev-snapshot.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Archive reviewed source revisions without credentials or build outputs
+        run: |
+          mkdir -p /tmp/juice-source
+          git archive 2d8db2cd1b37624f9f6e61af270f5f5d97cddea6 | gzip > /tmp/juice-source/pr4.tar.gz
+          git archive 7506d64138ae9227b5a8488b14891d4ccc036d3a | gzip > /tmp/juice-source/pr3.tar.gz
+          git archive 0112534a7bfb6d090c1cded3df0eb6b2b020011f | gzip > /tmp/juice-source/main.tar.gz
+          git archive "$(git merge-base 7506d64138ae9227b5a8488b14891d4ccc036d3a 2d8db2cd1b37624f9f6e61af270f5f5d97cddea6)" | gzip > /tmp/juice-source/base.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-integration-sources
+          path: /tmp/juice-source/*.tar.gz
+          retention-days: 1
+          if-no-files-found: error
