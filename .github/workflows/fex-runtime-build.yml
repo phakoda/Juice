@@ -9,7 +9,7 @@ on:
       - 'config/x86_64-build.env'
       - 'tests/test_fex_codegen.cpp'
   push:
-    branches: [feature/stikdebug-jit]
+    branches: [main, feature/stikdebug-jit]
     paths:
       - '.github/workflows/fex-runtime-build.yml'
       - 'patches/fex-*.patch'

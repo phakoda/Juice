@@ -8,8 +8,8 @@ and physical-device execution are separate acceptance gates.
 
 ## Runtime API coverage
 
-`config/runtime-modules.txt` adds 85 Wine builtin DLL targets to the previous
-110-target manifest. The 97-name `config/graphics-api-modules.txt` catalog includes
+`config/runtime-modules.txt` adds 84 Wine builtin DLL targets to the previous
+110-target manifest (194 total). The 96-name `config/graphics-api-modules.txt` catalog includes
 those additions plus the existing modern graphics backends they depend on.
 
 The added families are DirectDraw and Direct3D 8/9/10 entry points; D3DRM/D3DXOF;
@@ -53,7 +53,11 @@ or surface instead of destroying it first.
 
 Metal readback buffers are reused where compatible. Each present has an
 autorelease pool, and readback allocation, conversion and IPC reuse are serialized
-per surface. Queue-family queries validate the actual device's family count and
+per surface, including resize and detach. A process-wide 256 MiB readback budget
+counts old and replacement allocations together, and failed replacements release
+only their reservation. Detach and final teardown explicitly clear the retained
+drawable. The native BGRA path preserves padded rows without a full-frame copy;
+padding is cleared before transport. Queue-family queries validate the actual device's family count and
 queue count. VK_EXT_metal_surface guarantees presentation for valid queue families;
 this does not justify accepting an out-of-range family index.
 
@@ -98,6 +102,12 @@ alone is not authorization. Cancellation and child-ownership revocation take
 precedence over timeout/error actions, and stale callbacks cannot signal a reused
 numeric PID. Terminal states ignore repeated callbacks.
 
+The runtime acknowledgement parser consumes arbitrary output chunks in constant
+memory. Only an exact PID/nonce marker on a complete LF or CRLF-terminated line
+counts; prefixes, suffixes, unterminated and overlong lines do not. An unavailable
+iOS background-task budget rejects the handoff through the normal owned cleanup
+path rather than leaving an externally suspended child behind.
+
 The coordinator's entitlements, debugger-status probe, per-launch nonce, PID and
 generation ownership, continuous-clock deadline and platform permission checks
 remain authoritative. There is no signing exploit, entitlement escalation,
@@ -124,6 +134,15 @@ UndefinedBehaviorSanitizer and accept `CC`/`CXX` overrides. The JIT test enumera
 76,116 publication intervals and concurrent retired-range readers/writers. Color
 tests cover all 256 eight-bit and 1024 ten-bit channel values, all four packed
 alpha values, row padding, unaligned allocations and 1024 layout widths.
+The acknowledgement suite additionally checks 2,985,984 event/foreground
+orderings and every marker chunk boundary. The repository patch-stack regression
+replays all five actual Wine optional-layer prefixes, validates both three-argument
+pointer-sized private Win64 JIT exports, and rejects ABI drift without changing
+the source tree. Run it with:
+
+```sh
+python3 -m unittest discover -s scripts/tests -p test_patch_stack.py -v
+```
 
 The full translator builds are independent of those lightweight policy tests:
 
@@ -155,7 +174,7 @@ workflow is not evidence that the workflow passed.
 
 The checked-in Wine tree includes `wine-ios.patch`, then
 `wine-ios-runtime-hardening.patch`, then `wine-ios-graphics.patch`. The JIT,
-lifecycle and handoff patches remain ordered optional overlays. The full stack
+lifecycle, handoff and pointer-sized ABI patches remain ordered optional overlays. The full stack
 is checked in an isolated copy so a verification run cannot temporarily mutate
 an active compiler's inputs. Keep the graphics mirror and checked-in sources in
 sync; do not fold later layers into the base patch without updating the stack.

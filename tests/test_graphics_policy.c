@@ -9,6 +9,18 @@ static void put32(uint8_t *out, uint32_t value)
 }
 int main(void)
 {
+    size_t used = 0;
+    assert(!juice_readback_budget_reserve(NULL, 1));
+    assert(!juice_readback_budget_reserve(&used, 0) && used == 0);
+    assert(!juice_readback_budget_reserve(&used, SIZE_MAX) && used == 0);
+    assert(juice_readback_budget_reserve(&used, JUICE_GRAPHICS_MAX_BYTES));
+    assert(juice_readback_budget_reserve(&used, JUICE_GRAPHICS_MAX_BYTES));
+    assert(used == JUICE_GRAPHICS_TOTAL_BYTES);
+    assert(!juice_readback_budget_reserve(&used, 1) && used == JUICE_GRAPHICS_TOTAL_BYTES);
+    used -= JUICE_GRAPHICS_MAX_BYTES; /* Failed replacement releases only its reservation. */
+    assert(juice_readback_budget_reserve(&used, JUICE_GRAPHICS_MAX_BYTES));
+    used = SIZE_MAX;
+    assert(!juice_readback_budget_reserve(&used, 1) && used == SIZE_MAX);
     struct juice_readback_layout layout;
     assert(juice_rect_extent(INT32_MIN, INT32_MAX) == UINT32_MAX);
     assert(juice_rect_extent(INT32_MAX, INT32_MIN) == 1);
@@ -66,5 +78,5 @@ int main(void)
         assert(bytes[0] == 0xa7 && bytes[layout.bytes + 1] == 0xa7);
         free(bytes);
     }
-    puts("JUICE_GRAPHICS_POLICY_OK rgba_values=256 packed10_values=1024 alpha_values=4 layouts=1024");
+    puts("JUICE_GRAPHICS_POLICY_OK rgba_values=256 packed10_values=1024 alpha_values=4 layouts=1024 aggregate_budget=pass");
 }

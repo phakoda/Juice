@@ -105,5 +105,46 @@ class PatchStackTests(unittest.TestCase):
             stack.verify_stack(self.source, [self.base, self.overlay])
 
 
+class RepositoryWineStackTests(unittest.TestCase):
+    """Exercise the actual shipped stack, not just synthetic patch fixtures."""
+
+    def test_all_incremental_prefixes_and_pointer_sized_abi(self):
+        root = SCRIPT.parent.parent
+        base = [root / "patches" / name for name in (
+            "wine-ios.patch", "wine-ios-runtime-hardening.patch", "wine-ios-graphics.patch")]
+        optional = [root / "patches" / name for name in (
+            "wine-stikdebug-jit.patch", "wine-stikdebug-lifecycle.patch",
+            "wine-stikdebug-handoff.patch", "wine-stikdebug-abi.patch")]
+        paths = set().union(*(stack.patch_paths(patch) for patch in base + optional))
+        source = root / "wine"
+        before = {path: (source / path).read_bytes() for path in paths if (source / path).is_file()}
+        with tempfile.TemporaryDirectory() as directory:
+            isolated = Path(directory)
+            stack.copy_sources(source, isolated, paths)
+            subprocess.run(["git", "init", "-q", str(isolated)], check=True)
+            command = ["git", "-C", str(isolated), "apply", "--recount"]
+            applied = stack.verify_stack(isolated, base, optional, quiet=True)
+            for patch in reversed(optional[:applied]):
+                subprocess.run(command + ["--reverse", str(patch)], check=True, capture_output=True)
+            for count in range(len(optional) + 1):
+                with self.subTest(applied=count):
+                    self.assertEqual(stack.verify_stack(isolated, base, optional, quiet=True), count)
+                if count < len(optional):
+                    subprocess.run(command + [str(optional[count])], check=True, capture_output=True)
+            spec = isolated / "dlls/ntdll/ntdll.spec"
+            text = spec.read_text()
+            for name in ("NtWineAllocateJitMemory", "NtWineFreeJitMemory"):
+                self.assertIn(f"@ stdcall -private -syscall -arch=win64 {name}(ptr ptr ptr)", text)
+            self.assertIn("NtWineDetachJitDebugger()", text)
+            # A partial/incorrect ABI overlay must still fail, not be mistaken
+            # for an unapplied stack or accepted by weakening the verifier.
+            spec.write_text(text.replace("NtWineAllocateJitMemory(ptr ptr ptr)",
+                                         "NtWineAllocateJitMemory(ptr int64)"))
+            with self.assertRaises(subprocess.CalledProcessError):
+                stack.verify_stack(isolated, base, optional, quiet=True)
+        after = {path: (source / path).read_bytes() for path in paths if (source / path).is_file()}
+        self.assertEqual(before, after)
+
+
 if __name__ == "__main__":
     unittest.main()

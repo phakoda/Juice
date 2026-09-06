@@ -32,6 +32,7 @@ WINE_DEFAULT_DEBUG_CHANNEL(vulkan);
     id<CAMetalDrawable> last_drawable;
 }
 -(id<CAMetalDrawable>)copyLastDrawable;
+-(void)clearLastDrawable;
 @end
 
 @implementation JuiceIOSMetalLayer
@@ -48,6 +49,14 @@ WINE_DEFAULT_DEBUG_CHANNEL(vulkan);
 -(id<CAMetalDrawable>)copyLastDrawable
 {
     @synchronized(self) { return [last_drawable retain]; }
+}
+-(void)clearLastDrawable
+{
+    @synchronized(self)
+    {
+        [last_drawable release];
+        last_drawable = nil;
+    }
 }
 -(void)dealloc
 {
@@ -66,7 +75,18 @@ struct iosdrv_client_surface
     NSUInteger readback_size;
     NSUInteger readback_stride;
     unsigned int present_count;
+    BOOL detached;
 };
+
+static pthread_mutex_t readback_budget_lock = PTHREAD_MUTEX_INITIALIZER;
+static size_t readback_budget_used;
+static void iosdrv_release_readback_budget(size_t bytes)
+{
+    pthread_mutex_lock(&readback_budget_lock);
+    assert(bytes <= readback_budget_used);
+    readback_budget_used -= bytes;
+    pthread_mutex_unlock(&readback_budget_lock);
+}
 
 static const struct client_surface_funcs iosdrv_client_surface_funcs;
 static const struct vulkan_driver_funcs iosdrv_vulkan_driver_funcs;
@@ -80,7 +100,11 @@ static struct iosdrv_client_surface *impl_from_client_surface(struct client_surf
 static void iosdrv_client_surface_destroy(struct client_surface *client)
 {
     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
+    /* The final client reference owns teardown. Break the drawable/layer
+     * retention chain explicitly; dealloc alone cannot break a retain cycle. */
+    [surface->layer clearLastDrawable];
     [surface->readback release];
+    iosdrv_release_readback_budget(surface->readback_size);
     [surface->queue release];
     [surface->layer release];
     [surface->device release];
@@ -89,7 +113,12 @@ static void iosdrv_client_surface_destroy(struct client_surface *client)
 static void iosdrv_client_surface_detach(struct client_surface *client)
 {
     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
-    surface->layer.hidden = YES;
+    @synchronized(surface->queue)
+    {
+        surface->detached = TRUE;
+        surface->layer.hidden = YES;
+        [surface->layer clearLastDrawable];
+    }
 }
 
 static void iosdrv_client_surface_update(struct client_surface *client)
@@ -106,12 +135,15 @@ static void iosdrv_client_surface_update(struct client_surface *client)
         return;
     }
     size = CGSizeMake(width, height);
-    if (!CGSizeEqualToSize(surface->layer.drawableSize, size))
+    @synchronized(surface->queue)
     {
-        surface->layer.bounds = CGRectMake(0, 0, width, height);
-        surface->layer.drawableSize = size;
-        TRACE("resized %s Metal surface to %lux%lu\n", debugstr_client_surface(client),
-              (unsigned long)width, (unsigned long)height);
+        if (!surface->detached && !CGSizeEqualToSize(surface->layer.drawableSize, size))
+        {
+            surface->layer.bounds = CGRectMake(0, 0, width, height);
+            surface->layer.drawableSize = size;
+            TRACE("resized %s Metal surface to %lux%lu\n", debugstr_client_surface(client),
+                  (unsigned long)width, (unsigned long)height);
+        }
     }
 }
 
@@ -134,10 +166,19 @@ static BOOL iosdrv_prepare_readback(struct iosdrv_client_surface *surface, NSUIn
     if (!juice_readback_layout(width, height, 256, &layout)) return FALSE;
     if (surface->readback && surface->readback_size >= layout.bytes && surface->readback_stride == layout.stride) return TRUE;
 
-    /* Allocation failure must not destroy a reusable previous buffer. */
+    /* Reserve across all surfaces, including the old buffer while replacing. */
+    pthread_mutex_lock(&readback_budget_lock);
+    BOOL reserved = juice_readback_budget_reserve(&readback_budget_used, layout.bytes);
+    pthread_mutex_unlock(&readback_budget_lock);
+    if (!reserved) return FALSE;
     replacement = [surface->device newBufferWithLength:layout.bytes options:MTLResourceStorageModeShared];
-    if (!replacement) return FALSE;
+    if (!replacement)
+    {
+        iosdrv_release_readback_budget(layout.bytes);
+        return FALSE; /* Keep a reusable previous buffer on allocation failure. */
+    }
     [surface->readback release];
+    iosdrv_release_readback_budget(surface->readback_size);
     surface->readback = replacement;
     surface->readback_size = layout.bytes;
     surface->readback_stride = layout.stride;
@@ -147,7 +188,7 @@ static BOOL iosdrv_prepare_readback(struct iosdrv_client_surface *surface, NSUIn
 static void iosdrv_present_readback(struct client_surface *client)
 {
     struct iosdrv_client_surface *surface = impl_from_client_surface(client);
-    id<CAMetalDrawable> drawable = [surface->layer copyLastDrawable];
+    id<CAMetalDrawable> drawable = surface->detached ? nil : [surface->layer copyLastDrawable];
     id<MTLTexture> texture = drawable.texture;
     id<MTLCommandBuffer> command;
     id<MTLBlitCommandEncoder> blit;
@@ -282,7 +323,7 @@ static VkBool32 iosdrv_get_physical_device_presentation_support(struct vulkan_ph
     capacity = count;
     if (!(families = calloc(capacity, sizeof(*families)))) return VK_FALSE;
     device->instance->p_vkGetPhysicalDeviceQueueFamilyProperties(device->host.physical_device, &count, families);
-    supported = queue < count && queue < capacity && families[queue].queueCount != 0;
+    supported = count <= capacity && queue < count && families[queue].queueCount != 0;
     free(families);
     return supported;
 }

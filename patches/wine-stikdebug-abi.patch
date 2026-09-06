@@ -1,13 +1,14 @@
 diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
 --- a/dlls/ntdll/ntdll.spec
 +++ b/dlls/ntdll/ntdll.spec
-@@ -472,7 +472,7 @@
- # Wine extensions: iOS dual-mapped JIT allocator (StikDebug-compatible).
--@ stdcall -syscall NtWineAllocateJitMemory(ptr int64)
--@ stdcall -syscall NtWineFreeJitMemory(ptr int64)
-+@ stdcall -syscall NtWineAllocateJitMemory(ptr ptr)
-+@ stdcall -syscall NtWineFreeJitMemory(ptr ptr)
- 
- @ stdcall PfxFindPrefix(ptr str ptr)
- @ stdcall PfxInitialize(ptr)
- @ stdcall PfxInsertPrefix(ptr str ptr)
+@@ -473,8 +473,8 @@
+ @ stdcall -syscall=0x0046 NtYieldExecution()
+ @ stdcall -private -syscall NtWineGetCurrentTebAccessor(ptr)
+-@ stdcall -private -syscall -arch=win64 NtWineAllocateJitMemory(ptr ptr int64)
+-@ stdcall -private -syscall -arch=win64 NtWineFreeJitMemory(ptr ptr int64)
++@ stdcall -private -syscall -arch=win64 NtWineAllocateJitMemory(ptr ptr ptr)
++@ stdcall -private -syscall -arch=win64 NtWineFreeJitMemory(ptr ptr ptr)
+ @ stdcall -private -syscall -arch=win64 NtWineDetachJitDebugger()
+ @ stdcall NtWineRestoreCurrentTeb()
+ @ stdcall NtdllDefWindowProc_A(long long long long)
+ @ stdcall NtdllDefWindowProc_W(long long long long)

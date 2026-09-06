@@ -10,6 +10,17 @@
 #define JUICE_GRAPHICS_MAX_DIMENSION 8192u
 #define JUICE_GRAPHICS_MAX_PIXELS (4096u * 4096u)
 #define JUICE_GRAPHICS_MAX_BYTES (128u * 1024u * 1024u)
+#define JUICE_GRAPHICS_TOTAL_BYTES (256u * 1024u * 1024u)
+
+/* Caller holds the process budget lock. Count both old and replacement
+ * buffers until allocation succeeds, and leave the accounting intact on failure. */
+static inline bool juice_readback_budget_reserve(size_t *used, size_t bytes)
+{
+    if (!used || !bytes || bytes > JUICE_GRAPHICS_MAX_BYTES ||
+        *used > JUICE_GRAPHICS_TOTAL_BYTES || bytes > JUICE_GRAPHICS_TOTAL_BYTES - *used) return false;
+    *used += bytes;
+    return true;
+}
 
 enum juice_readback_format {
     JUICE_READBACK_UNSUPPORTED,
