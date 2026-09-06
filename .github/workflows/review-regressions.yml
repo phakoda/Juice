@@ -1,16 +1,15 @@
 name: Apply reviewed runtime fixes
 
 on:
-  pull_request:
+  push:
+    branches: [chatgpt/review-validation-2026-09-06]
 
 permissions:
   contents: read
 
 jobs:
   apply-reviewed-patch:
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'chatgpt/review-validation-2026-09-06'
+    if: github.repository == 'phakoda/Juice' && github.ref_name == 'chatgpt/review-validation-2026-09-06'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -18,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - name: Verify and apply the locally tested integration
         shell: bash
