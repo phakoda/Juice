@@ -2,6 +2,8 @@
 #import <math.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import "JuiceMetalCompositor.h"
+#import "JuicePresentationPolicy.h"
 
 #define JUICE_POINTER_MAGIC 0x4a554943u
 #define JUICE_POINTER_INPUT 100u
@@ -28,14 +30,10 @@ static id JuicePointerValue(id object,NSString *key){@try{return [object valueFo
 static void JuicePointerAppend(id self,NSString *line){SEL s=NSSelectorFromString(@"append:");if([self respondsToSelector:s])((void(*)(id,SEL,id))objc_msgSend)(self,s,line);}
 static CGPoint JuicePointerWinePoint(UIImageView *canvas,CGPoint point)
 {
-    CGSize image=canvas.image.size;
-    if(image.width<=0||image.height<=0||canvas.bounds.size.width<=0||canvas.bounds.size.height<=0)return point;
-    CGFloat scale=MIN(canvas.bounds.size.width/image.width,canvas.bounds.size.height/image.height);
-    if(scale<=0||!isfinite(scale))return point;
-    CGFloat ox=(canvas.bounds.size.width-image.width*scale)/2.0;
-    CGFloat oy=(canvas.bounds.size.height-image.height*scale)/2.0;
-    CGFloat x=(point.x-ox)/scale,y=(point.y-oy)/scale;
-    return CGPointMake(MAX(0,MIN(image.width-1,x)),MAX(0,MIN(image.height-1,y)));
+    CGSize image=JuiceCanvasContentSize(canvas); double x,y;
+    if (!JuiceAspectFitPoint(canvas.bounds.size.width, canvas.bounds.size.height,
+                             image.width, image.height, point.x, point.y, &x, &y)) return point;
+    return CGPointMake(x,y);
 }
 static void JuicePointerDispatch(id self,UIImageView *canvas,CGPoint point,uint32_t flags,int32_t horizontal,int32_t vertical)
 {

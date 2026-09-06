@@ -1,0 +1,40 @@
+name: Runtime feature bring-up
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: runtime-feature-bringup-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  portable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive exact app and harness sources for reproduction
+        run: |
+          mkdir -p build/validation
+          git archive --format=tar.gz --output=build/validation/runtime-source.tar.gz HEAD app config docs launcher scripts tests toolchain Makefile .github
+          git rev-parse HEAD > build/validation/source-commit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-validation-source
+          path: build/validation/
+          retention-days: 7
+      - run: bash scripts/test-runtime-features-host.sh
+      - run: bash scripts/test-compatibility-bringup-host.sh
+  iphoneos:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: bash scripts/test-runtime-features-host.sh
+      - run: bash scripts/test-compatibility-bringup-host.sh
+      - run: make app
+      - run: make launchers

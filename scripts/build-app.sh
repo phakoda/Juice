@@ -45,6 +45,8 @@ mkdir -p "$OUT"
   "$ROOT/app/JuiceApiSetBootstrap.m" "$ROOT/app/JuiceLegacyWin32.m" \
   "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
   "$ROOT/app/JuiceFramebufferFix.m" "$ROOT/app/JuiceBootProgress.m" \
+  "$ROOT/app/JuiceMetalCore.m" "$ROOT/app/JuiceMetalCompositor.m" "$ROOT/app/JuicePresentationPolicy.c" \
+  "$ROOT/app/JuiceDesktopControls.m" "$ROOT/app/JuiceKeyChord.c" \
   "$ROOT/app/JuiceBootOverlayVisibility.m" "$ROOT/app/JuiceSmokePath.m" \
   "$ROOT/app/JuiceSocketHardening.m" "$ROOT/app/JuiceHostIOHardening.m" \
   "$ROOT/app/JuiceDisplayTransportHardening.m" "$ROOT/app/JuiceReconnectGrace.m" \
