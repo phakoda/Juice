@@ -7,14 +7,25 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Verify source tree and Wine patch
         run: make verify
-      - name: Run runtime I/O regressions with sanitizers
+      - name: Test isolated patch-stack verification
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Test socket I/O and Unicode boundaries with sanitizers
+        run: bash scripts/test-host-transport.sh
+      - name: Test shared socket and CLI writers
         run: bash scripts/test-runtime-io-host.sh
       - name: Verify mainline runtime hardening
         run: bash scripts/verify-mainline-hardening.sh
@@ -39,13 +50,10 @@ jobs:
           }
           grep -Fq 'PROCESS_GROUP_REAP_DEFERRED' app/JuiceLaunchHardening.m
           grep -Fq 'pid_reuse_fence=1' app/JuiceLaunchHardening.m
-          grep -Fq 'staleGeneration=[JuiceLaunchValue(self,@"launchGeneration") unsignedLongLongValue]!=generation;' app/JuiceLaunchHardening.m
-          stale_line="$(grep -nF 'if(staleGeneration)' app/JuiceLaunchHardening.m | cut -d: -f1)"
-          wait_line="$(grep -nF 'do{waited=waitpid(child,&status,0);}' app/JuiceLaunchHardening.m | cut -d: -f1)"
-          test -n "$stale_line" -a -n "$wait_line" -a "$stale_line" -lt "$wait_line" || {
-            echo 'Stale launch generations must defer reaping before blocking waitpid.' >&2
-            exit 3
-          }
+          grep -Fq 'JuicePollCurrentChild(dispatch_get_main_queue(),child' app/JuiceLaunchHardening.m
+          grep -Fq 'waitpid(child,&status,WNOHANG)' app/JuiceChildReaper.h
+          grep -Fq 'dispatch_assert_queue(ownerQueue)' app/JuiceChildReaper.h
+          grep -Fq 'waitpid(leader,NULL,0)' app/main.m
           grep -Fq 'Windows backslashes are always literal' app/JuiceLaunchHardening.m
           grep -Fq '[line characterAtIndex:i+1]==quote' app/JuiceLaunchHardening.m
           if grep -Fq 'unichar next=' app/JuiceLaunchHardening.m; then
@@ -64,13 +72,18 @@ jobs:
 
   app-build:
     runs-on: macos-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Compile Juice for iPhoneOS
         run: make app
       - name: Compile launcher helpers for iPhoneOS
         run: make launchers
-      - name: Run ordered writer and runtime I/O regressions
-        run: bash scripts/test-runtime-io-host.sh
       - name: Run ZIP extractor regressions
         run: bash scripts/test-zip-extractor-host.sh
+      - name: Test shared socket and CLI writers
+        run: bash scripts/test-runtime-io-host.sh
+      - name: Test production host transport, framebuffers and logs with sanitizers
+        run: bash scripts/test-host-transport.sh
