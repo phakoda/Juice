@@ -1,5 +1,6 @@
 #import <UIKit/UIKit.h>
 #import "JuiceChildReaper.h"
+#import "JuiceStikDebugJIT.h"
 #import <errno.h>
 #import <fcntl.h>
 #import <objc/message.h>
@@ -98,7 +99,8 @@ static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generatio
             ssize_t n=read(readFD,buffer,sizeof(buffer));if(n<0&&errno==EINTR)continue;if(n<=0)break;
             [pending appendBytes:buffer length:(NSUInteger)n];const uint8_t *bytes=pending.bytes;NSUInteger start=0;
             for(NSUInteger i=0;i<pending.length;i++)if(bytes[i]=='\n')
-            {JuiceLaunchAppend(self,JuiceDecodeOutput([NSData dataWithBytes:bytes+start length:i+1-start]));start=i+1;}
+            {NSString *line=JuiceDecodeOutput([NSData dataWithBytes:bytes+start length:i+1-start]);
+             JuiceJITObserveOutput(self,child,generation,line);JuiceLaunchAppend(self,line);start=i+1;}
             if(start)[pending replaceBytesInRange:NSMakeRange(0,start) withBytes:NULL length:0];
             if(pending.length>=64*1024){JuiceLaunchAppend(self,JuiceDecodeOutput(pending));[pending setLength:0];}
         }
@@ -117,6 +119,7 @@ static void JuiceConsumeOutput(id self,int readFD,pid_t child,uint64_t generatio
                 child,(unsigned long long)generation]);
             return current;
         },^(pid_t waited,int status,int waitError){
+            JuiceJITWillReap(self,child,generation);
             if([JuiceLaunchValue(self,@"child") intValue]==child)JuiceLaunchSetValue(self,@"child",@(-1));
             if([JuiceLaunchValue(self,@"childInput") intValue]==inputFD&&inputFD>=0){close(inputFD);JuiceLaunchSetValue(self,@"childInput",@(-1));}
             NSString *result=waited==child&&WIFEXITED(status)?[NSString stringWithFormat:@"exit=%d",WEXITSTATUS(status)]:
@@ -186,7 +189,7 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     if(!actionError&&outputPipe[1]!=1&&outputPipe[1]!=2)actionError=posix_spawn_file_actions_addclose(&actions,outputPipe[1]);
     posix_spawnattr_t attributes;int attributeError=JuiceSpawnAttributes(&attributes);BOOL attributesReady=attributeError==0;pid_t child=-1;
     int result=actionError?actionError:(attributeError?attributeError:
-               posix_spawn(&child,tracer.fileSystemRepresentation,&actions,&attributes,argv,env));
+               JuiceSpawnForLaunch(self,&child,tracer.fileSystemRepresentation,&actions,&attributes,argv,env));
     if(actionsReady)posix_spawn_file_actions_destroy(&actions);if(attributesReady)posix_spawnattr_destroy(&attributes);
     close(inputPipe[0]);close(outputPipe[1]);JuiceFreeStrings(argv);JuiceFreeStrings(env);
     if(result)
@@ -200,6 +203,7 @@ static void JuiceHardenedLaunch(id self,SEL _cmd)
     UISegmentedControl *mode=JuiceLaunchValue(self,@"mode");UIView *canvas=JuiceLaunchValue(self,@"canvas");BOOL cli=mode.selectedSegmentIndex==1;canvas.hidden=cli;
     JuiceLaunchAppend(self,[NSString stringWithFormat:@"\n%@ launch %@: 0 pid=%d pgid=%d generation=%llu argc=%lu cwd=%@ cwd_transport=trace-parent hardened=1\n",cli?@"CLI":@"GUI",exe,child,child,(unsigned long long)generation,(unsigned long)arguments.count,cwd]);
     JuiceConsumeOutput(self,outputPipe[0],child,generation,inputPipe[1]);
+    JuiceJITAdoptLaunch(self,child,generation);
 }
 
 __attribute__((constructor(450)))

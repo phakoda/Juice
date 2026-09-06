@@ -21,6 +21,10 @@ jobs:
           persist-credentials: false
       - name: Verify source tree and Wine patch
         run: make verify
+      - name: Verify StikDebug integration and patch layers
+        run: bash scripts/verify-stikdebug-jit.sh
+      - name: Test launch-owned JIT state and actual helper exec
+        run: bash scripts/test-jit-host.sh
       - name: Test isolated patch-stack verification
         run: python3 -m unittest discover -s scripts/tests -p 'test_*.py' -v
       - name: Test socket I/O and Unicode boundaries with sanitizers
@@ -81,6 +85,8 @@ jobs:
         run: make app
       - name: Compile launcher helpers for iPhoneOS
         run: make launchers
+      - name: Test launch-owned JIT state and actual helper exec
+        run: bash scripts/test-jit-host.sh
       - name: Run ZIP extractor regressions
         run: bash scripts/test-zip-extractor-host.sh
       - name: Test shared socket and CLI writers

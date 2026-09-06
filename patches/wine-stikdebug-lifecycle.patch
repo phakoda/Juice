@@ -1,0 +1,48 @@
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+index 93771c1..371364c 100644
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -2,8 +2,7 @@ __attribute__((naked, noinline, optnone))
+ static void juice_break_jit_detach(void)
+ {
+     __asm__ volatile(
+-        "mov x16, #0\n"
+-        "brk #0xf00d\n"
++        "brk #0x3caf\n"
+         "ret\n");
+ }
+ 
+@@ -19,6 +18,10 @@ static BOOL juice_stikdebug_txm_enabled(void)
+     return value && value[0] == '1' && !value[1];
+ }
+ 
++/* Once FEX has initialized its preallocated dual-map arena, no caller may
++ * create another executable view through the breakpoint protocol. */
++static BOOL juice_jit_allocation_sealed;
++
+ static BOOL juice_invalid_breakpoint_mapping( const void *address )
+ {
+     const UINT_PTR value = (UINT_PTR)address;
+@@ -34,6 +37,11 @@ NTSTATUS WINAPI NtWineAllocateJitMemory( void **write_address, void **exec_addre
+     NTSTATUS status;
+ 
+     if (!write_address || !exec_address || !size || !juice_stikdebug_enabled()) return STATUS_INVALID_PARAMETER;
++    if (juice_jit_allocation_sealed)
++    {
++        WARN( "refusing StikDebug executable allocation after JIT detach (size=%lx)\n", (unsigned long)size );
++        return STATUS_ACCESS_DENIED;
++    }
+     *write_address = NULL;
+     *exec_address = NULL;
+     size = ROUND_SIZE( 0, size, host_page_mask );
+@@ -48,7 +56,10 @@ NTSTATUS WINAPI NtWineDetachJitDebugger(void)
+ {
+ #if defined(__APPLE__) && defined(__aarch64__)
+     if (!juice_stikdebug_enabled()) return STATUS_INVALID_PARAMETER;
++    if (juice_jit_allocation_sealed) return STATUS_SUCCESS;
+     if (juice_stikdebug_txm_enabled()) juice_break_jit_detach();
++    juice_jit_allocation_sealed = TRUE;
++    TRACE( "StikDebug JIT allocation sealed after debugger detach\n" );
+     return STATUS_SUCCESS;
+ #else
+     return STATUS_NOT_SUPPORTED;

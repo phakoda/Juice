@@ -225,6 +225,20 @@ int main(int argc, char **argv)
         argv[1]
     );
 
+    /* The external debugger attaches to this owned PID. Do not create a
+     * second process and accidentally debug only the trace helper. execve
+     * retains PID, process group, pipes and the debugger's process identity.
+     * The ordinary ptrace-parent path below remains unchanged by default. */
+    const char *external = getenv("JUICE_EXTERNAL_DEBUG_EXEC");
+    const char *jit = getenv("JUICE_STIKDEBUG_JIT");
+    if (external && !strcmp(external, "1") && jit && !strcmp(jit, "1"))
+    {
+        fprintf(stderr, "JUICE_EXTERNAL_DEBUG_EXEC pid=%d\n", getpid());
+        execve(argv[1], &argv[1], environ);
+        fprintf(stderr, "[JuiceWine parent] external-debug exec failed: %s\n", strerror(errno));
+        return 71;
+    }
+
     spawn_result = posix_spawn(
         &child,
         argv[1],

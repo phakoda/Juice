@@ -1,0 +1,42 @@
+name: FEX runtime build
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/stikdebug-jit]
+    paths:
+      - '.github/workflows/fex-runtime-build.yml'
+      - 'patches/fex-*.patch'
+      - 'scripts/*fex*'
+permissions:
+  contents: read
+concurrency:
+  group: fex-runtime-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [arm64ec, wow64]
+    env:
+      JUICE_JOBS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile the pinned translator with every Juice patch
+        run: bash scripts/build-fex-${{ matrix.target }}-linux.sh
+      - name: Preserve compiler logs and checksummed translator output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fex-${{ matrix.target }}-${{ github.sha }}
+          path: |
+            build/logs/
+            build/fex-${{ matrix.target }}/Bin/lib*fex.dll
+            build/fex-${{ matrix.target }}/*.sha256
+            build/fex-${{ matrix.target }}/CMakeFiles/CMakeConfigureLog.yaml
+          retention-days: 7
+          if-no-files-found: warn

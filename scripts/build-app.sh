@@ -40,7 +40,8 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 
 "$CC" "${target_flags[@]}" -fobjc-arc -fblocks -O2 \
-  "$ROOT/app/main.m" "$ROOT/app/JuiceZip.m" "$ROOT/app/JuicePrefixRepair.m" \
+  "$ROOT/app/main.m" "$ROOT/app/JuiceStikDebugJIT.m" \
+  "$ROOT/app/JuiceZip.m" "$ROOT/app/JuicePrefixRepair.m" \
   "$ROOT/app/JuiceApiSetBootstrap.m" "$ROOT/app/JuiceLegacyWin32.m" \
   "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
   "$ROOT/app/JuiceFramebufferFix.m" "$ROOT/app/JuiceBootProgress.m" \

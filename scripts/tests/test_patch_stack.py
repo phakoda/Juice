@@ -41,6 +41,31 @@ class PatchStackTests(unittest.TestCase):
             self.assertEqual(self.snapshot(), before)
         self.assertFalse((self.source / ".git").exists())
 
+    def test_optional_layer_absent_and_present(self):
+        before = self.snapshot()
+        self.assertEqual(stack.verify_stack(self.source, [self.base], [self.overlay]), 1)
+        self.assertEqual(self.snapshot(), before)
+        self.lines[10] = "line 10\n"
+        (self.source / "driver.c").write_text("".join(self.lines))
+        before = self.snapshot()
+        self.assertEqual(stack.verify_stack(self.source, [self.base], [self.overlay]), 0)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_optional_drift_is_not_mistaken_for_absent(self):
+        self.lines[10] = "broken optional implementation\n"
+        (self.source / "driver.c").write_text("".join(self.lines))
+        before = self.snapshot()
+        with self.assertRaises(subprocess.CalledProcessError):
+            stack.verify_stack(self.source, [self.base], [self.overlay])
+        self.assertEqual(self.snapshot(), before)
+
+    def test_optional_stack_is_replayed_even_when_absent(self):
+        self.lines[10] = "line 10\n"
+        (self.source / "driver.c").write_text("".join(self.lines))
+        self.overlay.write_text(self.overlay.read_text().replace("-line 10", "-unknown base"))
+        with self.assertRaises(subprocess.CalledProcessError):
+            stack.verify_stack(self.source, [self.base], [self.overlay])
+
     def test_unrecorded_drift_outside_overlay_is_rejected(self):
         self.lines[0] = "unrecorded source drift\n"
         (self.source / "driver.c").write_text("".join(self.lines))

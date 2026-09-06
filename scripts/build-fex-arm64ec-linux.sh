@@ -24,10 +24,12 @@ esac
 export PATH="$TOOLCHAIN/bin:/usr/local/bin:/usr/bin:/bin"
 mkdir -p "$LOGDIR"
 
-# CMake configure is stable for a pinned FEX source/toolchain pair. Reuse an
-# existing cache on normal retries so a compile failure does not make the user
-# pay the configure cost again. JUICE_FEX_RECONFIGURE=1 explicitly refreshes it.
-if test -f "$BUILD/CMakeCache.txt" && test "${JUICE_FEX_RECONFIGURE:-0}" != 1; then
+# Never infer target CPU features from the Linux build machine. The ARM64
+# compiler baseline is portable; FEX still detects guest/host features at run
+# time. Migrate caches created with the previously ineffective BUILD_TESTS flag.
+if test -f "$BUILD/CMakeCache.txt" && test "${JUICE_FEX_RECONFIGURE:-0}" != 1 &&
+   grep -qx 'BUILD_TESTING:BOOL=OFF' "$BUILD/CMakeCache.txt" &&
+   grep -qx 'TUNE_CPU:STRING=none' "$BUILD/CMakeCache.txt"; then
   echo "JUICE_FEX_CONFIGURE_REUSE path=$BUILD"
 else
   echo "JUICE_FEX_CONFIGURE_BUILD path=$BUILD"
@@ -36,9 +38,9 @@ else
     -DCMAKE_TOOLCHAIN_FILE="$SOURCE/Data/CMake/toolchain_mingw.cmake" \
     -DENABLE_LTO=False \
     -DMINGW_TRIPLE=arm64ec-w64-mingw32 \
-    -DBUILD_TESTS=False \
+    -DBUILD_TESTING:BOOL=OFF -DTUNE_CPU:STRING=none \
     -DCMAKE_C_FLAGS=-DFEX_JUICE_IOS=1 \
-    -DCMAKE_CXX_FLAGS=-DFEX_JUICE_IOS=1
+    -DCMAKE_CXX_FLAGS=-DFEX_JUICE_IOS=1 2>&1 | tee "$LOGDIR/fex-arm64ec-configure.log"
 fi
 
 "$TOOLCHAIN/bin/arm64ec-w64-mingw32-dlltool" \
@@ -46,17 +48,11 @@ fi
   -k \
   -l "$BUILD/Source/Windows/libntdll_ex.a"
 
-# FEX is normally fastest as a parallel build. On POSIXovl/exFAT, however,
-# generated-file visibility can occasionally race under a wide parallel build.
-# Retry the same incremental target serially before giving up. This preserves
-# every object that already compiled and also gives a clean first diagnostic
-# when the failure is a genuine source/toolchain problem.
 echo "JUICE_FEX_BUILD_STAGE target=arm64ecfex jobs=$JOBS log=$LOG"
 set +e
 cmake --build "$BUILD" --target arm64ecfex --parallel "$JOBS" 2>&1 | tee "$LOG"
 status=${PIPESTATUS[0]}
 set -e
-
 if test "$status" -ne 0; then
   echo "JUICE_FEX_PARALLEL_RETRY status=$status log=$RETRY_LOG"
   set +e
@@ -65,22 +61,15 @@ if test "$status" -ne 0; then
   set -e
   if test "$status" -ne 0; then
     echo "JUICE_FEX_BUILD_FAILED status=$status log=$RETRY_LOG" >&2
-    echo "---- first compiler/linker diagnostics ----" >&2
     grep -Ein -m 40 'fatal error:|error:|undefined reference|unresolved external|ld\.lld:|lld-link:|clang[^:]*: error|gmake(\[[0-9]+\])?: \*\*\*' "$RETRY_LOG" >&2 || true
-    echo "---- final FEX build context ----" >&2
     tail -n 120 "$RETRY_LOG" >&2 || true
     exit "$status"
   fi
   echo "JUICE_FEX_SERIAL_RECOVERY_OK target=arm64ecfex"
 fi
-
 DLL="$BUILD/Bin/libarm64ecfex.dll"
 test -s "$DLL" || { echo "FEX translator output is missing: $DLL" >&2; exit 3; }
-format="$("$TOOLCHAIN/bin/llvm-readobj" --file-headers "$DLL" |
-  sed -n 's/^Format: //p')"
-test "$format" = COFF-ARM64EC || {
-  echo "Unexpected FEX translator format: $format" >&2
-  exit 3
-}
+format="$("$TOOLCHAIN/bin/llvm-readobj" --file-headers "$DLL" | sed -n 's/^Format: //p')"
+test "$format" = COFF-ARM64EC || { echo "Unexpected FEX translator format: $format" >&2; exit 3; }
 sha256sum "$DLL" > "$BUILD/libarm64ecfex.dll.sha256"
 echo "JUICE_FEX_BUILD_OK path=$DLL format=$format"
