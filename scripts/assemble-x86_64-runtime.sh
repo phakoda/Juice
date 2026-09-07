@@ -115,6 +115,26 @@ for target in "${targets[@]}"; do
       ;;
     *)
       valid_formats=" COFF-ARM64X "
+      if test "$format" = COFF-ARM64; then
+        relative="${staged#$GRAPE/}"
+        if python3 - "$ROOT/scripts/verify_graphics_api.py" "$GRAPE" "$relative" <<'PY'
+import importlib.util
+from pathlib import Path
+import sys
+
+spec = importlib.util.spec_from_file_location("juice_graphics_audit", sys.argv[1])
+audit = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(audit)
+entry = audit.inspect_build(Path(sys.argv[2]), [sys.argv[3]], "arm64ec")[0]
+evidence = entry.get("architecture_evidence", {})
+if entry.get("machine") != 0xAA64 or evidence.get("kind") != "forwarder-only":
+    raise SystemExit(2)
+print(f"JUICE_X64_FORWARDER_ONLY target={sys.argv[3]} forwarded_exports={evidence['forwarded_exports']}")
+PY
+        then
+          valid_formats=" COFF-ARM64 COFF-ARM64X "
+        fi
+      fi
       ;;
   esac
   [[ "$valid_formats" == *" $format "* ]] || {

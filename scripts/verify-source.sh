@@ -103,6 +103,8 @@ grep -q 'JUICE_IOS_LIBRARIES_BUNDLED' "$ROOT/scripts/bundle-ios-libraries.sh"
 grep -q 'JUICE_WOW64_PAGEZERO_PATCHED' "$ROOT/scripts/patch-ios-wow64-pagezero.py"
 grep -q 'JUICE_ARM64EC_ASSUME_NEW_INPUTS' \
   "$ROOT/scripts/build-wine-arm64ec-linux.sh"
+grep -q 'verify_graphics_api.py' \
+  "$ROOT/scripts/assemble-x86_64-runtime.sh"
 grep -q 'NtWineRestoreCurrentTeb' "$ROOT/wine/dlls/ntdll/ntdll.spec"
 grep -q 'NtWineGetCurrentTebAccessor' "$ROOT/wine/dlls/ntdll/thread.c"
 grep -q 'mov x18, %0' "$ROOT/wine/dlls/ntdll/thread.c"
