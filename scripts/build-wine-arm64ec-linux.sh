@@ -178,6 +178,7 @@ for target in "${hybrid_targets[@]}"; do
   case "$target" in
     dlls/apisetschema/aarch64-windows/apisetschema.dll|\
     dlls/normaliz/aarch64-windows/normaliz.dll|\
+    dlls/usp10/aarch64-windows/usp10.dll|\
     dlls/wow64/aarch64-windows/wow64.dll|\
     dlls/wow64win/aarch64-windows/wow64win.dll)
       valid_formats=" COFF-ARM64 COFF-ARM64X "
@@ -190,7 +191,35 @@ for target in "${hybrid_targets[@]}"; do
     echo "Unexpected hybrid format $format: $target" >&2
     bad=$((bad + 1))
   elif test "$format" = COFF-ARM64; then
-    echo "JUICE_ARM64EC_NATIVE_DATA_MODULE target=$target format=$format"
+    if test "$target" = dlls/usp10/aarch64-windows/usp10.dll; then
+      # Wine builds usp10 as a --data-only export-forwarder image.  It needs no
+      # ARM64EC code map, but accepting it by filename alone would hide a real
+      # architecture regression.  Reuse the bounded PE parser from the graphics
+      # audit to prove that this exact linked image has no executable code and
+      # that every non-empty export is a bounded forwarder string.
+      if ! "$PE_PYTHON" - "$ROOT/scripts/verify_graphics_api.py" "$BUILD" "$target" <<'PY'
+import importlib.util
+from pathlib import Path
+import sys
+
+script, build, target = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+spec = importlib.util.spec_from_file_location("juice_graphics_audit", script)
+audit = importlib.util.module_from_spec(spec)
+assert spec.loader is not None
+spec.loader.exec_module(audit)
+entry = audit.inspect_build(build, [target], "arm64ec")[0]
+evidence = entry.get("architecture_evidence", {})
+if evidence.get("kind") != "forwarder-only":
+    raise SystemExit(f"usp10 is not a code-free forwarder: {evidence}")
+print(f"JUICE_ARM64EC_FORWARDER_ONLY target={target} forwarded_exports={evidence['forwarded_exports']}")
+PY
+      then
+        echo "ARM64EC usp10 failed the code-free forwarder audit: $target" >&2
+        bad=$((bad + 1))
+      fi
+    else
+      echo "JUICE_ARM64EC_NATIVE_DATA_MODULE target=$target format=$format"
+    fi
   fi
 done
 test "$bad" -eq 0
