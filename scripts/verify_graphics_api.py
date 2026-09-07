@@ -118,9 +118,11 @@ def arm64ec_image_evidence(stream: BinaryIO, pe_offset: int, coff: bytes, file_s
 
     A641 identifies intermediate COFF objects, not final ARM64EC DLLs. Linked
     EC images use AMD64 plus a CHPEMetadataPointer in the PE32+ load configuration.
-    Wine's --data-only export forwarders contain no code and need no CHPE. They
-    are accepted only after verifying absent execution hooks and bounded pure
-    forwarder exports, never by filename. This is structural, not semantic proof.
+    Wine's --data-only export forwarders contain no code and need no CHPE; in a
+    multiarch tree Wine may link those inert images with either the AMD64 or the
+    native ARM64 machine value. They are accepted only after verifying absent
+    execution hooks and bounded pure forwarder exports, never by filename. This
+    is structural, not semantic proof.
     """
     def reject(message: str) -> NoReturn:
         raise AuditError(f"invalid ARM64EC image: {message}")
@@ -257,7 +259,13 @@ def inspect_build(build: Path, targets: list[str], arch: str) -> list[dict]:
                 raise AuditError(f"{target}: invalid PE header offset")
             stream.seek(offset)
             pe = stream.read(24)
-            if len(pe) != 24 or pe[:4] != b"PE\0\0" or struct.unpack_from("<H", pe, 4)[0] != expected:
+            if len(pe) != 24 or pe[:4] != b"PE\0\0":
+                raise AuditError(f"{target}: wrong PE signature or machine")
+            machine = struct.unpack_from("<H", pe, 4)[0]
+            if arch == "arm64ec":
+                if machine not in (0x8664, 0xAA64):
+                    raise AuditError(f"{target}: wrong PE signature or machine")
+            elif machine != expected:
                 raise AuditError(f"{target}: wrong PE signature or machine")
             if not struct.unpack_from("<H", pe, 22)[0] & 0x2000:
                 raise AuditError(f"{target}: expected a DLL image")
@@ -265,12 +273,14 @@ def inspect_build(build: Path, targets: list[str], arch: str) -> list[dict]:
                 evidence = arm64ec_image_evidence(stream, offset, pe, file_size) if arch == "arm64ec" else None
             except AuditError as error:
                 raise AuditError(f"{target}: {error}") from error
+            if arch == "arm64ec" and machine == 0xAA64 and evidence.get("kind") != "forwarder-only":
+                raise AuditError(f"{target}: native ARM64 is allowed only for a code-free forwarder")
             stream.seek(0)
             hasher = hashlib.sha256()
             for block in iter(lambda: stream.read(1024 * 1024), b""):
                 hasher.update(block)
             digest = hasher.hexdigest()
-        entry = {"path": target, "machine": expected, "architecture": arch, "sha256": digest, "bytes": file_size}
+        entry = {"path": target, "machine": machine, "architecture": arch, "sha256": digest, "bytes": file_size}
         if evidence is not None:
             entry["architecture_evidence"] = evidence
         result.append(entry)

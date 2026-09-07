@@ -212,6 +212,14 @@ class GraphicsAPITests(unittest.TestCase):
         self.assertEqual(report["machine"], 0x8664)
         self.assertEqual(report["architecture_evidence"], {"kind": "forwarder-only", "forwarded_exports": 2})
 
+    def test_native_arm64_code_free_forwarder_is_accepted(self):
+        data = self.forwarder_fixture()
+        struct.pack_into("<H", data, 132, 0xAA64)
+        report = self.inspect_ec(data)
+        self.assertEqual(report["machine"], 0xAA64)
+        self.assertEqual(report["architecture"], "arm64ec")
+        self.assertEqual(report["architecture_evidence"], {"kind": "forwarder-only", "forwarded_exports": 2})
+
     def test_forwarder_rejects_code_entry_points_and_execution_directories(self):
         changes = [(156, 4), (168, 0x1000), (172, 0x1000), (428, 0x60000040), (428, 0x40000020)]
         changes += [(264 + i * 8, 0x1000) for i in (1, 3, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15)]
