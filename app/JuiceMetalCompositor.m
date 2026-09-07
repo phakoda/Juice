@@ -120,9 +120,11 @@ void JuiceAttachPixelBacking(UIImage *image, NSData *data, int width, int height
     unsigned fps = JuicePresentationFPS(requested, maximum, (unsigned)process.thermalState,
                                          process.lowPowerModeEnabled, active);
     JuiceSetSnapshotFPS(fps);
-    if (@available(iOS 15.0, *)) {
+    SEL frameRateSelector = NSSelectorFromString(@"setPreferredFrameRateRange:");
+    if ([self.link respondsToSelector:frameRateSelector]) {
         float preferred = fps ?: 15;
-        self.link.preferredFrameRateRange = CAFrameRateRangeMake(MIN(30, preferred), preferred, preferred);
+        CAFrameRateRange range = CAFrameRateRangeMake(MIN(30, preferred), preferred, preferred);
+        ((void (*)(id, SEL, CAFrameRateRange))objc_msgSend)(self.link, frameRateSelector, range);
     } else self.link.preferredFramesPerSecond = fps ?: 15;
     self.link.paused = !fps || self.busy || !self.pending || self.view.hidden || !self.ready || self.failed;
 }

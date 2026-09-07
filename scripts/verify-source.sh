@@ -105,6 +105,10 @@ grep -q 'JUICE_ARM64EC_ASSUME_NEW_INPUTS' \
   "$ROOT/scripts/build-wine-arm64ec-linux.sh"
 grep -q 'verify_graphics_api.py' \
   "$ROOT/scripts/assemble-x86_64-runtime.sh"
+if grep -Fq '@available(iOS 15.0' "$ROOT/app/JuiceMetalCompositor.m"; then
+  echo 'Metal compositor must not require the Clang platform-version runtime helper on Linux iOS builds.' >&2
+  exit 3
+fi
 grep -q 'NtWineRestoreCurrentTeb' "$ROOT/wine/dlls/ntdll/ntdll.spec"
 grep -q 'NtWineGetCurrentTebAccessor' "$ROOT/wine/dlls/ntdll/thread.c"
 grep -q 'mov x18, %0' "$ROOT/wine/dlls/ntdll/thread.c"
