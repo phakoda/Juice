@@ -1,0 +1,112 @@
+name: SideStore embedded IPA
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/sidestore-embedded-runtime]
+permissions:
+  contents: read
+concurrency:
+  group: sidestore-ipa-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          lfs: false
+      - name: Source and patch replay
+        run: |
+          make verify
+          python3 -m unittest discover -s scripts/tests -p 'test_patch_stack.py' -v
+          python3 -m unittest discover -s scripts/tests -p 'test_graphics_api.py' -v
+      - name: Address ownership and integer-boundary tests
+        run: bash scripts/test-embedded-policy-host.sh
+  app:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Link the SideStore support framework and UIKit host with Xcode
+        run: |
+          bash scripts/build-embedded-support.sh
+          JUICE_SIDESTORE=1 JUICE_APP_BUILD_DIR="$PWD/build/sidestore/app/Juice.app" bash scripts/build-app.sh
+          python3 - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'scripts')
+          from sidestore_package import symbols, FORBIDDEN_IMPORTS
+          for path in [Path('build/sidestore/app/Juice.app/Juice'), Path('build/sidestore/frameworks/JuiceRuntimeSupport.framework/JuiceRuntimeSupport')]:
+              imports, exports = symbols(path.read_bytes())
+              assert not (imports & FORBIDDEN_IMPORTS), (path, imports & FORBIDDEN_IMPORTS)
+          print('SIDESTORE_HOST_LINK_AUDIT_OK child_process_imports=0')
+          PY
+  ipa:
+    needs: [policy, app]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      JUICE_JOBS: '2'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          lfs: false
+      - name: Reclaim runner disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h /
+      - name: Install cross-build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang lld cmake git python3 bison flex m4 \
+            curl file rsync zip unzip xz-utils tar pkg-config autoconf automake libtool \
+            libssl-dev libxml2-dev zlib1g-dev zstd
+      - name: Restore verified external build inputs
+        id: dependencies
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            build/ios-toolchain
+            build/cctools-port-source
+            build/deps
+            build/x86_64-cache
+          key: sidestore-inputs-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/bootstrap-ios-toolchain-linux.sh', 'config/*build.env', 'scripts/fetch-*-linux.sh') }}
+      - name: Build in-process Wine, FEX and standard IPA
+        run: bash scripts/build-sidestore-linux.sh
+      - name: Upload SideStore package and structural audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: Juice-SideStore-${{ github.sha }}
+          path: |
+            dist/Juice-SideStore-*.ipa
+            dist/Juice-SideStore-*.sha256
+            dist/Juice-SideStore-*.audit.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Preserve failed-build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: SideStore-build-logs-${{ github.sha }}
+          path: |
+            build/sidestore/logs/
+            build/sidestore/native/config.log
+            build/sidestore/native/configure.log
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve cross-toolchain inputs even after a compile failure
+        if: always() && steps.dependencies.outputs.cache-hit != 'true' && hashFiles('build/ios-toolchain/bin/ldid') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            build/ios-toolchain
+            build/cctools-port-source
+            build/deps
+            build/x86_64-cache
+          key: ${{ steps.dependencies.outputs.cache-primary-key }}

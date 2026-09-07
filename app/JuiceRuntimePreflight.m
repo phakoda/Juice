@@ -29,8 +29,27 @@ NSDictionary<NSString *, id> *JuiceRuntimePreflight(NSString *exe, NSString *run
         }
         close(fd);
     }
+#ifdef JUICE_SIDESTORE
+    NSArray<NSString *> *executables = @[];
+    if (pe.machine == 0x14c || win32)
+        [failures addObject:@"This SideStore backend supports 64-bit guests only. A 32-bit guest requires a low-address-space design that does not depend on a jailbreak helper."];
+    NSString *manifestPath = [runtime stringByAppendingPathComponent:@"Runtime.json"];
+    NSData *manifestData = [NSData dataWithContentsOfFile:manifestPath options:0 error:nil];
+    NSDictionary *manifest = manifestData.length <= 65536 ? [NSJSONSerialization JSONObjectWithData:manifestData ?: [NSData data] options:0 error:nil] : nil;
+    if (![manifest isKindOfClass:NSDictionary.class] || ![manifest[@"backend"] isEqual:@"embedded-sidestore"] || ![manifest[@"abi"] isEqual:@1])
+        [failures addObject:@"The selected data runtime is not an ABI-compatible SideStore embedded runtime."];
+    for (NSString *name in @[@"JuiceRuntimeSupport", @"JuiceNTDLL", @"JuiceWineServer", @"JuiceWin32U", @"JuiceWineIOS"]) {
+        NSString *relative = [NSString stringWithFormat:@"%@.framework/%@", name, name];
+        NSString *framework = [NSBundle.mainBundle.privateFrameworksPath stringByAppendingPathComponent:relative];
+        NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:framework error:nil];
+        if (![NSFileManager.defaultManager isReadableFileAtPath:framework] || ![attributes[NSFileSize] unsignedLongLongValue])
+            [failures addObject:[@"Missing embedded framework: " stringByAppendingString:relative]];
+    }
+    [warnings addObject:@"One Windows process is hosted inside Juice. Guest child processes and a second runtime session require a different backend or an app restart. Physical-device execution is not certified by preflight."];
+#else
     NSArray<NSString *> *executables = @[@"build/wine-ios/loader/wine", @"build/wine-ios/server/wineserver",
         @"tools/grape-trace-parent", @"tools/grape-nested-wrapper"];
+#endif
     NSMutableArray<NSString *> *modules = [NSMutableArray arrayWithObject:@"runtime/lib/wine/aarch64-windows/ntdll.dll"];
     if (x64) [modules addObject:@"runtime/lib/wine/aarch64-windows/libarm64ecfex.dll"];
     if (win32) [modules addObjectsFromArray:@[@"runtime/lib/wine/aarch64-windows/libwow64fex.dll", @"runtime/lib/wine/i386-windows/ntdll.dll"]];

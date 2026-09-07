@@ -114,7 +114,8 @@ class RepositoryWineStackTests(unittest.TestCase):
             "wine-ios.patch", "wine-ios-runtime-hardening.patch", "wine-ios-graphics.patch")]
         optional = [root / "patches" / name for name in (
             "wine-stikdebug-jit.patch", "wine-stikdebug-lifecycle.patch",
-            "wine-stikdebug-handoff.patch", "wine-stikdebug-abi.patch")]
+            "wine-stikdebug-handoff.patch", "wine-stikdebug-abi.patch",
+            "wine-ios-embedded.patch")]
         paths = set().union(*(stack.patch_paths(patch) for patch in base + optional))
         source = root / "wine"
         before = {path: (source / path).read_bytes() for path in paths if (source / path).is_file()}

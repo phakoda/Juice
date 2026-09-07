@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <!-- SideStore adds the provisioned application/team identifiers. This is
+         the only requested app capability: StikDebug attaches to THIS process. -->
+    <key>get-task-allow</key><true/>
+</dict></plist>

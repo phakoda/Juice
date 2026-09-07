@@ -54,6 +54,9 @@ cache_shim_source="$ROOT/scripts/ios-clear-cache-shim.c"
 cache_shim_obj="$ROOT/build/ios-shims/clear-cache.o"
 ntdll_link=0
 cache_shim_present=0
+embedded_link=0
+embedded_server=0
+compile_only=0
 
 for arg in "$@"; do
   case "$arg" in
@@ -74,6 +77,35 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+if test "${JUICE_EMBEDDED:-0}" = 1; then
+  # This native build lives in its own directory; no legacy low-VA header or
+  # child bootstrap is part of the SideStore ABI.
+  extra_args=(-DJUICE_EMBEDDED=1 -I"$ROOT/runtime/embedded")
+  for arg in "$@"; do
+    case "$arg" in -c|-E|-S) compile_only=1;;
+      */server/wineserver|server/wineserver) embedded_server=1; embedded_link=1;;
+      */dlls/*/*.so|dlls/*/*.so) embedded_link=1;;
+    esac
+  done
+  if test "$embedded_link" = 1 && test "$compile_only" = 0; then
+    support="$ROOT/build/sidestore/frameworks"
+    test -s "$support/JuiceRuntimeSupport.framework/JuiceRuntimeSupport" || {
+      echo 'Build the embedded runtime support framework first.' >&2; exit 3;
+    }
+    link_extra_args+=(-F"$support" -framework JuiceRuntimeSupport -Wl,-headerpad_max_install_names)
+    if test "$embedded_server" = 1; then
+      filtered=()
+      for arg in "$@"; do
+        case "$arg" in -pie|-no-pie|-Wl,-pie|-Wl,-no_pie) ;;
+          *) filtered+=("$arg");;
+        esac
+      done
+      set -- "${filtered[@]}"
+      link_extra_args+=(-dynamiclib -Wl,-install_name,@rpath/JuiceWineServer.framework/JuiceWineServer)
+    fi
+  fi
+fi
 
 # Some generated Wine link rules do not consistently preserve an LDFLAGS+=
 # object injected by the outer build script. virtual.c can legitimately lower

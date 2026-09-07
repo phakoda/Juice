@@ -5,6 +5,9 @@ ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 OUT="${JUICE_APP_BUILD_DIR:-$ROOT/build/app/Juice.app}"
 MIN_IOS="${JUICE_MIN_IOS:-14.0}"
 APP_ENTITLEMENTS="${JUICE_APP_ENTITLEMENTS:-$ROOT/config/app-entitlements.plist}"
+if test "${JUICE_SIDESTORE:-0}" = 1; then
+  APP_ENTITLEMENTS="$ROOT/config/sidestore-entitlements.plist"
+fi
 
 target_flags=()
 if command -v xcrun >/dev/null 2>&1; then
@@ -39,8 +42,16 @@ case "$OUT" in "$ROOT"/build/*) ;; *) test "${JUICE_ALLOW_EXTERNAL_BUILD:-0}" = 
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
+backend_sources=("$ROOT/app/JuiceStikDebugJIT.m" "$ROOT/app/JuiceLaunchHardening.m")
+backend_flags=()
+if test "${JUICE_SIDESTORE:-0}" = 1; then
+  backend_sources=("$ROOT/app/JuiceSideStoreRuntime.m")
+  backend_flags=(-DJUICE_SIDESTORE=1 -F"$ROOT/build/sidestore/frameworks" \
+    -framework JuiceRuntimeSupport -framework Security -framework IOKit \
+    -Wl,-rpath,@executable_path/Frameworks -Wl,-headerpad_max_install_names)
+fi
 "$CC" "${target_flags[@]}" -fobjc-arc -fblocks -O2 \
-  "$ROOT/app/main.m" "$ROOT/app/JuiceStikDebugJIT.m" \
+  "$ROOT/app/main.m" "${backend_sources[@]}" "${backend_flags[@]}" \
   "$ROOT/app/JuiceZip.m" "$ROOT/app/JuicePrefixRepair.m" \
   "$ROOT/app/JuiceApiSetBootstrap.m" "$ROOT/app/JuiceLegacyWin32.m" \
   "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
@@ -56,7 +67,7 @@ mkdir -p "$OUT"
   "$ROOT/app/JuiceLogHardening.m" "$ROOT/app/JuiceCLIInputHardening.m" \
   "$ROOT/app/JuiceAppProfile.m" "$ROOT/app/JuiceRuntimePreflight.m" \
   "$ROOT/app/JuiceProfilePolicy.c" "$ROOT/app/JuicePEInspect.c" "$ROOT/app/JuiceUTF8Stream.c" \
-  "$ROOT/app/JuiceLaunchHardening.m" "$ROOT/app/JuiceAsyncWriter.m" "$ROOT/app/JuiceIO.c" \
+  "$ROOT/app/JuiceAsyncWriter.m" "$ROOT/app/JuiceIO.c" \
   -framework UIKit -framework Foundation -framework QuartzCore -framework GameController \
   -framework CoreGraphics -framework Metal -lz -o "$OUT/Juice"
 cp "$ROOT/config/Info.plist" "$OUT/Info.plist"

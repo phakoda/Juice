@@ -312,7 +312,12 @@ static void ProfileMenu(id owner, SEL selector)
         id target = weakOwner; if (target) EditProfile(target);
     }]];
     NSDictionary *profile = Profile(owner);
-    for (NSString *key in @[@"isolated", @"quiet", @"jit"]) {
+    #ifdef JUICE_SIDESTORE
+    NSArray *profileKeys = @[@"isolated", @"quiet"];
+#else
+    NSArray *profileKeys = @[@"isolated", @"quiet", @"jit"];
+#endif
+    for (NSString *key in profileKeys) {
         NSString *title = [key isEqualToString:@"isolated"] ? @"Isolated prefix (next launch)" :
                           [key isEqualToString:@"quiet"] ? @"Reduce Wine debug logging" :
                           @"StikDebug JIT for translated apps";

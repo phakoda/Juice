@@ -1,0 +1,563 @@
+diff --git a/dlls/ntdll/unix/env.c b/dlls/ntdll/unix/env.c
+--- a/dlls/ntdll/unix/env.c
++++ b/dlls/ntdll/unix/env.c
+@@ -45,7 +45,12 @@
+ # include <CoreFoundation/CFLocale.h>
+ # include <CoreFoundation/CFString.h>
+ # include <crt_externs.h>
+-# define environ (*_NSGetEnviron())
++# ifdef JUICE_EMBEDDED
++#  undef environ
++#  define environ juice_runtime_environ
++# else
++#  define environ (*_NSGetEnviron())
++# endif
+ #else
+   extern char **environ;
+ #endif
+@@ -1339,6 +1344,16 @@
+  */
+ static void get_initial_console( RTL_USER_PROCESS_PARAMETERS *params )
+ {
++#ifdef JUICE_EMBEDDED
++wine_server_fd_to_handle(juice_runtime_standard_fd(0), GENERIC_READ|SYNCHRONIZE,
++                             OBJ_INHERIT, &params->hStdInput);
++    wine_server_fd_to_handle(juice_runtime_standard_fd(1), GENERIC_WRITE|SYNCHRONIZE,
++                             OBJ_INHERIT, &params->hStdOutput);
++    wine_server_fd_to_handle(juice_runtime_standard_fd(2), GENERIC_WRITE|SYNCHRONIZE,
++                             OBJ_INHERIT, &params->hStdError);
++    if (main_image_info.SubSystemType == IMAGE_SUBSYSTEM_WINDOWS_CUI)
++        params->ConsoleHandle = CONSOLE_HANDLE_SHELL_NO_WINDOW;
++#else
+     int output_fd = -1;
+ 
+     wine_server_fd_to_handle( 0, GENERIC_READ|SYNCHRONIZE,  OBJ_INHERIT, &params->hStdInput );
+@@ -1378,6 +1393,7 @@
+             params->dwYCountChars = size.ws_row;
+         }
+     }
++#endif
+ }
+ 
+ 
+@@ -1538,6 +1554,12 @@
+  */
+ static void run_wineboot( WCHAR *env, SIZE_T size )
+ {
++#ifdef JUICE_EMBEDDED
++(void)env; (void)size;
++    /* The sandbox build installs a preseeded prefix. It never fabricates a
++     * wineboot-success marker or invokes a hidden privileged service process. */
++    fprintf(stderr, "JUICE_EMBEDDED_PREFIX policy=preseeded wineboot_process=0\n");
++#else
+     const char *skip = getenv( "JUICE_SKIP_WINEBOOT" );
+     const char *prefix;
+     char *ready_path = NULL;
+@@ -1633,6 +1655,7 @@
+         free( ready_path );
+     }
+     while (count) NtClose( handles[--count] );
++#endif
+ }
+ 
+ 
+diff --git a/dlls/ntdll/unix/loader.c b/dlls/ntdll/unix/loader.c
+--- a/dlls/ntdll/unix/loader.c
++++ b/dlls/ntdll/unix/loader.c
+@@ -73,7 +73,12 @@
+ # ifndef _POSIX_SPAWN_DISABLE_ASLR
+ #  define _POSIX_SPAWN_DISABLE_ASLR 0x0100
+ # endif
+-# define environ (*_NSGetEnviron())
++# ifdef JUICE_EMBEDDED
++#  undef environ
++#  define environ juice_runtime_environ
++# else
++#  define environ (*_NSGetEnviron())
++# endif
+ #else
+   extern char **environ;
+ #endif
+@@ -381,6 +386,21 @@
+ 
+ static void init_paths(void)
+ {
++#ifdef JUICE_EMBEDDED
++const char *root = juice_runtime_root();
++    if (!root || !*root) fatal_error("embedded runtime root is unavailable\n");
++    build_dir = build_path(root, "build/wine-ios");
++    ntdll_dir = build_path(build_dir, "dlls/ntdll");
++    dll_dir = build_path(root, "runtime/lib/wine");
++    data_dir = strdup(build_dir);
++    bin_dir = strdup(root);
++    alt_build_dir = NULL;
++    wineloader = strdup("JuiceEmbedded");
++    set_dll_path();
++    set_system_dll_path();
++    set_home_dir();
++    set_config_dir();
++#else
+     Dl_info info;
+     const char *loader_override = getenv( "WINELOADER" );
+ 
+@@ -406,6 +426,7 @@
+     set_system_dll_path();
+     set_home_dir();
+     set_config_dir();
++#endif
+ }
+ 
+ 
+@@ -611,6 +632,10 @@
+  */
+ void start_server( BOOL debug )
+ {
++#ifdef JUICE_EMBEDDED
++(void)debug;
++    fatal_error("embedded Wine server unavailable; restart Juice, not a child process\n");
++#else
+     static BOOL started;  /* we only try once */
+     char *argv[3];
+     static char debug_flag[] = "-d";
+@@ -642,6 +667,7 @@
+         if (status) exit(status);  /* server failed */
+         started = TRUE;
+     }
++#endif
+ }
+ 
+ 
+@@ -2278,6 +2304,16 @@
+  */
+ DECLSPEC_EXPORT void __wine_main( int argc, char *argv[] )
+ {
++#ifdef JUICE_EMBEDDED
++if (pthread_main_np() || !juice_runtime_jit_ready() || argc < 2)
++        fatal_error("invalid embedded Wine entry or JIT not authorized\n");
++    main_argc = argc;
++    main_argv = argv;
++    init_paths();
++    virtual_init();
++    init_environment();
++    start_main_thread();
++#else
+     main_argc = argc;
+     main_argv = argv;
+ 
+@@ -2302,4 +2338,10 @@
+     apple_main_thread();
+ #endif
+     start_main_thread();
+-}
++#endif
++}
++
++#ifdef JUICE_EMBEDDED
++DECLSPEC_EXPORT unsigned JuiceEmbeddedWineABI(void) { return JUICE_EMBEDDED_ABI; }
++DECLSPEC_EXPORT void JuiceEmbeddedWineMain(int argc, char **argv) { __wine_main(argc, argv); }
++#endif
+diff --git a/dlls/ntdll/unix/process.c b/dlls/ntdll/unix/process.c
+--- a/dlls/ntdll/unix/process.c
++++ b/dlls/ntdll/unix/process.c
+@@ -686,6 +686,12 @@
+                                      RTL_USER_PROCESS_PARAMETERS *params, PS_CREATE_INFO *info,
+                                      PS_ATTRIBUTE_LIST *ps_attr )
+ {
++#ifdef JUICE_EMBEDDED
++if (process_handle_ptr) *process_handle_ptr = NULL;
++    if (thread_handle_ptr) *thread_handle_ptr = NULL;
++    WARN("guest subprocess requested; this backend hosts one Windows process\n");
++    return STATUS_NOT_SUPPORTED;
++#else
+     unsigned int status;
+     BOOL success = FALSE;
+     HANDLE file_handle, process_info = 0, process_handle = 0, thread_handle = 0;
+@@ -956,6 +962,7 @@
+     free( unix_name );
+     free( nt_name.Buffer );
+     return status;
++#endif
+ }
+ 
+ 
+diff --git a/dlls/ntdll/unix/server.c b/dlls/ntdll/unix/server.c
+--- a/dlls/ntdll/unix/server.c
++++ b/dlls/ntdll/unix/server.c
+@@ -1638,6 +1638,12 @@
+     struct sigaction sig_act;
+     size_t info_size;
+ 
++#ifdef JUICE_EMBEDDED
++    server_pid = getpid();
++    initial_cwd = open(".", O_RDONLY | O_CLOEXEC);
++    fd_socket = dup(juice_runtime_client_socket());
++    if (initial_cwd < 0 || fd_socket < 0) fatal_perror("embedded server transport");
++#else
+     server_pid = -1;
+     if (env_socket)
+     {
+@@ -1657,6 +1663,8 @@
+ 
+         fd_socket = server_connect();
+     }
++
++#endif
+ 
+     /* setup the signal mask */
+     sigemptyset( &server_block_set );
+@@ -1811,6 +1819,9 @@
+     fflush( stderr );
+ 
+     init_teb_data( data );
++#ifdef JUICE_EMBEDDED
++    juice_runtime_mark_guest_thread_ready();
++#endif
+ 
+     fprintf(
+         stderr,
+@@ -1901,6 +1912,9 @@
+     if (data->teb)
+     {
+         init_teb_data( data );
++#ifdef JUICE_EMBEDDED
++    juice_runtime_mark_guest_thread_ready();
++#endif
+         signal_start_thread( data->start, data->param, data->teb );
+     }
+     else
+diff --git a/dlls/ntdll/unix/virtual.c b/dlls/ntdll/unix/virtual.c
+--- a/dlls/ntdll/unix/virtual.c
++++ b/dlls/ntdll/unix/virtual.c
+@@ -780,6 +780,12 @@
+ 
+ static void mmap_init( const struct preload_info *preload_info )
+ {
++#ifdef JUICE_EMBEDDED
++(void)preload_info;
++    /* UIKit and dyld already own this address space. Claim new mappings with
++     * collision-safe hints only; never register or remove the host PAGEZERO. */
++    address_space_start = (void *)0x100000000ull;
++#else
+ #ifndef _WIN64
+ #ifndef __APPLE__
+     char stack;
+@@ -841,6 +847,7 @@
+     }
+     reserve_area( (void *)0x7ffffe000000, (void *)0x7fffffff0000 );
+ 
++#endif
+ #endif
+ }
+ 
+@@ -4360,7 +4367,9 @@
+     SIZE_T total = 32 * block_size;
+     struct thread_data *thread_data;
+ 
+-#if defined(__APPLE__) && defined(__aarch64__)
++#ifdef JUICE_EMBEDDED
++    if (!juice_runtime_jit_ready()) fatal_error("embedded JIT arena was not prepared\n");
++#elif defined(__APPLE__) && defined(__aarch64__)
+     /*
+      * JuiceWine iOS: enable anonymous executable PE pages.
+      *
+@@ -5943,6 +5952,20 @@
+  */
+ NTSTATUS WINAPI NtWineAllocateJitMemory( void **write_address, void **exec_address, SIZE_T size )
+ {
++#ifdef JUICE_EMBEDDED
++NTSTATUS status;
++    if (!write_address || !exec_address || !size || size > ~(SIZE_T)0 - host_page_mask)
++        return STATUS_INVALID_PARAMETER;
++    size = ROUND_SIZE(0, size, host_page_mask);
++    if (juice_runtime_jit_allocate(write_address, exec_address, size)) return STATUS_NO_MEMORY;
++    status = juice_register_jit_views(*write_address, *exec_address, size);
++    if (status)
++    {
++        juice_runtime_jit_free(*write_address, *exec_address, size);
++        *write_address = *exec_address = NULL;
++    }
++    return status;
++#else
+ #if defined(__APPLE__) && defined(__aarch64__)
+     vm_address_t write = 0;
+     vm_prot_t current_protection = 0, maximum_protection = 0;
+@@ -6028,6 +6051,7 @@
+ #else
+     return STATUS_NOT_SUPPORTED;
+ #endif
++#endif
+ }
+ 
+ /***********************************************************************
+@@ -6035,6 +6059,28 @@
+  */
+ NTSTATUS WINAPI NtWineFreeJitMemory( void *write_address, void *exec_address, SIZE_T size )
+ {
++#ifdef JUICE_EMBEDDED
++struct file_view *write_view, *exec_view;
++    sigset_t sigset;
++    NTSTATUS status = STATUS_INVALID_ADDRESS;
++    if (!size || size > ~(SIZE_T)0 - host_page_mask) return STATUS_INVALID_PARAMETER;
++    size = ROUND_SIZE(0, size, host_page_mask);
++    server_enter_uninterrupted_section(&virtual_mutex, &sigset);
++    write_view = find_view(write_address, size);
++    exec_view = find_view(exec_address, size);
++    if (write_view && exec_view && write_view != exec_view &&
++        write_view->base == write_address && exec_view->base == exec_address &&
++        write_view->size == size && exec_view->size == size &&
++        (write_view->protect & VPROT_JUICE_JIT) && (exec_view->protect & VPROT_JUICE_JIT) &&
++        !juice_runtime_jit_free(write_address, exec_address, size))
++    {
++        delete_view(write_view);
++        delete_view(exec_view);
++        status = STATUS_SUCCESS;
++    }
++    server_leave_uninterrupted_section(&virtual_mutex, &sigset);
++    return status;
++#else
+ #if defined(__APPLE__) && defined(__aarch64__)
+     struct juice_jit_record **cursor, *record;
+     sigset_t sigset;
+@@ -6060,6 +6106,7 @@
+ #else
+     return STATUS_NOT_SUPPORTED;
+ #endif
++#endif
+ }
+ 
+ /***********************************************************************
+@@ -6067,6 +6114,9 @@
+  */
+ NTSTATUS WINAPI NtWineDetachJitDebugger(void)
+ {
++#ifdef JUICE_EMBEDDED
++return juice_runtime_jit_seal() ? STATUS_ACCESS_DENIED : STATUS_SUCCESS;
++#else
+ #if defined(__APPLE__) && defined(__aarch64__)
+     if (!juice_stikdebug_enabled()) return STATUS_INVALID_PARAMETER;
+     pthread_mutex_lock( &juice_jit_mutex );
+@@ -6097,6 +6147,7 @@
+     return STATUS_SUCCESS;
+ #else
+     return STATUS_NOT_SUPPORTED;
++#endif
+ #endif
+ }
+ 
+diff --git a/include/config.h.in b/include/config.h.in
+--- a/include/config.h.in
++++ b/include/config.h.in
+@@ -851,4 +851,8 @@
+ /* Define to 1 on platforms where this makes time_t a 64-bit type. */
+ #undef __MINGW_USE_VC2005_COMPAT
+ 
++#ifdef JUICE_EMBEDDED
++#include "juice/JuiceEmbeddedShim.h"
++#endif
++
+ #endif /* __WINE_CONFIG_H */
+diff --git a/server/fd.c b/server/fd.c
+--- a/server/fd.c
++++ b/server/fd.c
+@@ -985,16 +985,32 @@
+ void main_loop(void)
+ {
+     int i, ret, timeout;
++#ifdef JUICE_EMBEDDED
++    int stop_sent = 0;
++#endif
+ 
+     set_current_time();
+     server_start_time = current_time;
+ 
++#ifndef JUICE_EMBEDDED
+     main_loop_epoll();
++#endif
+     /* fall through to normal poll loop */
+ 
+     while (active_users)
+     {
++#ifdef JUICE_EMBEDDED
++        if (juice_runtime_stopping() && !stop_sent)
++        {
++            stop_sent = 1;
++            shutdown_master_socket();
++        }
++#endif
+         timeout = get_next_timeout( NULL );
++#ifdef JUICE_EMBEDDED
++        /* Bound stop latency without signals or cross-thread server mutation. */
++        if (timeout < 0 || timeout > 100) timeout = 100;
++#endif
+ 
+         if (!active_users) break;  /* last user removed by a timeout */
+ 
+diff --git a/server/main.c b/server/main.c
+--- a/server/main.c
++++ b/server/main.c
+@@ -241,6 +241,30 @@
+ #endif
+ }
+ 
++#ifdef JUICE_EMBEDDED
++extern void juice_server_open_embedded(void);
++extern int juice_server_adopt_embedded(int fd);
++DECLSPEC_EXPORT unsigned JuiceEmbeddedWineServerABI(void) { return JUICE_EMBEDDED_ABI; }
++DECLSPEC_EXPORT int JuiceEmbeddedWineServerMain(int fd)
++{
++    foreground = 1;
++    master_socket_timeout = 0;
++    server_argv0 = "JuiceEmbeddedWineServer";
++    sock_init();
++    juice_server_open_embedded();
++    set_current_time();
++    /* No daemon fork, process-wide signal handlers, or host resource limits. */
++    init_memory();
++    init_directories( load_intl_file() );
++    init_threading();
++    init_registry();
++    if (!juice_server_adopt_embedded(fd)) return 1;
++    juice_runtime_server_ready();
++    main_loop();
++    flush_registry();
++    return 0;
++}
++#else
+ int main( int argc, char *argv[] )
+ {
+     setvbuf( stderr, NULL, _IOLBF, 0 );
+@@ -269,3 +293,5 @@
+     main_loop();
+     return 0;
+ }
++
++#endif /* JUICE_EMBEDDED */
+diff --git a/server/process.c b/server/process.c
+--- a/server/process.c
++++ b/server/process.c
+@@ -623,6 +623,11 @@
+ /* callback for process sigkill timeout */
+ static void process_sigkill( void *private )
+ {
++#ifdef JUICE_EMBEDDED
++struct process *process = private;
++    process->sigkill_timeout = NULL;
++    process_died(process); /* a logical guest, never kill(getpid()) */
++#else
+     struct process *process = private;
+     int signal = 0;
+ 
+@@ -638,6 +643,7 @@
+         process->sigkill_timeout = NULL;
+         process_died( process );
+     }
++#endif
+ }
+ 
+ /* start the sigkill timer for a process upon exit */
+diff --git a/server/process.h b/server/process.h
+--- a/server/process.h
++++ b/server/process.h
+@@ -130,7 +130,9 @@
+  * Juice: Wine's Mach tracing backend requires macOS-only APIs.
+  * Use ptrace on iOS while retaining Mach on macOS.
+  */
+-#if defined(__APPLE__) && !defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__)
++#if defined(JUICE_EMBEDDED)
++#define USE_EMBEDDED
++#elif defined(__APPLE__) && !defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__)
+ #define USE_MACH
+ #elif defined(__sun)
+ #define USE_PROCFS
+diff --git a/server/ptrace.c b/server/ptrace.c
+--- a/server/ptrace.c
++++ b/server/ptrace.c
+@@ -855,3 +855,37 @@
+ #endif  /* linux || __FreeBSD__ */
+ 
+ #endif  /* USE_PTRACE */
++
++#ifdef USE_EMBEDDED
++void sigchld_callback(void) { /* no Unix child processes */ }
++void init_tracing_mechanism(void) { }
++void init_process_tracing(struct process *process) { (void)process; }
++void finish_process_tracing(struct process *process) { (void)process; }
++int send_thread_signal(struct thread *thread, int sig)
++{
++    return thread->unix_pid == getpid() && thread->unix_tid != -1 &&
++        juice_runtime_send_thread_signal((unsigned long)thread->unix_tid, sig);
++}
++int read_process_memory(struct process *process, client_ptr_t ptr, data_size_t size, char *dest)
++{
++    if (process->unix_pid == getpid() &&
++        juice_runtime_copy_guest(dest, (const void *)(ULONG_PTR)ptr, size, 0)) return 1;
++    set_error(STATUS_ACCESS_VIOLATION);
++    return 0;
++}
++int write_process_memory(struct process *process, client_ptr_t ptr, data_size_t size,
++                         const char *src, data_size_t *written)
++{
++    *written = 0;
++    if (process->unix_pid == getpid() &&
++        juice_runtime_copy_guest((void *)(ULONG_PTR)ptr, src, size, 1))
++    { *written = size; return 1; }
++    set_error(STATUS_ACCESS_VIOLATION);
++    return 0;
++}
++void init_thread_context(struct thread *thread) { (void)thread; }
++void get_thread_context(struct thread *thread, struct context_data *context, unsigned int flags)
++{ (void)thread; (void)context; if (flags) set_error(STATUS_NOT_SUPPORTED); }
++void set_thread_context(struct thread *thread, const struct context_data *context, unsigned int flags)
++{ (void)thread; (void)context; if (flags) set_error(STATUS_NOT_SUPPORTED); }
++#endif
+diff --git a/server/request.c b/server/request.c
+--- a/server/request.c
++++ b/server/request.c
+@@ -940,3 +940,24 @@
+ 
+     master_timeout = add_timeout_user( timeout, close_socket_timeout, NULL );
+ }
++
++#ifdef JUICE_EMBEDDED
++/* Private socketpair transport: no listening filesystem socket, no daemon and
++ * no reconnect to an unrelated process. Registry cwd is per-thread on Darwin. */
++void juice_server_open_embedded(void)
++{
++    server_dir = create_server_dir(1);
++    init_tracing_mechanism();
++}
++int juice_server_adopt_embedded(int fd)
++{
++    struct process *process;
++    struct thread *thread;
++    if (fd < 0 || fcntl(fd, F_SETFL, O_NONBLOCK) == -1) return 0;
++    if (!(process = create_process(fd, NULL, 0, NULL, NULL, NULL, 0, NULL))) return 0;
++    thread = create_thread(-1, process, NULL);
++    if (thread) add_process_thread(process, thread);
++    release_object(process);
++    return thread != NULL;
++}
++#endif
+diff --git a/server/unicode.c b/server/unicode.c
+--- a/server/unicode.c
++++ b/server/unicode.c
+@@ -277,6 +277,11 @@
+ 
+ static char *get_nls_dir(void)
+ {
++#ifdef JUICE_EMBEDDED
++char *path = NULL;
++    if (asprintf(&path, "%s/build/wine-ios/nls", juice_runtime_root()) == -1) return NULL;
++    return path;
++#else
+     char *p, *dir, *ret;
+ 
+ #if defined(__linux__) || defined(__FreeBSD_kernel__) || defined(__NetBSD__)
+@@ -322,6 +327,7 @@
+     ret = build_relative_path( dir, BINDIR, DATADIR "/wine/nls" );
+     free( dir );
+     return ret;
++#endif
+ }
+ 
+ /* load the case mapping table */

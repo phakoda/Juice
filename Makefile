@@ -9,6 +9,12 @@ REUSE_X64 ?= auto
 # Primary build: complete Juice TIPA from an x86_64 Linux host.
 all: linux-x86_64-x64
 
+.PHONY: sidestore sidestore-host-tests
+sidestore: ; $(BASH) scripts/build-sidestore-linux.sh
+sidestore-host-tests:
+	$(BASH) scripts/test-embedded-policy-host.sh
+	python3 -m unittest discover -s scripts/tests -p test_patch_stack.py -v
+
 verify: ; $(BASH) scripts/verify-source.sh
 preflight: ; $(BASH) scripts/preflight-device.sh
 bootstrap: ; $(BASH) scripts/bootstrap-trust-carrier-device.sh

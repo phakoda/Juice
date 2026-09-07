@@ -3,6 +3,9 @@
 #import <GameController/GameController.h>
 #import <Metal/Metal.h>
 #import "JuiceZip.h"
+#ifdef JUICE_SIDESTORE
+#import "JuiceSideStoreRuntime.h"
+#endif
 #import "../wine/dlls/wineios.drv/control_protocol.h"
 #import "../wine/include/juiceinput.h"
 #import <spawn.h>
@@ -47,6 +50,7 @@ static BOOL ReadAll(int fd,void *p,size_t n){char *b=p;while(n){ssize_t r=read(f
 static BOOL WriteAll(int fd,const void *p,size_t n){const char *b=p;while(n){ssize_t r=write(fd,p,n);if(r<=0)return NO;p=(const char *)p+r;n-=r;}return YES;}
 static char **CopyStrings(NSArray<NSString *> *a){char **v=calloc(a.count+1,sizeof(char *));for(NSUInteger i=0;i<a.count;i++)v[i]=strdup(a[i].UTF8String);return v;}
 static void FreeStrings(char **v){if(!v)return;for(size_t i=0;v[i];i++)free(v[i]);free(v);}
+#ifndef JUICE_SIDESTORE
 static int SpawnInNewProcessGroup(pid_t *pid,const char *path,
                                   const posix_spawn_file_actions_t *actions,
                                   char *const argv[],char *const envp[])
@@ -77,6 +81,7 @@ static void TerminateProcessGroup(pid_t leader)
   do{waited=waitpid(leader,NULL,0);}while(waited<0&&errno==EINTR);
  });
 }
+#endif
 static void CopyControlString(char *destination,size_t capacity,NSString *value){if(!capacity)return;destination[0]=0;if(value.length) [value getCString:destination maxLength:capacity encoding:NSUTF8StringEncoding];}
 static NSString *JuiceDocumentsRoot(void)
 {
@@ -318,6 +323,9 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  self.persistentLogHandle=[NSFileHandle fileHandleForWritingAtPath:self.persistentLogPath];
  [self.persistentLogHandle seekToEndOfFile];
  [self buildUI];
+#ifdef JUICE_SIDESTORE
+ JuiceSideStoreAttach(self);
+#endif
  [self setupExternalInput];
  [self startDisplayServer];
  [self startControlServer];
@@ -330,6 +338,12 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
 }
 -(void)viewDidAppear:(BOOL)animated
 {
+#ifdef JUICE_SIDESTORE
+ [super viewDidAppear:animated];
+ /* Do not auto-start explorer, Wineboot, or a child-launching shell. Give the
+  * installed host a stable identity in StikDebug before a guest is selected. */
+ if(!self.didAutoLaunch){self.didAutoLaunch=YES; self.exeField.text=@"winemine.exe";self.argsField.text=@"";}
+#else
  [super viewDidAppear:animated];
  if(self.didAutoLaunch)return;
  self.didAutoLaunch=YES;
@@ -380,6 +394,7 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  }
  dispatch_after(dispatch_time(DISPATCH_TIME_NOW,(int64_t)(0.5*NSEC_PER_SEC)),
   dispatch_get_main_queue(),^{[self launchRequested];});
+#endif
 }
 -(UITextField *)field:(NSString *)text{UITextField *f=[UITextField new];f.borderStyle=UITextBorderStyleRoundedRect;f.placeholder=text;f.autocorrectionType=UITextAutocorrectionTypeNo;f.autocapitalizationType=UITextAutocapitalizationTypeNone;return f;}
 -(UIButton *)button:(NSString *)title action:(SEL)a{UIButton *b=[UIButton buttonWithType:UIButtonTypeSystem];[b setTitle:title forState:0];if(a)[b addTarget:self action:a forControlEvents:UIControlEventTouchUpInside];return b;}
@@ -421,7 +436,11 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  [self.x64Switch addTarget:self action:@selector(experimentalX64SwitchChanged)
   forControlEvents:UIControlEventValueChanged];
  UILabel *x64Label=[UILabel new];
+ #ifdef JUICE_SIDESTORE
+ x64Label.text=@"64-bit CPU translation (auto-detect)";
+#else
  x64Label.text=@"Experimental x86 / x86_64 (auto-detect)";
+#endif
  x64Label.font=[UIFont systemFontOfSize:13 weight:UIFontWeightSemibold];
  UIStackView *x64Row=[[UIStackView alloc]initWithArrangedSubviews:@[x64Label,self.x64Switch]];
  x64Row.axis=UILayoutConstraintAxisHorizontal;
@@ -433,7 +452,11 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  [self.winebootSwitch addTarget:self action:@selector(winebootModeChanged)
   forControlEvents:UIControlEventValueChanged];
  UILabel *winebootLabel=[UILabel new];
+ #ifdef JUICE_SIDESTORE
+ winebootLabel.text=@"Preseeded prefix — no Wineboot subprocess";
+#else
  winebootLabel.text=@"Skip Wineboot after prefix initialization";
+#endif
  winebootLabel.font=[UIFont systemFontOfSize:13 weight:UIFontWeightRegular];
  UIStackView *winebootRow=[[UIStackView alloc]initWithArrangedSubviews:@[winebootLabel,self.winebootSwitch]];
  winebootRow.axis=UILayoutConstraintAxisHorizontal;
@@ -1706,6 +1729,9 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
 -(NSString *)resolveExe{NSString *e=self.exeField.text;if([e containsString:@"/"])return e;return [[self.grape stringByAppendingPathComponent:@"runtime/lib/wine/aarch64-windows"]stringByAppendingPathComponent:e];}
 -(void)launchTapped
 {
+#ifdef JUICE_SIDESTORE
+ JuiceSideStoreLaunch(self);
+#else
  [self stopAllWineProcesses:@"new-launch"];
  [self preparePrefix];
  NSArray *parts=self.argsField.text.length?
@@ -1795,9 +1821,13 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
     launchedChild,status]];
   });
  });
+#endif
 }
 -(void)stopAllWineProcesses:(NSString *)reason
 {
+#ifdef JUICE_SIDESTORE
+ JuiceSideStoreStop(self,reason);
+#else
  self.launchGeneration++;
  if(self.childInput>=0){close(self.childInput);self.childInput=-1;}
  pid_t childGroup=self.child;
@@ -1844,11 +1874,16 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
   [self append:[NSString stringWithFormat:
    @"PROCESS_GROUP_STOP reason=%@ child_pgid=%d server_pgid=%d wineserver_kill=%d status=%d\n",
    reason,childGroup,serverGroup,shutdownResult,shutdownStatus]];
+#endif
 }
 -(void)applicationWillResignActive:(NSNotification *)notification
 {
+#ifdef JUICE_SIDESTORE
+ (void)notification; /* External JIT handoff must survive switching apps. */
+#else
  (void)notification;
  [self stopAllWineProcesses:@"application-will-resign-active"];
+#endif
 }
 -(void)stopTapped{[self stopAllWineProcesses:@"user-stop"];}
 -(BOOL)textFieldShouldReturn:(UITextField *)field

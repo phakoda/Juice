@@ -9,6 +9,11 @@ SOURCE="${JUICE_FEX_SOURCE:-$ROOT/build/fex-source}"
 BUILD="${JUICE_FEX_BUILD:-$ROOT/build/fex-arm64ec}"
 JOBS="${JUICE_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 LOGDIR="${JUICE_BUILD_LOG_DIR:-$ROOT/build/logs}"
+embedded_flags=()
+if test "${JUICE_EMBEDDED:-0}" = 1; then
+  embedded_flags=(-DCMAKE_SHARED_LINKER_FLAGS=-Wl,--section-alignment,16384)
+  export JUICE_FEX_RECONFIGURE=1
+fi
 LOG="$LOGDIR/fex-arm64ec.log"
 RETRY_LOG="$LOGDIR/fex-arm64ec-retry.log"
 
@@ -40,7 +45,7 @@ else
     -DMINGW_TRIPLE=arm64ec-w64-mingw32 \
     -DBUILD_TESTING:BOOL=OFF -DTUNE_CPU:STRING=none \
     -DCMAKE_C_FLAGS=-DFEX_JUICE_IOS=1 \
-    -DCMAKE_CXX_FLAGS=-DFEX_JUICE_IOS=1 2>&1 | tee "$LOGDIR/fex-arm64ec-configure.log"
+    -DCMAKE_CXX_FLAGS=-DFEX_JUICE_IOS=1 "${embedded_flags[@]}" 2>&1 | tee "$LOGDIR/fex-arm64ec-configure.log"
 fi
 
 "$TOOLCHAIN/bin/arm64ec-w64-mingw32-dlltool" \

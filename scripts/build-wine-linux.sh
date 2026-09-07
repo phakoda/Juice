@@ -180,6 +180,12 @@ native_data_targets=(
   include/windows.ui.xaml.winmd
 )
 
+if test "${JUICE_EMBEDDED:-0}" = 1; then
+  # The server name is retained as a build target, but the compiler wrapper
+  # links it as an MH_DYLIB, not an executable. No loader executable is built.
+  native_targets=("${native_targets[@]:1}")
+fi
+
 # Wine expands UNIX_LIBS while generating the configured Makefile, so changing
 # RT_LIBS here cannot affect an already-configured tree. The generated Unix
 # linker rule reads $(LDFLAGS) at build time, which lets us inject the cache
@@ -231,6 +237,7 @@ for output in \
   "$NATIVE/dlls/ntdll/ntdll.so" \
   "$NATIVE/dlls/secur32/secur32.so" \
   "$NATIVE/dlls/wineios.drv/wineios.so"; do
+  if test "${JUICE_EMBEDDED:-0}" = 1 && test "$output" = "$NATIVE/loader/wine"; then continue; fi
   test -s "$output" || { echo "Missing native iOS output: $output" >&2; exit 6; }
   file "$output" | grep -Eq 'Mach-O 64-bit arm64' || {
     echo "Unexpected native iOS output: $output" >&2

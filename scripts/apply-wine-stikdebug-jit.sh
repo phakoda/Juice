@@ -11,7 +11,8 @@ ABI_PATCH="$ROOT/patches/wine-stikdebug-abi.patch"
 applied="$(python3 "$ROOT/scripts/verify-patch-stack.py" "$SOURCE" \
   "$ROOT/patches/wine-ios.patch" "$ROOT/patches/wine-ios-runtime-hardening.patch" \
   "$ROOT/patches/wine-ios-graphics.patch" \
-  --optional "$PATCH" "$LIFECYCLE_PATCH" "$HANDOFF_PATCH" "$ABI_PATCH" --applied-count)"
+  --optional "$PATCH" "$LIFECYCLE_PATCH" "$HANDOFF_PATCH" "$ABI_PATCH" \
+  "$ROOT/patches/wine-ios-embedded.patch" --applied-count)"
 patches=("$PATCH" "$LIFECYCLE_PATCH" "$HANDOFF_PATCH" "$ABI_PATCH")
 apply_root="$SOURCE"
 apply_args=()

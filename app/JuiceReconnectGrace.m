@@ -1,4 +1,7 @@
 #import <UIKit/UIKit.h>
+#ifdef JUICE_SIDESTORE
+#import "JuiceSideStoreRuntime.h"
+#endif
 #import <errno.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
@@ -42,8 +45,12 @@ static pid_t JuiceReconnectStatePeerPID(id state)
 static BOOL JuiceReconnectPeerAlive(pid_t peerPID)
 {
     if(peerPID<=0)return NO;
+#ifdef JUICE_SIDESTORE
+    return peerPID==getpid() && JuiceSideStoreRuntimeActive();
+#else
     errno=0;
     return kill(peerPID,0)==0||errno==EPERM;
+#endif
 }
 
 static void JuiceReconnectPresentFrame(id self,SEL _cmd,JuiceReconnectMsg message,

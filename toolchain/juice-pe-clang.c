@@ -138,6 +138,8 @@ int main(int argc, char **argv)
     int add_loader_alias;
     int output_index;
     int index;
+    int compile_only = 0, pe_image_output = 0;
+    const char *embedded = getenv("JUICE_EMBEDDED");
 
     if (!clang || !*clang) clang = "/var/jb/usr/bin/clang";
     if (!python || !*python) python = "/var/jb/usr/bin/python3";
@@ -173,6 +175,10 @@ int main(int argc, char **argv)
 
     for (index = 1; index < argc; index++)
     {
+        if (!strcmp(argv[index], "-c") || !strcmp(argv[index], "-E") || !strcmp(argv[index], "-S")) compile_only = 1;
+        if (index > 1 && !strcmp(argv[index - 1], "-o") &&
+            (has_suffix(argv[index], ".dll") || has_suffix(argv[index], ".exe") ||
+             has_suffix(argv[index], ".drv") || has_suffix(argv[index], ".sys"))) pe_image_output = 1;
         if (!strcmp(argv[index], "i686-windows") || !strcmp(argv[index], "i386-windows"))
             i386_target = 1;
         if (has_suffix(argv[index], "/dlls/ntdll/loader.c"))
@@ -191,7 +197,7 @@ int main(int argc, char **argv)
     }
 
     add_loader_alias = i386_target && i386_ntdll_loader;
-    clang_arguments = calloc((size_t)argc + (add_loader_alias ? 3u : 2u), sizeof(*clang_arguments));
+    clang_arguments = calloc((size_t)argc + (add_loader_alias ? 4u : 3u), sizeof(*clang_arguments));
     if (!clang_arguments)
     {
         fprintf(stderr, "juice-pe-clang: out of memory\n");
@@ -205,6 +211,10 @@ int main(int argc, char **argv)
      * architecture-gated in winnt.h, so i386 compilation remains unchanged. */
     clang_arguments[output_index++] = "-DJUICE_IOS_PE=1";
     for (index = 1; index < argc; index++) clang_arguments[output_index++] = argv[index];
+    /* Keep native code and writable data on separate 16-KiB iOS VM pages.
+     * This affects final PE images only, never Winebuild's assembler probes. */
+    if (embedded && !strcmp(embedded, "1") && pe_image_output && !compile_only)
+        clang_arguments[output_index++] = "-Wl,--section-alignment,16384";
     if (add_loader_alias)
     {
         clang_arguments[output_index++] = "-Dloader_init_impl=loader_init";
