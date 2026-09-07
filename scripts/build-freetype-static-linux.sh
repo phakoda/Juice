@@ -3,7 +3,14 @@ set -euo pipefail
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 VERSION="${JUICE_STATIC_FREETYPE_VERSION:-2.14.3}"
-URL="${JUICE_STATIC_FREETYPE_URL:-https://download.savannah.gnu.org/releases/freetype/freetype-${VERSION}.tar.xz}"
+DEFAULT_URL="https://download.savannah.gnu.org/releases/freetype/freetype-${VERSION}.tar.xz"
+URL="${JUICE_STATIC_FREETYPE_URL:-$DEFAULT_URL}"
+SHA256="${JUICE_STATIC_FREETYPE_SHA256:-}"
+# FreeType's published 2.14.3 release checksum.  Keep the normal build
+# content-addressed even when a fallback mirror is needed.
+if test -z "$SHA256" && test "$VERSION" = 2.14.3; then
+  SHA256=36bc4f1cc413335368ee656c42afca65c5a3987e8768cc28cf11ba775e785a5f
+fi
 CACHE="${JUICE_STATIC_FREETYPE_CACHE:-$ROOT/build/deps/freetype-static}"
 SOURCE="$CACHE/freetype-$VERSION"
 ARCHIVE="$CACHE/freetype-$VERSION.tar.xz"
@@ -38,11 +45,48 @@ test -d "$IOS_SDK" || { echo "Missing IOS_SDK directory: $IOS_SDK" >&2; exit 2; 
 
 mkdir -p "$CACHE" "$BUILD" "$SHIMDIR"
 
-if test ! -f "$ARCHIVE"; then
-  echo "JUICE_STATIC_FREETYPE_FETCH version=$VERSION url=$URL"
+archive_valid=0
+if test -f "$ARCHIVE"; then
+  if test -z "$SHA256" || printf '%s  %s\n' "$SHA256" "$ARCHIVE" | sha256sum -c - >/dev/null 2>&1; then
+    archive_valid=1
+  else
+    echo "Cached FreeType archive failed checksum validation; refetching: $ARCHIVE" >&2
+    rm -f "$ARCHIVE"
+  fi
+fi
+
+if test "$archive_valid" = 0; then
+  urls=("$URL")
+  # The Savannah CDN occasionally returns gateway errors to hosted CI.  When
+  # using the default release URL, retry the exact same checksummed archive
+  # from two independent mirrors instead of making the build depend on one CDN.
+  if test "$URL" = "$DEFAULT_URL"; then
+    urls+=(
+      "https://downloads.sourceforge.net/project/freetype/freetype2/${VERSION}/freetype-${VERSION}.tar.xz"
+      "https://mirror.rabisu.com/mirrors/savannah/freetype/freetype-${VERSION}.tar.xz"
+    )
+  fi
+
   rm -f "$ARCHIVE.part"
-  curl --location --fail --retry 3 --output "$ARCHIVE.part" "$URL"
-  mv "$ARCHIVE.part" "$ARCHIVE"
+  fetched=0
+  for candidate in "${urls[@]}"; do
+    echo "JUICE_STATIC_FREETYPE_FETCH version=$VERSION url=$candidate"
+    rm -f "$ARCHIVE.part"
+    if ! curl --location --fail --retry 2 --retry-delay 2 \
+        --connect-timeout 20 --max-time 180 --output "$ARCHIVE.part" "$candidate"; then
+      echo "FreeType mirror failed: $candidate" >&2
+      continue
+    fi
+    if test -n "$SHA256" && ! printf '%s  %s\n' "$SHA256" "$ARCHIVE.part" | sha256sum -c -; then
+      echo "FreeType mirror returned unexpected content: $candidate" >&2
+      continue
+    fi
+    mv "$ARCHIVE.part" "$ARCHIVE"
+    fetched=1
+    break
+  done
+  rm -f "$ARCHIVE.part"
+  test "$fetched" = 1 || { echo "Unable to fetch verified FreeType $VERSION from any configured mirror." >&2; exit 3; }
 fi
 
 if test ! -x "$SOURCE/configure"; then
