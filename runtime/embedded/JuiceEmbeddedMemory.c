@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <dlfcn.h>
+#include <setjmp.h>
 #ifdef __APPLE__
 #include <mach/mach.h>
 #include <mach/vm_region.h>
@@ -85,6 +86,57 @@ static void flush_code(void *write, void *execute, size_t length)
     sys_icache_invalidate(execute, length);
     __atomic_thread_fence(__ATOMIC_SEQ_CST);
 }
+
+/* JIT probes run before Wine signal handlers exist. Catch a synchronous probe
+ * fault only on the exact probe worker; unrelated UIKit faults retain their
+ * original disposition. This cannot intercept an OS code-signing SIGKILL. */
+static sigjmp_buf probe_recovery;
+static _Atomic unsigned long probe_thread;
+static _Atomic int probe_armed;
+static const int probe_signals[] = {SIGSEGV, SIGBUS, SIGILL};
+static struct sigaction probe_previous[3];
+static void probe_fault(int signal_number, siginfo_t *info, void *context)
+{
+    if (atomic_load_explicit(&probe_armed, memory_order_acquire) &&
+        pthread_mach_thread_np(pthread_self()) == atomic_load(&probe_thread))
+        siglongjmp(probe_recovery, 1);
+    for (size_t i = 0; i < 3; ++i) if (probe_signals[i] == signal_number) {
+        const struct sigaction *previous = &probe_previous[i];
+        if (previous->sa_handler == SIG_IGN) return;
+        if (previous->sa_handler == SIG_DFL) {
+            sigaction(signal_number, previous, NULL);
+            pthread_kill(pthread_self(), signal_number);
+        } else if (previous->sa_flags & SA_SIGINFO) previous->sa_sigaction(signal_number, info, context);
+        else previous->sa_handler(signal_number);
+        return;
+    }
+}
+static int execute_probe(void *address)
+{
+    struct sigaction action = {0};
+    action.sa_sigaction = probe_fault;
+    action.sa_flags = SA_SIGINFO;
+    sigemptyset(&action.sa_mask);
+    size_t installed = 0;
+    for (size_t i = 0; i < 3; ++i)
+        if (sigaction(probe_signals[i], NULL, &probe_previous[i])) return errno;
+    for (; installed < 3; ++installed)
+        if (sigaction(probe_signals[installed], &action, NULL)) break;
+    if (installed != 3) {
+        int error = errno;
+        while (installed) { --installed; sigaction(probe_signals[installed], &probe_previous[installed], NULL); }
+        return error;
+    }
+    atomic_store(&probe_thread, pthread_mach_thread_np(pthread_self()));
+    volatile int error = EACCES;
+    if (!sigsetjmp(probe_recovery, 1)) {
+        atomic_store_explicit(&probe_armed, 1, memory_order_release);
+        error = ((int (*)(void))address)() == 42 ? 0 : EIO;
+    }
+    atomic_store_explicit(&probe_armed, 0, memory_order_release);
+    for (size_t i = 0; i < 3; ++i) sigaction(probe_signals[i], &probe_previous[i], NULL);
+    return error;
+}
 #endif
 
 int juice_runtime_jit_ready(void) { return atomic_load_explicit(&jit_ready, memory_order_acquire); }
@@ -125,11 +177,29 @@ int juice_runtime_prepare_jit(int universal)
     memcpy((void *)writable, code, sizeof(code));
     flush_code((void *)writable, rx, sizeof(code));
     if (universal) detach_debugger();
-    int answer = ((int (*)(void))rx)();
-    if (answer != 42) {
+    int error = execute_probe(rx);
+    /* Wine PE publication needs a second executable VA, not merely execution
+     * at the address returned by StikDebug. Prove that exact post-detach remap
+     * operation before allowing any Wine entry point to run. */
+    void *mapped = MAP_FAILED;
+    if (!error) {
+        mapped = mmap(NULL, host_page(), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+        if (mapped == MAP_FAILED) error = errno;
+        else {
+            vm_address_t target = (vm_address_t)mapped;
+            current = maximum = 0;
+            result = vm_remap(mach_task_self(), &target, host_page(), 0, VM_FLAGS_FIXED | VM_FLAGS_OVERWRITE,
+                mach_task_self(), (vm_address_t)rx, FALSE, &current, &maximum, VM_INHERIT_NONE);
+            if (result != KERN_SUCCESS || target != (vm_address_t)mapped ||
+                !protections(mapped, host_page(), VM_PROT_READ | VM_PROT_EXECUTE, VM_PROT_WRITE)) error = EACCES;
+            else { sys_icache_invalidate(mapped, host_page()); error = execute_probe(mapped); }
+        }
+    }
+    if (mapped != MAP_FAILED) munmap(mapped, host_page());
+    if (error) {
         vm_deallocate(mach_task_self(), writable, size);
         vm_deallocate(mach_task_self(), (vm_address_t)rx, size);
-        unlock_vm(&previous); return EIO;
+        unlock_vm(&previous); return error;
     }
     arena_write = (void *)writable; arena_execute = rx; arena_used = 65536;
     atomic_store_explicit(&jit_ready, 1, memory_order_release);
@@ -184,14 +254,20 @@ void *juice_runtime_mmap(void *address, size_t length, int prot, int flags, int 
 {
     size_t size;
     if (!juice_size_align(length, host_page(), &size)) { errno = EINVAL; return MAP_FAILED; }
-    const int try_fixed = !!(flags & 0x40000000);
+    int try_fixed = !!(flags & 0x40000000);
     flags &= ~0x40000000;
     sigset_t previous; lock_vm(&previous);
-    if ((flags & MAP_FIXED) && (!juice_vm_contains(&owned, (uintptr_t)address, size) ||
-                               (uintptr_t)address < UINT64_C(0x100000000))) {
-        unlock_vm(&previous); errno = EPERM; return MAP_FAILED;
+    if ((flags & MAP_FIXED) && !juice_vm_contains(&owned, (uintptr_t)address, size)) {
+        if (!span(address, size, &size)) { unlock_vm(&previous); errno = EPERM; return MAP_FAILED; }
+        /* Wine sometimes requests its FIRST allocation at a required address
+         * (notably shared-user data). Use a non-destructive hint and require an
+         * exact result; MAP_FIXED may overwrite only mappings we already own. */
+        flags &= ~MAP_FIXED;
+        try_fixed = 1;
     }
-    if (owned.count >= JUICE_VM_INTERVALS - 2) { unlock_vm(&previous); errno = ENOMEM; return MAP_FAILED; }
+    if (owned.count >= JUICE_VM_INTERVALS - 2 || published.count >= JUICE_VM_INTERVALS - 2) {
+        unlock_vm(&previous); errno = ENOMEM; return MAP_FAILED;
+    }
     /* PE relocation and import fixups happen while NX. Final RX publication is
      * handled below; no anonymous RWX allocation is attempted on stock iOS. */
     void *mapped = mmap(address, size, prot & ~PROT_EXEC, flags, fd, offset);

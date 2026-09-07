@@ -22,7 +22,10 @@ stage()
   echo '::endgroup::'
 }
 stage cross-toolchain make linux-x86_64-preflight
-export IOS_SDK="${IOS_SDK:-$(bash scripts/fetch-ios-sdk-linux.sh --print-path)}"
+export IOS_SDK="${IOS_SDK:-$ROOT/build/deps/theos-sdks/iPhoneOS${JUICE_IOS_SDK_VERSION:-16.5}.sdk}"
+test -d "$IOS_SDK/System/Library/Frameworks/UIKit.framework" || {
+  echo "The preflight did not provision the selected iPhoneOS SDK: $IOS_SDK" >&2; exit 3;
+}
 export JUICE_IOS_TOOLCHAIN="${JUICE_IOS_TOOLCHAIN:-$ROOT/build/ios-toolchain}"
 export JUICE_IOS_ROOTLESS_SYSROOT="${JUICE_IOS_ROOTLESS_SYSROOT:-$ROOT/build/deps/rootless-sysroot}"
 stage support bash scripts/build-embedded-support.sh

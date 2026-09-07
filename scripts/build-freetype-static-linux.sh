@@ -184,13 +184,21 @@ includes = r'''#include <dlfcn.h>
 #include FT_LCD_FILTER_H
 #include FT_SIZES_H
 
+#ifdef JUICE_EMBEDDED
+extern void *juice_runtime_dlopen(const char *, int);
+#endif
+
 static char juice_static_freetype_handle_token;
 static const char juice_static_freetype_name[] = "juice-static-freetype";
 
 void *juice_static_freetype_dlopen(const char *path, int mode)
 {
     if (path && !strcmp(path, juice_static_freetype_name)) return &juice_static_freetype_handle_token;
+#ifdef JUICE_EMBEDDED
+    return juice_runtime_dlopen(path, mode);
+#else
     return dlopen(path, mode);
+#endif
 }
 
 void *juice_static_freetype_dlsym(void *handle, const char *name)

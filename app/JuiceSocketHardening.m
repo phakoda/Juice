@@ -30,7 +30,11 @@ static void JuiceSocketAppend(id self, NSString *line)
 }
 static NSString *JuiceSocketRoot(void)
 {
+#ifdef JUICE_SIDESTORE
+    return [NSTemporaryDirectory() stringByAppendingPathComponent:@"jipc"];
+#else
     return [NSTemporaryDirectory() stringByAppendingPathComponent:@"JuiceSockets"];
+#endif
 }
 static BOOL JuiceSocketTerminating(id self)
 {
@@ -241,7 +245,11 @@ static void JuiceStartListener(id self,BOOL control)
         [NSFileManager.defaultManager createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:&error];
         int permissionError=0;
         if(!error&&chmod(root.fileSystemRepresentation,S_IRWXU))permissionError=errno;
+#ifdef JUICE_SIDESTORE
+        NSString *path=[root stringByAppendingPathComponent:control?@"c":@"d"];
+#else
         NSString *path=[root stringByAppendingPathComponent:control?@"control.sock":@"display.sock"];
+#endif
         JuiceSocketSetValue(self,pathKey,path);
         int listener=-1,saved=error?EACCES:permissionError;
         BOOL ready=!error&&!permissionError&&JuiceBindListener(path,control?4:8,&listener,&saved);

@@ -22,6 +22,7 @@ jobs:
           make verify
           python3 -m unittest discover -s scripts/tests -p 'test_patch_stack.py' -v
           python3 -m unittest discover -s scripts/tests -p 'test_graphics_api.py' -v
+          python3 -m unittest discover -s scripts/tests -p 'test_sidestore_package.py' -v
       - name: Address ownership and integer-boundary tests
         run: bash scripts/test-embedded-policy-host.sh
   app:
@@ -45,6 +46,8 @@ jobs:
               assert not (imports & FORBIDDEN_IMPORTS), (path, imports & FORBIDDEN_IMPORTS)
           print('SIDESTORE_HOST_LINK_AUDIT_OK child_process_imports=0')
           PY
+      - name: Test Darwin guest isolation without enabling JIT
+        run: bash scripts/test-embedded-isolation-host.sh
   ipa:
     needs: [policy, app]
     runs-on: ubuntu-24.04

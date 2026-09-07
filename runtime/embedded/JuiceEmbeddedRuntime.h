@@ -54,6 +54,12 @@ const char *juice_runtime_frameworks(void);
 int juice_runtime_client_socket(void);
 int juice_runtime_standard_fd(int index);
 FILE *juice_runtime_stream(int index);
+ssize_t juice_runtime_read(int fd, void *buffer, size_t size);
+ssize_t juice_runtime_write(int fd, const void *buffer, size_t size);
+int juice_runtime_close(int fd);
+int juice_runtime_dup2(int old_fd, int new_fd);
+mode_t juice_runtime_umask(mode_t mask);
+int juice_runtime_is_guest_thread(void);
 
 /* Called on a non-UIKit worker, only after a real external debugger attaches.
  * mode=0 uses debug-authorized RX mmap; mode=1 uses universal.js PREPARE_REGION.

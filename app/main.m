@@ -1608,6 +1608,9 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
 {
  NSString *runtimeName=self.usingX64?@"Grape-X64":@"Grape";
  NSString *prefixName=self.usingX64?@"GrapePrefix-x86_64":@"GrapePrefix";
+#ifdef JUICE_SIDESTORE
+ prefixName=self.usingX64?@"SideStorePrefix-x64-v1":@"SideStorePrefix-arm64-v1";
+#endif
  self.grape=[NSBundle.mainBundle.bundlePath stringByAppendingPathComponent:runtimeName];
  NSString *base=JuiceDataRoot();
  self.prefix=[base stringByAppendingPathComponent:prefixName];
@@ -1615,6 +1618,11 @@ static JuiceKeyMap JuiceMapHIDUsage(NSUInteger usage)
  [f createDirectoryAtPath:base withIntermediateDirectories:YES attributes:nil error:nil];
  NSString *ready=[self.prefix stringByAppendingPathComponent:@".juice-prefix-ready"];
  self.prefixNeedsInitialization=![f fileExistsAtPath:ready];
+#ifdef JUICE_SIDESTORE
+ /* This backend uses a preseeded prefix and does not run Wineboot. This flag
+  * controls link staging only; do not write the legacy success marker. */
+ self.prefixNeedsInitialization=NO;
+#endif
  if(![f fileExistsAtPath:[self.prefix stringByAppendingPathComponent:@"system.reg"]])
   [f copyItemAtPath:[self.grape stringByAppendingPathComponent:@"prefix-template"] toPath:self.prefix error:nil];
  NSString *dos=[self.prefix stringByAppendingPathComponent:@"dosdevices"];

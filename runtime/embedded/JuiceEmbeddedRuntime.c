@@ -43,8 +43,11 @@ static _Thread_local int role;
 static _Thread_local volatile sig_atomic_t guest_thread_ready;
 struct owned_thread { pthread_t thread; unsigned long native_id; int role, occupied, ready; };
 static struct owned_thread threads[JUICE_EMBEDDED_MAX_THREADS];
-static struct sigaction previous_signals[NSIG], guest_signals[NSIG];
+static struct sigaction previous_signals[NSIG];
+static _Atomic(struct sigaction *) guest_signals[NSIG];
+static unsigned signal_action_count;
 static unsigned char installed_signals[NSIG];
+static _Atomic unsigned private_umask = 0077;
 
 static void report(int event, int code, const char *message)
 {
@@ -62,6 +65,31 @@ FILE *juice_runtime_stream(int index)
 int juice_runtime_stopping(void) { return atomic_load(&stopping); }
 int juice_runtime_consumed(void) { return atomic_load(&consumed); }
 void juice_runtime_request_stop(void) { atomic_store(&stopping, 1); }
+int juice_runtime_is_guest_thread(void) { return role == JUICE_ROLE_GUEST; }
+ssize_t juice_runtime_read(int fd, void *buffer, size_t size)
+{
+    return read(fd >= 0 && fd < 3 ? standard_fds[fd] : fd, buffer, size);
+}
+ssize_t juice_runtime_write(int fd, const void *buffer, size_t size)
+{
+    return write(fd >= 0 && fd < 3 ? standard_fds[fd] : fd, buffer, size);
+}
+int juice_runtime_close(int fd)
+{
+    /* Wine's numeric standard descriptors are logical handles, never ownership
+     * of UIKit's actual 0/1/2. The runtime closes its private copies at teardown. */
+    if (fd >= 0 && fd < 3) return 0;
+    return close(fd);
+}
+int juice_runtime_dup2(int old_fd, int new_fd)
+{
+    if (new_fd >= 0 && new_fd < 3) { errno = EPERM; return -1; }
+    return dup2(old_fd >= 0 && old_fd < 3 ? standard_fds[old_fd] : old_fd, new_fd);
+}
+mode_t juice_runtime_umask(mode_t mask)
+{
+    return (mode_t)atomic_exchange(&private_umask, (unsigned)mask & 0777u);
+}
 
 static int environment_name_valid(const char *name)
 {
@@ -158,12 +186,22 @@ int juice_runtime_configure(const JuiceRuntimeConfiguration *c)
         setvbuf(streams[i], NULL, _IONBF, 0);
     }
     if (!error && socketpair(AF_UNIX, SOCK_STREAM, 0, sockets)) error = errno;
+    char *original_environment[ENV_LIMIT + 1];
+    size_t original_count;
+    pthread_mutex_lock(&env_lock);
+    memcpy(original_environment, environment, sizeof(environment));
+    original_count = environment_count;
+    pthread_mutex_unlock(&env_lock);
     if (!error) {
         for (size_t i = 0; c->environment[i]; ++i) {
             if (i >= ENV_LIMIT - 8 || juice_runtime_putenv(c->environment[i])) { error = E2BIG; break; }
         }
     }
     if (error) {
+        pthread_mutex_lock(&env_lock);
+        memcpy(environment, original_environment, sizeof(environment));
+        environment_count = original_count;
+        pthread_mutex_unlock(&env_lock);
         for (int i = 0; i < 4; ++i) free(paths[i]);
         for (int i = 0; i < 3; ++i) { if (fds[i] >= 0) close(fds[i]); if (streams[i]) fclose(streams[i]); }
         for (int i = 0; i < 2; ++i) if (sockets[i] >= 0) close(sockets[i]);
@@ -208,6 +246,7 @@ struct launch_thread {
     void *(*function)(void *);
     void *argument;
     int role, cwd;
+    size_t slot;
 };
 static void thread_finished(void *slot_pointer)
 {
@@ -229,22 +268,14 @@ static void *thread_entry(void *opaque)
     struct launch_thread request = *(struct launch_thread *)opaque;
     free(opaque);
     role = request.role;
-    size_t slot;
+    size_t slot = request.slot;
     pthread_mutex_lock(&state_lock);
-    for (slot = 0; slot < JUICE_EMBEDDED_MAX_THREADS && threads[slot].occupied; ++slot) {}
-    if (slot == JUICE_EMBEDDED_MAX_THREADS) {
-        runtime_exit_code = EAGAIN; atomic_store(&stopping, 1);
-        pthread_mutex_unlock(&state_lock);
-        if (request.cwd >= 0) close(request.cwd);
-        return NULL;
-    }
     threads[slot] = (struct owned_thread){.thread=pthread_self(), .role=role, .occupied=1};
 #ifdef __APPLE__
     threads[slot].native_id = pthread_mach_thread_np(pthread_self());
 #else
     threads[slot].native_id = (unsigned long)(uintptr_t)pthread_self();
 #endif
-    ++live_threads;
     pthread_mutex_unlock(&state_lock);
     void *result = NULL;
     pthread_cleanup_push(thread_finished, (void *)(uintptr_t)slot);
@@ -266,8 +297,26 @@ static int create_owned_thread(pthread_t *thread, const pthread_attr_t *attr,
     request->function = function; request->argument = argument; request->role = new_role;
     request->cwd = inherit_cwd ? open(".", O_RDONLY | O_CLOEXEC) : -1;
     if (inherit_cwd && request->cwd < 0) { int error = errno; free(request); return error; }
+    pthread_mutex_lock(&state_lock);
+    size_t slot;
+    for (slot = 0; slot < JUICE_EMBEDDED_MAX_THREADS && threads[slot].occupied; ++slot) {}
+    if (slot == JUICE_EMBEDDED_MAX_THREADS || juice_runtime_stopping()) {
+        pthread_mutex_unlock(&state_lock);
+        if (request->cwd >= 0) close(request->cwd);
+        free(request); return EAGAIN;
+    }
+    /* Reserve before pthread_create: unscheduled workers count against the
+     * same bound and cannot race to overcommit the thread table. */
+    threads[slot] = (struct owned_thread){.role=new_role, .occupied=2};
+    ++live_threads; request->slot = slot;
+    pthread_mutex_unlock(&state_lock);
     int error = pthread_create(thread, attr, thread_entry, request);
-    if (error) { if (request->cwd >= 0) close(request->cwd); free(request); }
+    if (error) {
+        pthread_mutex_lock(&state_lock);
+        threads[slot].occupied = 0; --live_threads;
+        pthread_mutex_unlock(&state_lock);
+        if (request->cwd >= 0) close(request->cwd); free(request);
+    }
     return error;
 }
 int juice_runtime_pthread_create(pthread_t *t, const pthread_attr_t *a, void *(*f)(void *), void *p)
@@ -280,7 +329,7 @@ void juice_runtime_mark_guest_thread_ready(void)
     guest_thread_ready = 1;
     pthread_mutex_lock(&state_lock);
     for (size_t i = 0; i < JUICE_EMBEDDED_MAX_THREADS; ++i)
-        if (threads[i].occupied && pthread_equal(threads[i].thread, pthread_self())) threads[i].ready = 1;
+        if (threads[i].occupied == 1 && pthread_equal(threads[i].thread, pthread_self())) threads[i].ready = 1;
     pthread_mutex_unlock(&state_lock);
 }
 int juice_runtime_send_thread_signal(unsigned long id, int sig)
@@ -289,7 +338,7 @@ int juice_runtime_send_thread_signal(unsigned long id, int sig)
     int success = 0;
     pthread_mutex_lock(&state_lock);
     for (size_t i = 0; i < JUICE_EMBEDDED_MAX_THREADS; ++i)
-        if (threads[i].occupied && threads[i].role == JUICE_ROLE_GUEST && threads[i].ready &&
+        if (threads[i].occupied == 1 && threads[i].role == JUICE_ROLE_GUEST && threads[i].ready &&
             threads[i].native_id == id && !pthread_equal(threads[i].thread, pthread_self())) {
             success = !pthread_kill(threads[i].thread, sig); break;
         }
@@ -375,7 +424,8 @@ static void deliver_signal(const struct sigaction *a, int sig, siginfo_t *info, 
 }
 static void dispatch_signal(int sig, siginfo_t *info, void *context)
 {
-    const struct sigaction *a = role == JUICE_ROLE_GUEST && guest_thread_ready ? &guest_signals[sig] : &previous_signals[sig];
+    const struct sigaction *guest = atomic_load_explicit(&guest_signals[sig], memory_order_acquire);
+    const struct sigaction *a = role == JUICE_ROLE_GUEST && guest_thread_ready && guest ? guest : &previous_signals[sig];
     deliver_signal(a, sig, info, context);
 }
 int juice_runtime_sigaction(int sig, const struct sigaction *action, struct sigaction *old)
@@ -383,19 +433,34 @@ int juice_runtime_sigaction(int sig, const struct sigaction *action, struct siga
     if (role != JUICE_ROLE_GUEST || sig <= 0 || sig >= NSIG || sig == SIGKILL || sig == SIGSTOP) { errno = EPERM; return -1; }
     pthread_mutex_lock(&signal_lock);
     if (old) {
-        if (installed_signals[sig]) *old = guest_signals[sig];
+        struct sigaction *saved = atomic_load_explicit(&guest_signals[sig], memory_order_acquire);
+        if (saved) *old = *saved;
         else sigaction(sig, NULL, old);
     }
     int result = 0;
     if (action) {
+        if (signal_action_count >= 4096) { pthread_mutex_unlock(&signal_lock); errno = ENOMEM; return -1; }
+        struct sigaction *saved = malloc(sizeof(*saved));
+        if (!saved) { pthread_mutex_unlock(&signal_lock); return -1; }
+        *saved = *action;
         struct sigaction bridge = *action;
         bridge.sa_flags |= SA_SIGINFO;
         bridge.sa_sigaction = dispatch_signal;
         if (!installed_signals[sig]) {
-            result = sigaction(sig, &bridge, &previous_signals[sig]);
+            /* Signal disposition readers never observe a partially assigned
+             * action. Published snapshots stay alive for the host lifetime. */
+            if (sigaction(sig, NULL, &previous_signals[sig])) { free(saved); pthread_mutex_unlock(&signal_lock); return -1; }
+            atomic_store_explicit(&guest_signals[sig], saved, memory_order_release);
+            result = sigaction(sig, &bridge, NULL);
             if (!result) installed_signals[sig] = 1;
         }
-        if (!result) guest_signals[sig] = *action;
+        if (!result) {
+            atomic_store_explicit(&guest_signals[sig], saved, memory_order_release);
+            ++signal_action_count;
+        } else {
+            atomic_store_explicit(&guest_signals[sig], NULL, memory_order_release);
+            free(saved);
+        }
     }
     pthread_mutex_unlock(&signal_lock);
     return result;

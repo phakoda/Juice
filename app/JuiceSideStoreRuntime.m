@@ -186,7 +186,10 @@ static void RuntimeNotification(void *context, int event, int code, const char *
 - (void)enable
 {
     NSAssert(NSThread.isMainThread, @"JIT requests are main-queue owned");
-    if (juice_runtime_jit_ready()) { [self tryStart]; return; }
+    if (juice_runtime_jit_ready()) {
+        [self.button setTitle:@"JIT ready — Juice app process" forState:UIControlStateNormal];
+        [self tryStart]; return;
+    }
     if (self.opening || self.preparing || self.starting) return;
     if (!Entitled()) {
         self.pending = nil;
@@ -307,6 +310,13 @@ static void RuntimeNotification(void *context, int event, int code, const char *
     self.cancelled = NO;
     CallVoid(self.owner, @"preparePrefix");
     NSString *profileError = JuiceProfilePreparationError(self.owner);
+    NSString *selectedPrefix = Value(self.owner, @"prefix");
+    for (NSString *registry in @[@"system.reg", @"user.reg"]) {
+        NSString *path = [selectedPrefix stringByAppendingPathComponent:registry];
+        NSDictionary *attributes = path ? [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil] : nil;
+        if (![attributes[NSFileSize] unsignedLongLongValue] || ![NSFileManager.defaultManager isReadableFileAtPath:path])
+            profileError = @"The SideStore prefix could not be created. Export the Juice log and check free storage; Wine was not started.";
+    }
     NSString *exe = Call(self.owner, @"resolveExe");
     NSString *root = Value(self.owner, @"grape");
     NSDictionary *preflight = JuiceRuntimePreflight(exe, root, [Value(self.owner, @"usingX64") boolValue], [Value(self.owner, @"usingWin32") boolValue]);
@@ -368,18 +378,23 @@ static void RuntimeNotification(void *context, int event, int code, const char *
     self.outputReader = [[NSFileHandle alloc] initWithFileDescriptor:output[0] closeOnDealloc:YES];
     NSFileHandle *reader = self.outputReader;
     __weak typeof(self) weakSelf = self;
+    NSMutableData *partialUTF8 = [NSMutableData data];
     reader.readabilityHandler = ^(NSFileHandle *handle) {
-        @try {
-            NSData *data = [handle availableData];
-            if (!data.length) { handle.readabilityHandler = nil; return; }
-            NSString *line = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-            if (!line) {
-                NSMutableData *clean = [NSMutableData dataWithLength:data.length * 3]; size_t consumed = 0;
-                size_t used = JuiceUTF8Sanitize(data.bytes, data.length, clean.mutableBytes, clean.length, &consumed);
-                line = [[NSString alloc] initWithBytes:clean.bytes length:used encoding:NSUTF8StringEncoding];
-            }
+        @synchronized(handle) { @try {
+            uint8_t bytes[16384];
+            ssize_t count;
+            do { count = read(handle.fileDescriptor, bytes, sizeof(bytes)); } while (count < 0 && errno == EINTR);
+            if (count < 0) { if (errno != EAGAIN) handle.readabilityHandler = nil; return; }
+            if (count > 0) [partialUTF8 appendBytes:bytes length:(NSUInteger)count];
+            size_t complete = count ? JuiceUTF8CompletePrefix(partialUTF8.bytes, partialUTF8.length) : partialUTF8.length;
+            uint8_t sanitized[(16384 + 4) * 3]; size_t consumed = 0;
+            size_t used = JuiceUTF8Sanitize(partialUTF8.bytes, complete, sanitized, sizeof(sanitized), &consumed);
+            NSString *line = [[NSString alloc] initWithBytes:sanitized length:used encoding:NSUTF8StringEncoding];
+            if (consumed) [partialUTF8 replaceBytesInRange:NSMakeRange(0, consumed) withBytes:NULL length:0];
+            if (partialUTF8.length > 4) [partialUTF8 setLength:0]; /* bounded even on malformed input */
             if (line.length) Log(weakSelf.owner, line);
-        } @catch (__unused NSException *exception) { handle.readabilityHandler = nil; }
+            if (!count) handle.readabilityHandler = nil;
+        } @catch (__unused NSException *exception) { handle.readabilityHandler = nil; }}
     };
     NSString *frameworks = NSBundle.mainBundle.privateFrameworksPath;
     int inputRead = input[0], outputWrite = output[1], inputWrite = input[1];

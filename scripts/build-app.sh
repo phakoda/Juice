@@ -42,7 +42,7 @@ case "$OUT" in "$ROOT"/build/*) ;; *) test "${JUICE_ALLOW_EXTERNAL_BUILD:-0}" = 
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-backend_sources=("$ROOT/app/JuiceStikDebugJIT.m" "$ROOT/app/JuiceLaunchHardening.m")
+backend_sources=("$ROOT/app/JuiceStikDebugJIT.m" "$ROOT/app/JuiceLaunchHardening.m" "$ROOT/app/JuiceLegacyWin32.m")
 backend_flags=()
 if test "${JUICE_SIDESTORE:-0}" = 1; then
   backend_sources=("$ROOT/app/JuiceSideStoreRuntime.m")
@@ -51,9 +51,9 @@ if test "${JUICE_SIDESTORE:-0}" = 1; then
     -Wl,-rpath,@executable_path/Frameworks -Wl,-headerpad_max_install_names)
 fi
 "$CC" "${target_flags[@]}" -fobjc-arc -fblocks -O2 \
-  "$ROOT/app/main.m" "${backend_sources[@]}" "${backend_flags[@]}" \
+  "$ROOT/app/main.m" "${backend_sources[@]}" ${backend_flags[@]+"${backend_flags[@]}"} \
   "$ROOT/app/JuiceZip.m" "$ROOT/app/JuicePrefixRepair.m" \
-  "$ROOT/app/JuiceApiSetBootstrap.m" "$ROOT/app/JuiceLegacyWin32.m" \
+  "$ROOT/app/JuiceApiSetBootstrap.m" \
   "$ROOT/app/JuiceLogExport.m" "$ROOT/app/JuiceMultiWindowFix.m" \
   "$ROOT/app/JuiceFramebufferFix.m" "$ROOT/app/JuiceBootProgress.m" \
   "$ROOT/app/JuiceMetalCore.m" "$ROOT/app/JuiceMetalCompositor.m" "$ROOT/app/JuicePresentationPolicy.c" \

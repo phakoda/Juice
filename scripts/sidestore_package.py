@@ -34,6 +34,8 @@ NATIVE_COMPONENTS = {
 }
 FORBIDDEN_IMPORTS = {"_fork", "_vfork", "_kill", "_killpg", "_execve", "_execv", "_execvp",
                      "_execl", "_execle", "_execlp", "_posix_spawn", "_posix_spawnp", "_ptrace"}
+WINE_HOST_MUTATIONS = {"_exit", "__exit", "_abort", "___assert_rtn", "_sigaction", "_signal",
+                       "_chdir", "_fchdir", "_setenv", "_unsetenv", "_putenv", "_umask", "_dup2"}
 
 class PackageError(ValueError):
     pass
@@ -109,6 +111,8 @@ def symbols(data: bytes) -> tuple[set[str], set[str]]:
     for kind, command in commands:
         if kind != 2:
             continue
+        if len(command) != 24:
+            raise PackageError("invalid Mach-O symbol command size")
         symoff, count, stroff, strsize = struct.unpack_from("<4I", command, 8)
         if count > 4 * 1024 * 1024 or symoff + count * 16 > len(data) or stroff + strsize > len(data):
             raise PackageError("invalid Mach-O symbol table")
@@ -251,6 +255,8 @@ def audit_app(app: Path) -> dict:
             forbidden = imports & FORBIDDEN_IMPORTS
             if forbidden:
                 raise PackageError(f"privileged process imports remain in {relative}: {sorted(forbidden)}")
+        if path.name in NATIVE_COMPONENTS.values() and imports & WINE_HOST_MUTATIONS:
+            raise PackageError(f"unisolated Wine process-global operations: {relative}: {sorted(imports & WINE_HOST_MUTATIONS)}")
         exported = {"JuiceNTDLL": {"_JuiceEmbeddedWineABI", "_JuiceEmbeddedWineMain"},
                     "JuiceWineServer": {"_JuiceEmbeddedWineServerABI", "_JuiceEmbeddedWineServerMain"},
                     "JuiceRuntimeSupport": {"_juice_runtime_start", "_juice_runtime_prepare_jit", "_juice_runtime_configure"}}.get(path.name, set())

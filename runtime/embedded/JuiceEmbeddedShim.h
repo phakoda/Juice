@@ -16,6 +16,11 @@
 #define putenv juice_runtime_putenv
 #define chdir juice_runtime_chdir
 #define fchdir juice_runtime_fchdir
+#define read juice_runtime_read
+#define write juice_runtime_write
+#define close juice_runtime_close
+#define dup2 juice_runtime_dup2
+#define umask juice_runtime_umask
 #define pthread_create juice_runtime_pthread_create
 #define sigaction(...) juice_runtime_sigaction(__VA_ARGS__)
 #define signal juice_runtime_signal
